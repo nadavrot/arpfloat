@@ -11,16 +11,16 @@ fn test_masking() {
 }
 
 /// Add the hidden bit to the significant.
-fn expand_significant(num: u64, bits: u64) -> u64 {
+fn add_msb_bit(num: u64, bits: u64) -> u64 {
     assert!(num < (1 << bits));
     (1 << bits) + num
 }
 
 #[test]
 fn test_expand() {
-    assert_eq!(expand_significant(127, 7), 255);
-    assert_eq!(expand_significant(0, 1), 2);
-    assert_eq!(expand_significant(15, 10), 1024 + 15);
+    assert_eq!(add_msb_bit(127, 7), 255);
+    assert_eq!(add_msb_bit(0, 1), 2);
+    assert_eq!(add_msb_bit(15, 10), 1024 + 15);
 }
 
 /// Cast \p input from \p from to \p to bits, and preserve the MSB bits.
@@ -158,8 +158,7 @@ impl<const EXPONENT: usize, const SIGNIFICANT: usize>
 
     /// Sets the biased exponent to \p new_exp.
     pub fn set_exp(&mut self, new_exp: i64) {
-        let exp_min: i64 = -(Self::get_bias() as i64);
-        let exp_max: i64 = ((1 << EXPONENT) - Self::get_bias()) as i64;
+        let (exp_min, exp_max) = Self::get_exp_bounds();
         assert!(new_exp <= exp_max);
         assert!(exp_min <= new_exp);
 
@@ -178,6 +177,13 @@ impl<const EXPONENT: usize, const SIGNIFICANT: usize>
 
     pub fn get_bias() -> u64 {
         Self::get_float_bias(EXPONENT) as u64
+    }
+
+    /// \returns the bounds of the upper and lower bounds of the exponent.
+    pub fn get_exp_bounds() -> (i64, i64) {
+        let exp_min: i64 = -(Self::get_bias() as i64);
+        let exp_max: i64 = ((1 << EXPONENT) - Self::get_bias()) as i64;
+        (exp_min, exp_max)
     }
 
     pub fn cast<const E: usize, const S: usize>(&self) -> Float<E, S> {
@@ -326,27 +332,37 @@ pub fn add<const E: usize, const S: usize>(
     let exp_delta = x.get_exp() - y.get_exp();
     let mut er = x.get_exp();
     // Addition of the significant.
-    let y_significant =
-        expand_significant(y.get_significant(), S as u64) >> exp_delta;
-    let mut xy_significant =
-        expand_significant(x.get_significant(), S as u64) + y_significant;
 
-    println!("y_significant = {}", y_significant);
-    println!("xy_significant = {}", xy_significant);
-    println!("er = {}", er);
-    println!("exp_delta = {}", exp_delta);
+    let y_significant =
+        add_msb_bit(y.get_significant(), S as u64) >> (exp_delta);
+    let x_significant = add_msb_bit(x.get_significant(), S as u64);
+
+    let is_plus = x.get_sign() == y.get_sign();
+    let mut xy_significant = if is_plus {
+        x_significant + y_significant
+    } else {
+        x_significant - y_significant
+    };
 
     let overflow = xy_significant >> S;
-    println!("overflow {}", overflow);
+
     // Handle the case where there was a carry out in the significant addition.
     match overflow {
         0 => {
-            // Cancellation happened. Need to handle this case.
-            let lz = xy_significant.leading_zeros() as u64;
-            let _lz = lz - 64 + S as u64;
+            // Cancellation happened, we need to normalize the number.
             // Shift xy_significant to the left, and subtract from the exponent
             // until you underflow or until xy_sig is normalized.
-            panic!("Handle this case for subtraction.");
+            let lz = xy_significant.leading_zeros() as u64;
+            let expected_zeros = 64 - (S + 1) as u64;
+            let lz = lz - expected_zeros;
+
+            let lower_bound = Float::<E, S>::get_exp_bounds().0;
+            // How far can we lower the exponent.
+            let delta_to_min = er - lower_bound;
+
+            let shift = delta_to_min.min(lz as i64);
+            xy_significant <<= shift;
+            er -= shift;
         }
         1 => {
             // Nothing to do.
@@ -371,8 +387,15 @@ pub fn add<const E: usize, const S: usize>(
 
 #[test]
 fn test_addition() {
-    let a = FP32::from_f32(f32::from_bits(0x40000000));
-    let b = add(a, a);
-    b.dump();
-    println!("a = {}, c = {}", a.as_f32(), b.as_f32());
+    fn add_helper(a: f32, b: f32) -> f32 {
+        let a = FP32::from_f32(a);
+        let b = FP32::from_f32(b);
+        let c = add(a, b);
+        c.as_f32()
+    }
+
+    assert_eq!(add_helper(8., -4.), 4.);
+    assert_eq!(add_helper(8., 4.), 12.);
+    assert_eq!(add_helper(128., 2.), 130.);
+    assert_eq!(add_helper(128., -8.), 120.);
 }
