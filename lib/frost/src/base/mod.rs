@@ -48,11 +48,15 @@ impl<const EXPONENT: usize, const SIGNIFICANT: usize>
         a
     }
 
-    pub fn from_u32_float(float: u32) -> Float<EXPONENT, SIGNIFICANT> {
-        Self::from_bytes::<8, 23>(float as u64)
+    pub fn from_f32(float: f32) -> Float<EXPONENT, SIGNIFICANT> {
+        Self::from_bits::<8, 23>(float.to_bits() as u64)
     }
 
-    pub fn from_bytes<const E: usize, const S: usize>(
+    pub fn from_f64(float: f64) -> Float<EXPONENT, SIGNIFICANT> {
+        Self::from_bits::<11, 52>(float.to_bits())
+    }
+
+    pub fn from_bits<const E: usize, const S: usize>(
         float: u64,
     ) -> Float<EXPONENT, SIGNIFICANT> {
         // Extract the biased exponent (wipe the sign and significant).
@@ -182,7 +186,7 @@ fn setter_test() {
 fn test_conversion_wide_range() {
     for i in 0..1 << 16 {
         let val = f32::from_bits(i);
-        let a = FP64::from_u32_float(val.to_bits());
+        let a = FP64::from_f32(val);
         let b: FP32 = a.cast();
         let res = b.as_f32();
         assert_eq!(res.to_bits(), i);
@@ -196,9 +200,7 @@ fn constructor_test() {
 
     for i in 0..5 {
         let output = f32::from_bits(values[i]);
-        let k = output as f64 as f32;
-        assert!(k == output);
-        let a = FP64::from_u32_float(values[i]);
+        let a = FP64::from_f32(output);
         let b: FP32 = a.cast();
         assert_eq!(a.as_f32(), output);
         assert_eq!(b.as_f32(), output);
