@@ -337,9 +337,14 @@ pub fn add<const E: usize, const S: usize>(
         add_msb_bit(y.get_significant(), S as u64) >> (exp_delta);
     let x_significant = add_msb_bit(x.get_significant(), S as u64);
 
+    let mut is_neg = x.is_negative();
+
     let is_plus = x.get_sign() == y.get_sign();
     let mut xy_significant = if is_plus {
         x_significant + y_significant
+    } else if y_significant > x_significant {
+        is_neg ^= true;
+        y_significant - x_significant
     } else {
         x_significant - y_significant
     };
@@ -375,13 +380,14 @@ pub fn add<const E: usize, const S: usize>(
             panic!("Invalid overflow value");
         }
     }
-    if overflow > 1 {}
+
     // TODO: handle the case where there was a cancellation in the significant
     // addition.
 
     let mut r = Float::<E, S>::default();
     r.set_significant(xy_significant & mask(S) as u64);
     r.set_exp(er);
+    r.set_sign(is_neg);
     r
 }
 
@@ -398,4 +404,10 @@ fn test_addition() {
     assert_eq!(add_helper(8., 4.), 12.);
     assert_eq!(add_helper(128., 2.), 130.);
     assert_eq!(add_helper(128., -8.), 120.);
+    assert_eq!(add_helper(64., -60.), 4.);
+    assert_eq!(add_helper(69., -65.), 4.);
+    assert_eq!(add_helper(69., 69.), 138.);
+    assert_eq!(add_helper(69., 1.), 70.);
+    assert_eq!(add_helper(-128., -8.), -136.);
+    assert_eq!(add_helper(64., -65.), -1.);
 }
