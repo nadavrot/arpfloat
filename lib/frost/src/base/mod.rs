@@ -89,10 +89,7 @@ impl<const EXPONENT: usize, const SIGNIFICANT: usize>
         let mut x = Float::<E, S>::default();
         x.set_sign(self.get_sign());
         x.set_exp(self.get_exp());
-        println!("src_S ={}  dest_S= {}", SIGNIFICANT, S);
-        println!("src = {:x}", self.get_significant());
         let sig = Self::cast_msb_values(self.get_significant(), SIGNIFICANT, S);
-        println!("dest = {:x}", sig);
         x.set_significant(sig);
         x
     }
@@ -145,6 +142,18 @@ fn setter_test() {
     let mut b = a;
     b.set_exp(b.get_exp());
     assert_eq!(a.get_exp(), b.get_exp());
+}
+
+#[test]
+fn test_conversion_wide_range() {
+    for i in 0..1<<16 {
+            let val = f32::from_bits(i as u32);
+            let a = FP64::from_u32_float(val.to_bits());
+            let b: FP32 = a.cast();
+            let res = b.as_f32();
+            assert_eq!(res.to_bits(), i);
+    }
+
 }
 
 #[test]
