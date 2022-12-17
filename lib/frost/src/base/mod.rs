@@ -351,6 +351,15 @@ pub fn add<const E: usize, const S: usize>(
         y_significant - x_significant
     };
 
+    // Handle the case of cancellation (zero or very close to zero).
+    if xy_significant == 0 {
+        let mut r = Float::<E, S>::default();
+        r.set_significant(0);
+        r.set_unbiased_exp(0);
+        r.set_sign(is_neg);
+        return r;
+    }
+
     let overflow = xy_significant >> S;
 
     // Handle the case where there was a carry out in the significant addition.
@@ -414,6 +423,8 @@ fn test_addition() {
     assert_eq!(add_helper(64., -65.), -1.);
     assert_eq!(add_helper(-64., -65.), -129.);
     assert_eq!(add_helper(-15., -15.), -30.);
+
+    assert_eq!(add_helper(-15., 15.), 0.);
 
     for i in 1..15 {
         for j in i..15 {
