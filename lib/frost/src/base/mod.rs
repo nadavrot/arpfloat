@@ -200,8 +200,6 @@ impl<const EXPONENT: usize, const SIGNIFICANT: usize>
     }
 
     fn as_native_float<const E: usize, const S: usize>(&self) -> u64 {
-        assert!(SIGNIFICANT == 23);
-        assert!(EXPONENT == 8);
         // https://en.wikipedia.org/wiki/IEEE_754
         let mut bits: u64 = self.get_sign() as u64;
         bits <<= E;
@@ -340,13 +338,17 @@ pub fn add<const E: usize, const S: usize>(
     let mut is_neg = x.is_negative();
 
     let is_plus = x.get_sign() == y.get_sign();
+    // Handle the 3 cases of significant computation:
     let mut xy_significant = if is_plus {
+        // Add the aligned significant.
         x_significant + y_significant
-    } else if y_significant > x_significant {
+    } else if x_significant >= y_significant {
+        // Subtraction without underflow: just subtract the values.
+        x_significant - y_significant
+    } else {
+        // Subtraction with underflow, remember to negate the value.
         is_neg ^= true;
         y_significant - x_significant
-    } else {
-        x_significant - y_significant
     };
 
     let overflow = xy_significant >> S;
@@ -372,7 +374,7 @@ pub fn add<const E: usize, const S: usize>(
         1 => {
             // Nothing to do.
         }
-        2 => {
+        2 | 3 => {
             xy_significant >>= 1;
             er += 1;
         }
@@ -393,11 +395,11 @@ pub fn add<const E: usize, const S: usize>(
 
 #[test]
 fn test_addition() {
-    fn add_helper(a: f32, b: f32) -> f32 {
-        let a = FP32::from_f32(a);
-        let b = FP32::from_f32(b);
+    fn add_helper(a: f64, b: f64) -> f64 {
+        let a = FP64::from_f64(a);
+        let b = FP64::from_f64(b);
         let c = add(a, b);
-        c.as_f32()
+        c.as_f64()
     }
 
     assert_eq!(add_helper(8., -4.), 4.);
@@ -410,4 +412,15 @@ fn test_addition() {
     assert_eq!(add_helper(69., 1.), 70.);
     assert_eq!(add_helper(-128., -8.), -136.);
     assert_eq!(add_helper(64., -65.), -1.);
+    assert_eq!(add_helper(-64., -65.), -129.);
+    assert_eq!(add_helper(-15., -15.), -30.);
+
+    for i in 1..15 {
+        for j in i..15 {
+            assert_eq!(
+                add_helper(f64::from(j), f64::from(i)),
+                f64::from(i) + f64::from(j)
+            );
+        }
+    }
 }
