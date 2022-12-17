@@ -48,6 +48,41 @@ impl<const EXPONENT: usize, const SIGNIFICANT: usize>
         a
     }
 
+    pub fn inf(sign: bool) -> Float<EXPONENT, SIGNIFICANT> {
+        let mut a = Self::default();
+        a.set_sign(sign);
+        a.set_unbiased_exp(mask(EXPONENT) as u64);
+        a.set_significant(0);
+        a
+    }
+    pub fn nan(sign: bool) -> Float<EXPONENT, SIGNIFICANT> {
+        let mut a = Self::default();
+        a.set_sign(sign);
+        a.set_unbiased_exp(mask(EXPONENT) as u64);
+        a.set_significant((1 << SIGNIFICANT) - 1);
+        a
+    }
+
+    /// \returns True if the Float has the signaling exponent.
+    fn in_special_exp(&self) -> bool {
+        self.get_unbiased_exp() == mask(EXPONENT) as u64
+    }
+
+    /// \returns True if the Float is negative
+    pub fn is_negative(&self) -> bool {
+        self.get_sign()
+    }
+
+    /// \returns True if the Float is a positive or negative infinity.
+    pub fn is_inf(&self) -> bool {
+        self.in_special_exp() && self.get_significant() == 0
+    }
+
+    /// \returns True if the Float is a positive or negative NaN.
+    pub fn is_nan(&self) -> bool {
+        self.in_special_exp() && self.get_significant() != 0
+    }
+
     pub fn from_f32(float: f32) -> Float<EXPONENT, SIGNIFICANT> {
         Self::from_bits::<8, 23>(float.to_bits() as u64)
     }
@@ -98,6 +133,11 @@ impl<const EXPONENT: usize, const SIGNIFICANT: usize>
         self.sig = sg;
     }
 
+    /// \returns the unbiased exponent.
+    pub fn get_unbiased_exp(&self) -> u64 {
+        self.exp
+    }
+
     /// \returns the biased exponent.
     pub fn get_exp(&self) -> i64 {
         self.exp as i64 - Self::get_bias() as i64
@@ -114,6 +154,10 @@ impl<const EXPONENT: usize, const SIGNIFICANT: usize>
         self.exp = new_exp as u64
     }
 
+    /// Sets the unbiased exponent to \p new_exp.
+    pub fn set_unbiased_exp(&mut self, new_exp: u64) {
+        self.exp = new_exp
+    }
     // \returns the bias for this Float type.
     pub fn get_float_bias(exponent_bits: usize) -> usize {
         (1 << (exponent_bits - 1)) - 1
@@ -127,6 +171,10 @@ impl<const EXPONENT: usize, const SIGNIFICANT: usize>
         let mut x = Float::<E, S>::default();
         x.set_sign(self.get_sign());
         x.set_exp(self.get_exp());
+        // Handle Nan/Inf.
+        if self.in_special_exp() {
+            x.set_unbiased_exp(mask(E) as u64);
+        }
         let sig = cast_msb_values::<SIGNIFICANT, S>(self.get_significant());
         x.set_significant(sig);
         x
@@ -204,5 +252,51 @@ fn constructor_test() {
         let b: FP32 = a.cast();
         assert_eq!(a.as_f32(), output);
         assert_eq!(b.as_f32(), output);
+    }
+}
+
+#[test]
+fn test_nan_inf() {
+    {
+        let a = FP32::from_f32(f32::from_bits(0x3f8fffff));
+        assert!(!a.is_inf());
+        assert!(!a.is_nan());
+        assert!(!a.is_negative());
+    }
+    {
+        let a = FP32::from_f32(f32::from_bits(0xf48fffff));
+        assert!(!a.is_inf());
+        assert!(!a.is_nan());
+        assert!(a.is_negative());
+    }
+    {
+        let a = FP32::from_f32(f32::from_bits(0xff800000)); // -Inf
+        assert!(a.is_inf());
+        assert!(!a.is_nan());
+        assert!(a.is_negative());
+    }
+    {
+        let a = FP32::from_f32(f32::from_bits(0xffc00000)); // -Nan.
+        assert!(!a.is_inf());
+        assert!(a.is_nan());
+        assert!(a.is_negative());
+    }
+
+    {
+        let mut a = FP64::from_f64(f64::from_bits((mask(32) << 32) as u64));
+        assert!(!a.is_inf());
+        assert!(a.is_nan());
+        a.set_significant(0);
+        assert!(a.is_inf());
+        assert!(!a.is_nan());
+        assert!(a.is_negative());
+    }
+    {
+        // Check that casting propagates inf/nan.
+        let a = FP32::from_f32(f32::from_bits(0xff800000)); // -Inf
+        let b: FP64 = a.cast();
+        assert!(b.is_inf());
+        assert!(!b.is_nan());
+        assert!(b.is_negative());
     }
 }
