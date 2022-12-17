@@ -1,3 +1,32 @@
+/// \returns a mask full of 1s, of \p b bits.
+fn mask(b: usize) -> usize {
+    (1 << (b)) - 1
+}
+
+#[test]
+fn test_masking() {
+    assert_eq!(mask(0), 0x0);
+    assert_eq!(mask(1), 0x1);
+    assert_eq!(mask(8), 255);
+}
+
+/// Cast \p input from \p from to \p to bits, and preserve the MSB bits.
+fn cast_msb_values<const FROM: usize, const TO: usize>(input: u64) -> u64 {
+    if FROM > TO {
+        // [....xxxxxxxx]
+        // [.........yyy]
+        return input >> (FROM - TO);
+    }
+    // [.......xxxxx]
+    // [....yyyyyyyy]
+    input << (TO - FROM)
+}
+
+#[test]
+fn test_msb_cast() {
+    assert_eq!(cast_msb_values::<8, 32>(0xff), 0xff000000);
+}
+
 #[derive(Debug, Clone, Copy, Default)]
 pub struct Float<const EXPONENT: usize, const SIGNIFICANT: usize> {
     // The Sign bit.
@@ -20,13 +49,23 @@ impl<const EXPONENT: usize, const SIGNIFICANT: usize>
     }
 
     pub fn from_u32_float(float: u32) -> Float<EXPONENT, SIGNIFICANT> {
-        let integral = float & 0x7fffff;
-        let exp: i64 = ((float >> 23) & 0xff) as i64;
-        let sign = float >> 31;
+        Self::from_bytes::<8, 23>(float as u64)
+    }
+
+    pub fn from_bytes<const E: usize, const S: usize>(
+        float: u64,
+    ) -> Float<EXPONENT, SIGNIFICANT> {
+        // Extract the biased exponent (wipe the sign and significant).
+        let biased_exp = (float >> S) & mask(E) as u64;
+        // Wipe the exponent and significant.
+        let sign = (float >> (E + S)) & 1;
+        // Wipe the sign and exponent.
+        let integral = float & mask(S) as u64;
+
         let mut a = Self::default();
         a.set_sign(sign == 1);
-        a.set_exp(exp - 127);
-        let integral = Self::cast_msb_values(integral as u64, 23, SIGNIFICANT);
+        a.set_exp(biased_exp as i64 - Self::get_float_bias(E) as i64);
+        let integral = cast_msb_values::<S, SIGNIFICANT>(integral);
         a.set_significant(integral);
         a
     }
@@ -43,13 +82,15 @@ impl<const EXPONENT: usize, const SIGNIFICANT: usize>
 
     /// \returns the significant (without the leading 1).
     pub fn get_significant(&self) -> u64 {
+        let max_sig: u64 = 1 << SIGNIFICANT;
+        assert!(self.sig < max_sig, "Significant out of range");
         self.sig
     }
 
     /// Sets the significant to \p sg.
     pub fn set_significant(&mut self, sg: u64) {
         let max_sig: u64 = 1 << SIGNIFICANT;
-        assert!(sg < max_sig, "Significant out of range");
+        assert!(sg <= max_sig, "Significant out of range");
         self.sig = sg;
     }
 
@@ -69,27 +110,20 @@ impl<const EXPONENT: usize, const SIGNIFICANT: usize>
         self.exp = new_exp as u64
     }
 
-    pub fn get_bias() -> u64 {
-        (1 << (EXPONENT - 1)) - 1
+    // \returns the bias for this Float type.
+    pub fn get_float_bias(exponent_bits: usize) -> usize {
+        (1 << (exponent_bits - 1)) - 1
     }
 
-    /// Cast \p input from \p from to \p to bits, and preserve the MSB bits.
-    fn cast_msb_values(input: u64, from: usize, to: usize) -> u64 {
-        if from > to {
-            // [....xxxxxxxx]
-            // [.........yyy]
-            return input >> (from - to);
-        }
-        // [.......xxxxx]
-        // [....yyyyyyyy]
-        input << (to - from)
+    pub fn get_bias() -> u64 {
+        Self::get_float_bias(EXPONENT) as u64
     }
 
     pub fn cast<const E: usize, const S: usize>(&self) -> Float<E, S> {
         let mut x = Float::<E, S>::default();
         x.set_sign(self.get_sign());
         x.set_exp(self.get_exp());
-        let sig = Self::cast_msb_values(self.get_significant(), SIGNIFICANT, S);
+        let sig = cast_msb_values::<SIGNIFICANT, S>(self.get_significant());
         x.set_significant(sig);
         x
     }
@@ -147,7 +181,7 @@ fn setter_test() {
 #[test]
 fn test_conversion_wide_range() {
     for i in 0..1 << 16 {
-        let val = f32::from_bits(i as u32);
+        let val = f32::from_bits(i);
         let a = FP64::from_u32_float(val.to_bits());
         let b: FP32 = a.cast();
         let res = b.as_f32();
