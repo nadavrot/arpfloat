@@ -26,7 +26,8 @@ impl<const EXPONENT: usize, const SIGNIFICANT: usize>
         let mut a = Self::default();
         a.set_sign(sign == 1);
         a.set_exp(exp - 127);
-        a.set_significant(integral as u64);
+        let integral = Self::cast_msb_values(integral as u64, 23, SIGNIFICANT);
+        a.set_significant(integral);
         a
     }
 
@@ -88,7 +89,10 @@ impl<const EXPONENT: usize, const SIGNIFICANT: usize>
         let mut x = Float::<E, S>::default();
         x.set_sign(self.get_sign());
         x.set_exp(self.get_exp());
+        println!("src_S ={}  dest_S= {}", SIGNIFICANT, S);
+        println!("src = {:x}", self.get_significant());
         let sig = Self::cast_msb_values(self.get_significant(), SIGNIFICANT, S);
+        println!("dest = {:x}", sig);
         x.set_significant(sig);
         x
     }
@@ -121,7 +125,7 @@ impl<const EXPONENT: usize, const SIGNIFICANT: usize>
         let significant = self.get_significant();
         let sign = self.get_sign() as usize;
         println!(
-            "FP[S={} : E={} (biased {}) :SI={}]",
+            "FP[S={} : E={} (biased {}) :SI=0x{:x}]",
             sign, self.exp, exp, significant
         );
     }
@@ -154,14 +158,7 @@ fn constructor_test() {
         assert!(k == output);
         let a = FP64::from_u32_float(values[i]);
         let b: FP32 = a.cast();
-        a.dump();
-        b.dump();
-        println!(
-            "{:x} == {:x} == {:x}",
-            b.as_f32().to_bits(),
-            (output).to_bits(),
-            values[i]
-        );
         assert_eq!(a.as_f32(), output);
+        assert_eq!(b.as_f32(), output);
     }
 }
