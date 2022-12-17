@@ -10,6 +10,19 @@ fn test_masking() {
     assert_eq!(mask(8), 255);
 }
 
+/// Add the hidden bit to the significant.
+fn expand_significant(num: u64, bits: u64) -> u64 {
+    assert!(num < (1 << bits));
+    (1 << bits) + num
+}
+
+#[test]
+fn test_expand() {
+    assert_eq!(expand_significant(127, 7), 255);
+    assert_eq!(expand_significant(0, 1), 2);
+    assert_eq!(expand_significant(15, 10), 1024 + 15);
+}
+
 /// Cast \p input from \p from to \p to bits, and preserve the MSB bits.
 fn cast_msb_values<const FROM: usize, const TO: usize>(input: u64) -> u64 {
     if FROM > TO {
@@ -122,7 +135,7 @@ impl<const EXPONENT: usize, const SIGNIFICANT: usize>
     /// \returns the significant (without the leading 1).
     pub fn get_significant(&self) -> u64 {
         let max_sig: u64 = 1 << SIGNIFICANT;
-        assert!(self.sig < max_sig, "Significant out of range");
+        assert!(self.sig <= max_sig, "Significant out of range");
         self.sig
     }
 
@@ -189,7 +202,7 @@ impl<const EXPONENT: usize, const SIGNIFICANT: usize>
         bits |= (self.get_exp() + Self::get_bias() as i64) as u64;
         bits <<= S;
         let sig = self.get_significant();
-        assert!(sig < 1 << S);
+        assert!(sig <= 1 << S);
         bits |= sig;
         bits
     }
@@ -299,4 +312,67 @@ fn test_nan_inf() {
         assert!(!b.is_nan());
         assert!(b.is_negative());
     }
+}
+
+// See Chapter 8. Algorithms for the Five Basic Operations -- Pg 248
+pub fn add<const E: usize, const S: usize>(
+    x: Float<E, S>,
+    y: Float<E, S>,
+) -> Float<E, S> {
+    assert!(x.get_exp() >= y.get_exp());
+    assert!(!x.in_special_exp() && !y.in_special_exp());
+
+    // Significant alignment.
+    let exp_delta = x.get_exp() - y.get_exp();
+    let mut er = x.get_exp();
+    // Addition of the significant.
+    let y_significant =
+        expand_significant(y.get_significant(), S as u64) >> exp_delta;
+    let mut xy_significant =
+        expand_significant(x.get_significant(), S as u64) + y_significant;
+
+    println!("y_significant = {}", y_significant);
+    println!("xy_significant = {}", xy_significant);
+    println!("er = {}", er);
+    println!("exp_delta = {}", exp_delta);
+
+    let overflow = xy_significant >> S;
+    println!("overflow {}", overflow);
+    // Handle the case where there was a carry out in the significant addition.
+    match overflow {
+        0 => {
+            // Cancellation happened. Need to handle this case.
+            let lz = xy_significant.leading_zeros() as u64;
+            let _lz = lz - 64 + S as u64;
+            // Shift xy_significant to the left, and subtract from the exponent
+            // until you underflow or until xy_sig is normalized.
+            panic!("Handle this case for subtraction.");
+        }
+        1 => {
+            // Nothing to do.
+        }
+        2 => {
+            xy_significant >>= 1;
+            er += 1;
+        }
+        _default => {
+            panic!("Invalid overflow value");
+        }
+    }
+    if overflow > 1 {}
+    // TODO: handle the case where there was a cancellation in the significant
+    // addition.
+
+    let mut r = Float::<E, S>::default();
+    r.set_significant(xy_significant & mask(S) as u64);
+    r.set_exp(er);
+    r
+}
+
+#[test]
+fn test_addition() {
+    let a = FP32::from_f32(f32::from_bits(0x40000000));
+    let b = add(a, a);
+    b.dump();
+    println!("a = {}, c = {}", a.as_f32(), b.as_f32());
 }
