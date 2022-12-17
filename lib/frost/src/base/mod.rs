@@ -184,12 +184,12 @@ fn setter_test() {
 
 #[test]
 fn test_conversion_wide_range() {
-    for i in 0..1 << 16 {
-        let val = f32::from_bits(i);
+    for i in 0..(1 << 16) {
+        let val = f32::from_bits(i << 16);
         let a = FP64::from_f32(val);
         let b: FP32 = a.cast();
         let res = b.as_f32();
-        assert_eq!(res.to_bits(), i);
+        assert_eq!(res.to_bits(), (i << 16));
     }
 }
 
