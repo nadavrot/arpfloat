@@ -11,7 +11,6 @@ pub struct Float<const EXPONENT: usize, const SIGNIFICANT: usize> {
 impl<const EXPONENT: usize, const SIGNIFICANT: usize>
     Float<EXPONENT, SIGNIFICANT>
 {
-
     pub fn new(sign: bool, exp: i64, sig: u64) -> Float<EXPONENT, SIGNIFICANT> {
         let mut a = Self::default();
         a.set_sign(sign);
@@ -62,9 +61,10 @@ impl<const EXPONENT: usize, const SIGNIFICANT: usize>
     pub fn set_exp(&mut self, new_exp: i64) {
         let exp_min: i64 = -(Self::get_bias() as i64);
         let exp_max: i64 = ((1 << EXPONENT) - Self::get_bias()) as i64;
-        let new_exp: i64 = new_exp + (Self::get_bias() as i64);
         assert!(new_exp <= exp_max);
         assert!(exp_min <= new_exp);
+
+        let new_exp: i64 = new_exp + (Self::get_bias() as i64);
         self.exp = new_exp as u64
     }
 
@@ -72,31 +72,64 @@ impl<const EXPONENT: usize, const SIGNIFICANT: usize>
         (1 << (EXPONENT - 1)) - 1
     }
 
-    pub fn as_f64(&self) -> f64 {
-        let exp = self.get_exp();
-        let significant = (1 << SIGNIFICANT) + self.get_significant();
-        let shift = 1 << SIGNIFICANT;
-        let significant: f64 = (significant as f64) / (shift as f64);
-        let e2 = f64::powf(2., exp as f64);
-
-        let mut val: f64 = significant * e2;
-        if self.get_sign() {
-            val = -val;
+    /// Cast \p input from \p from to \p to bits, and preserve the MSB bits.
+    fn cast_msb_values(input: u64, from: usize, to: usize) -> u64 {
+        if from > to {
+            // [....xxxxxxxx]
+            // [.........yyy]
+            return input >> (from - to);
         }
-        val
+        // [.......xxxxx]
+        // [....yyyyyyyy]
+        input << (to - from)
     }
 
+    pub fn cast<const E: usize, const S: usize>(&self) -> Float<E, S> {
+        let mut x = Float::<E, S>::default();
+        x.set_sign(self.get_sign());
+        x.set_exp(self.get_exp());
+        let sig = Self::cast_msb_values(self.get_significant(), SIGNIFICANT, S);
+        x.set_significant(sig);
+        x
+    }
+
+    fn as_native_float<const E: usize, const S: usize>(&self) -> u64 {
+        assert!(SIGNIFICANT == 23);
+        assert!(EXPONENT == 8);
+        // https://en.wikipedia.org/wiki/IEEE_754
+        let mut bits: u64 = self.get_sign() as u64;
+        bits <<= E;
+        bits |= (self.get_exp() + Self::get_bias() as i64) as u64;
+        bits <<= S;
+        let sig = self.get_significant();
+        assert!(sig < 1 << S);
+        bits |= sig;
+        bits
+    }
+    pub fn as_f32(&self) -> f32 {
+        let b: FP32 = self.cast();
+        let bits = b.as_native_float::<8, 23>();
+        f32::from_bits(bits as u32)
+    }
+    pub fn as_f64(&self) -> f64 {
+        let b: FP64 = self.cast();
+        let bits = b.as_native_float::<11, 52>();
+        f64::from_bits(bits)
+    }
     pub fn dump(&self) {
         let exp = self.get_exp();
         let significant = self.get_significant();
         let sign = self.get_sign() as usize;
-        println!("FP[{} : {} : {}]", sign, exp, significant);
+        println!(
+            "FP[S={} : E={} (biased {}) :SI={}]",
+            sign, self.exp, exp, significant
+        );
     }
 }
 
-pub type FP16 = Float<5, 11>;
-pub type FP32 = Float<8, 24>;
-pub type FP64 = Float<11, 43>;
+pub type FP16 = Float<5, 10>;
+pub type FP32 = Float<8, 23>;
+pub type FP64 = Float<11, 52>;
 
 #[test]
 fn setter_test() {
@@ -112,12 +145,23 @@ fn setter_test() {
 
 #[test]
 fn constructor_test() {
-    let inputs: [u32; 5] = [0x3f800000, 0x40800000, 0x3f000000, 4, 5];
-    let outputs: [f64; 5] = [1.0, 4.0, 0.5, 4., 5.];
+    let values: [u32; 5] =
+        [0x3f8fffff, 0x40800000, 0x3f000000, 0xc60b40ec, 0xbc675793];
 
-    for i in 0..3 {
-        let a = FP32::from_u32_float(inputs[i]);
+    for i in 0..5 {
+        let output = f32::from_bits(values[i]);
+        let k = output as f64 as f32;
+        assert!(k == output);
+        let a = FP64::from_u32_float(values[i]);
+        let b: FP32 = a.cast();
         a.dump();
-        assert_eq!(a.as_f64(), outputs[i]);
+        b.dump();
+        println!(
+            "{:x} == {:x} == {:x}",
+            b.as_f32().to_bits(),
+            (output).to_bits(),
+            values[i]
+        );
+        assert_eq!(a.as_f32(), output);
     }
 }
