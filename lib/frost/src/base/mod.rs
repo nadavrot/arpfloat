@@ -1,4 +1,4 @@
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Default)]
 pub struct Float<const EXPONENT: usize, const SIGNIFICANT: usize> {
     // The Sign bit.
     sign: bool,
@@ -11,13 +11,6 @@ pub struct Float<const EXPONENT: usize, const SIGNIFICANT: usize> {
 impl<const EXPONENT: usize, const SIGNIFICANT: usize>
     Float<EXPONENT, SIGNIFICANT>
 {
-    pub fn default() -> Float<EXPONENT, SIGNIFICANT> {
-        Float {
-            sign: false,
-            exp: 0,
-            sig: 0,
-        }
-    }
 
     pub fn new(sign: bool, exp: i64, sig: u64) -> Float<EXPONENT, SIGNIFICANT> {
         let mut a = Self::default();
