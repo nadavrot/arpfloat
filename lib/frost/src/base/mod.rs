@@ -10,69 +10,64 @@ fn test_masking() {
     assert_eq!(mask(8), 255);
 }
 
-/// Add the hidden bit to the significant.
-fn add_msb_bit(num: u64, bits: u64) -> u64 {
-    assert!(num < (1 << bits));
-    (1 << bits) + num
+/// Convert a mantissa in the implicit format (no possible leading 1 bit) to
+/// the internal storage format. If \p leading_1 is set then a leading one is
+/// added (otherwise it is a subnormal).
+/// Format: [1 IIIIII 00000000]
+fn expand_mantissa_to_explicit<const FROM: usize>(
+    input: u64,
+    leading_1: bool,
+) -> u64 {
+    let value: u64 = if leading_1 { 1 << 63 } else { 0 };
+    let shift = 63 - FROM;
+    value | (input << shift)
 }
 
 #[test]
-fn test_expand() {
-    assert_eq!(add_msb_bit(127, 7), 255);
-    assert_eq!(add_msb_bit(0, 1), 2);
-    assert_eq!(add_msb_bit(15, 10), 1024 + 15);
-}
-
-/// Cast \p input from \p from to \p to bits, and preserve the MSB bits.
-fn cast_msb_values<const FROM: usize, const TO: usize>(input: u64) -> u64 {
-    if FROM > TO {
-        // [....xxxxxxxx]
-        // [.........yyy]
-        return input >> (FROM - TO);
-    }
-    // [.......xxxxx]
-    // [....yyyyyyyy]
-    input << (TO - FROM)
-}
-
-#[test]
-fn test_msb_cast() {
-    assert_eq!(cast_msb_values::<8, 32>(0xff), 0xff000000);
+fn test_expand_mantissa() {
+    assert_eq!(expand_mantissa_to_explicit::<8>(0, true), 1 << 63);
+    assert_eq!(
+        expand_mantissa_to_explicit::<8>(1, true),
+        0x8080000000000000
+    );
+    assert_eq!(
+        expand_mantissa_to_explicit::<32>(0xffffffff, false),
+        0x7fffffff80000000
+    );
 }
 
 #[derive(Debug, Clone, Copy, Default)]
-pub struct Float<const EXPONENT: usize, const SIGNIFICANT: usize> {
+pub struct Float<const EXPONENT: usize, const MANTISSA: usize> {
     // The Sign bit.
     sign: bool,
     // The Exponent.
     exp: u64,
-    // The Integral Significant.
-    sig: u64,
+    // The significand, including the possible implicit bit, aligned to the
+    // left. Format [1xxxxxxx........]
+    mantissa: u64,
 }
 
-impl<const EXPONENT: usize, const SIGNIFICANT: usize>
-    Float<EXPONENT, SIGNIFICANT>
-{
-    pub fn new(sign: bool, exp: i64, sig: u64) -> Float<EXPONENT, SIGNIFICANT> {
+impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
+    pub fn new(sign: bool, exp: i64, sig: u64) -> Float<EXPONENT, MANTISSA> {
         let mut a = Self::default();
         a.set_sign(sign);
         a.set_exp(exp);
-        a.set_significant(sig);
+        a.set_mantissa(sig);
         a
     }
 
-    pub fn inf(sign: bool) -> Float<EXPONENT, SIGNIFICANT> {
+    pub fn inf(sign: bool) -> Float<EXPONENT, MANTISSA> {
         let mut a = Self::default();
         a.set_sign(sign);
         a.set_unbiased_exp(mask(EXPONENT) as u64);
-        a.set_significant(0);
+        a.set_mantissa(0);
         a
     }
-    pub fn nan(sign: bool) -> Float<EXPONENT, SIGNIFICANT> {
+    pub fn nan(sign: bool) -> Float<EXPONENT, MANTISSA> {
         let mut a = Self::default();
         a.set_sign(sign);
         a.set_unbiased_exp(mask(EXPONENT) as u64);
-        a.set_significant((1 << SIGNIFICANT) - 1);
+        a.set_mantissa((1 << MANTISSA) - 1);
         a
     }
 
@@ -88,37 +83,42 @@ impl<const EXPONENT: usize, const SIGNIFICANT: usize>
 
     /// \returns True if the Float is a positive or negative infinity.
     pub fn is_inf(&self) -> bool {
-        self.in_special_exp() && self.get_significant() == 0
+        self.in_special_exp() && self.get_frac_mantissa() == 0
     }
 
     /// \returns True if the Float is a positive or negative NaN.
     pub fn is_nan(&self) -> bool {
-        self.in_special_exp() && self.get_significant() != 0
+        self.in_special_exp() && self.get_frac_mantissa() != 0
     }
 
-    pub fn from_f32(float: f32) -> Float<EXPONENT, SIGNIFICANT> {
+    pub fn from_f32(float: f32) -> Float<EXPONENT, MANTISSA> {
         Self::from_bits::<8, 23>(float.to_bits() as u64)
     }
 
-    pub fn from_f64(float: f64) -> Float<EXPONENT, SIGNIFICANT> {
+    pub fn from_f64(float: f64) -> Float<EXPONENT, MANTISSA> {
         Self::from_bits::<11, 52>(float.to_bits())
     }
 
-    pub fn from_bits<const E: usize, const S: usize>(
-        float: u64,
-    ) -> Float<EXPONENT, SIGNIFICANT> {
-        // Extract the biased exponent (wipe the sign and significant).
-        let biased_exp = (float >> S) & mask(E) as u64;
-        // Wipe the exponent and significant.
-        let sign = (float >> (E + S)) & 1;
-        // Wipe the sign and exponent.
-        let integral = float & mask(S) as u64;
+    pub fn is_normal(&self) -> bool {
+        self.get_unbiased_exp() != 0
+    }
 
+    pub fn from_bits<const E: usize, const M: usize>(
+        float: u64,
+    ) -> Float<EXPONENT, MANTISSA> {
+        // Extract the biased exponent (wipe the sign and mantissa).
+        let biased_exp = (float >> M) & mask(E) as u64;
+        // Wipe the original exponent and mantissa.
+        let sign = (float >> (E + M)) & 1;
+        // Wipe the sign and exponent.
+        let mantissa = float & mask(M) as u64;
         let mut a = Self::default();
         a.set_sign(sign == 1);
-        a.set_exp(biased_exp as i64 - Self::get_float_bias(E) as i64);
-        let integral = cast_msb_values::<S, SIGNIFICANT>(integral);
-        a.set_significant(integral);
+        a.set_exp(biased_exp as i64 - Self::compute_ieee745_bias(E) as i64);
+        let leading_1 = biased_exp != 0;
+        let new_mantissa =
+            expand_mantissa_to_explicit::<M>(mantissa, leading_1);
+        a.set_mantissa(new_mantissa);
         a
     }
 
@@ -132,18 +132,24 @@ impl<const EXPONENT: usize, const SIGNIFICANT: usize>
         self.sign = s;
     }
 
-    /// \returns the significant (without the leading 1).
-    pub fn get_significant(&self) -> u64 {
-        let max_sig: u64 = 1 << SIGNIFICANT;
-        assert!(self.sig <= max_sig, "Significant out of range");
-        self.sig
+    /// \returns the mantissa (with the possible leading 1).
+    pub fn get_mantissa(&self) -> u64 {
+        // We clear the bottom bits before returning them to ensure that we
+        // don't increase the accuracy of the number. Notice that we only count
+        // the digits after the period in the count (1.xxxxxx).
+        let unused_bits = 64 - MANTISSA - 1;
+        (self.mantissa >> unused_bits) << unused_bits
     }
 
-    /// Sets the significant to \p sg.
-    pub fn set_significant(&mut self, sg: u64) {
-        let max_sig: u64 = 1 << SIGNIFICANT;
-        assert!(sg <= max_sig, "Significant out of range");
-        self.sig = sg;
+    /// \return the fractional part of the mantissa without the implicit 1 or 0.
+    /// [(0/1).xxxxxx].
+    pub fn get_frac_mantissa(&self) -> u64 {
+        self.mantissa << 1
+    }
+
+    /// Sets the mantissa to \p sg (including the possible leading 1).
+    pub fn set_mantissa(&mut self, sg: u64) {
+        self.mantissa = sg;
     }
 
     /// \returns the unbiased exponent.
@@ -171,12 +177,12 @@ impl<const EXPONENT: usize, const SIGNIFICANT: usize>
         self.exp = new_exp
     }
     // \returns the bias for this Float type.
-    pub fn get_float_bias(exponent_bits: usize) -> usize {
+    fn compute_ieee745_bias(exponent_bits: usize) -> usize {
         (1 << (exponent_bits - 1)) - 1
     }
 
     pub fn get_bias() -> u64 {
-        Self::get_float_bias(EXPONENT) as u64
+        Self::compute_ieee745_bias(EXPONENT) as u64
     }
 
     /// \returns the bounds of the upper and lower bounds of the exponent.
@@ -194,20 +200,21 @@ impl<const EXPONENT: usize, const SIGNIFICANT: usize>
         if self.in_special_exp() {
             x.set_unbiased_exp(mask(E) as u64);
         }
-        let sig = cast_msb_values::<SIGNIFICANT, S>(self.get_significant());
-        x.set_significant(sig);
+        x.set_mantissa(self.get_mantissa());
         x
     }
 
-    fn as_native_float<const E: usize, const S: usize>(&self) -> u64 {
+    fn as_native_float<const E: usize, const M: usize>(&self) -> u64 {
         // https://en.wikipedia.org/wiki/IEEE_754
         let mut bits: u64 = self.get_sign() as u64;
         bits <<= E;
         bits |= (self.get_exp() + Self::get_bias() as i64) as u64;
-        bits <<= S;
-        let sig = self.get_significant();
-        assert!(sig <= 1 << S);
-        bits |= sig;
+        bits <<= M;
+        let mant = self.get_mantissa();
+        let mant = mant << 1; // Clear the explicit '1' bit.
+        let mant = mant >> (64 - M); // Put the mantissa in place.
+        assert!(mant <= 1 << M);
+        bits |= mant;
         bits
     }
     pub fn as_f32(&self) -> f32 {
@@ -222,11 +229,11 @@ impl<const EXPONENT: usize, const SIGNIFICANT: usize>
     }
     pub fn dump(&self) {
         let exp = self.get_exp();
-        let significant = self.get_significant();
+        let mantissa = self.get_mantissa();
         let sign = self.get_sign() as usize;
         println!(
             "FP[S={} : E={} (biased {}) :SI=0x{:x}]",
-            sign, self.exp, exp, significant
+            sign, self.exp, exp, mantissa
         );
     }
 }
@@ -235,6 +242,27 @@ pub type FP16 = Float<5, 10>;
 pub type FP32 = Float<8, 23>;
 pub type FP64 = Float<11, 52>;
 
+#[test]
+fn test_round_trip_native_float_conversion() {
+    let f = f32::from_bits(0x41700000);
+    let a = FP32::from_f32(f);
+    assert_eq!(f, a.as_f32());
+
+    let pi = 355. / 113.;
+    let a = FP64::from_f64(pi);
+    assert_eq!(pi, a.as_f64());
+
+    let a_float = f32::from_bits(0x3f8fffff);
+    let a = FP64::from_f32(a_float);
+    let b: FP32 = a.cast();
+    assert_eq!(a.as_f32(), a_float);
+    assert_eq!(b.as_f32(), a_float);
+
+    let f = f32::from_bits(0x000000);
+    let a = FP32::from_f32(f);
+    assert_eq!(a.is_normal(), false);
+    assert_eq!(f, a.as_f32());
+}
 #[test]
 fn setter_test() {
     assert_eq!(FP16::get_bias(), 15);
@@ -288,6 +316,7 @@ fn test_nan_inf() {
     }
     {
         let a = FP32::from_f32(f32::from_bits(0xff800000)); // -Inf
+        a.dump();
         assert!(a.is_inf());
         assert!(!a.is_nan());
         assert!(a.is_negative());
@@ -303,7 +332,7 @@ fn test_nan_inf() {
         let mut a = FP64::from_f64(f64::from_bits((mask(32) << 32) as u64));
         assert!(!a.is_inf());
         assert!(a.is_nan());
-        a.set_significant(0);
+        a.set_mantissa(0);
         assert!(a.is_inf());
         assert!(!a.is_nan());
         assert!(a.is_negative());
@@ -319,84 +348,65 @@ fn test_nan_inf() {
 }
 
 // See Chapter 8. Algorithms for the Five Basic Operations -- Pg 248
-pub fn add<const E: usize, const S: usize>(
-    x: Float<E, S>,
-    y: Float<E, S>,
-) -> Float<E, S> {
+pub fn add<const E: usize, const M: usize>(
+    x: Float<E, M>,
+    y: Float<E, M>,
+) -> Float<E, M> {
     assert!(x.get_exp() >= y.get_exp());
     assert!(!x.in_special_exp() && !y.in_special_exp());
 
-    // Significant alignment.
+    // Mantissa alignment.
     let exp_delta = x.get_exp() - y.get_exp();
     let mut er = x.get_exp();
-    // Addition of the significant.
 
-    let y_significant =
-        add_msb_bit(y.get_significant(), S as u64) >> (exp_delta);
-    let x_significant = add_msb_bit(x.get_significant(), S as u64);
+    // Addition of the mantissa.
+
+    let y_significant = y.get_mantissa() >> (exp_delta);
+    let x_significant = x.get_mantissa();
 
     let mut is_neg = x.is_negative();
 
     let is_plus = x.get_sign() == y.get_sign();
-    // Handle the 3 cases of significant computation:
-    let mut xy_significant = if is_plus {
-        // Add the aligned significant.
-        x_significant + y_significant
-    } else if x_significant >= y_significant {
-        // Subtraction without underflow: just subtract the values.
-        x_significant - y_significant
+
+    let mut xy_significant;
+    if is_plus {
+        let res = x_significant.overflowing_add(y_significant);
+        xy_significant = res.0;
+        if res.1 {
+            xy_significant >>= 1;
+            xy_significant |= 1 << 63; // Set the implicit bit the overflowed.
+            er += 1;
+        }
     } else {
-        // Subtraction with underflow, remember to negate the value.
-        is_neg ^= true;
-        y_significant - x_significant
-    };
+        if y_significant > x_significant {
+            xy_significant = y_significant - x_significant;
+            is_neg ^= true;
+        } else {
+            xy_significant = x_significant - y_significant;
+        }
+        // Cancellation happened, we need to normalize the number.
+        // Shift xy_significant to the left, and subtract from the exponent
+        // until you underflow or until xy_sig is normalized.
+        let lz = xy_significant.leading_zeros() as u64;
+        let lower_bound = Float::<E, M>::get_exp_bounds().0;
+        // How far can we lower the exponent.
+        let delta_to_min = er - lower_bound;
+        let shift = delta_to_min.min(lz as i64).min(63);
+        xy_significant <<= shift;
+        er -= shift;
+    }
 
     // Handle the case of cancellation (zero or very close to zero).
     if xy_significant == 0 {
-        let mut r = Float::<E, S>::default();
-        r.set_significant(0);
+        let mut r = Float::<E, M>::default();
+        r.set_mantissa(0);
         r.set_unbiased_exp(0);
         r.set_sign(is_neg);
         return r;
     }
 
-    let overflow = xy_significant >> S;
-
-    // Handle the case where there was a carry out in the significant addition.
-    match overflow {
-        0 => {
-            // Cancellation happened, we need to normalize the number.
-            // Shift xy_significant to the left, and subtract from the exponent
-            // until you underflow or until xy_sig is normalized.
-            let lz = xy_significant.leading_zeros() as u64;
-            let expected_zeros = 64 - (S + 1) as u64;
-            let lz = lz - expected_zeros;
-
-            let lower_bound = Float::<E, S>::get_exp_bounds().0;
-            // How far can we lower the exponent.
-            let delta_to_min = er - lower_bound;
-
-            let shift = delta_to_min.min(lz as i64);
-            xy_significant <<= shift;
-            er -= shift;
-        }
-        1 => {
-            // Nothing to do.
-        }
-        2 | 3 => {
-            xy_significant >>= 1;
-            er += 1;
-        }
-        _default => {
-            panic!("Invalid overflow value");
-        }
-    }
-
-    // TODO: handle the case where there was a cancellation in the significant
-    // addition.
-
-    let mut r = Float::<E, S>::default();
-    r.set_significant(xy_significant & mask(S) as u64);
+    let mut r = Float::<E, M>::default();
+    r.set_mantissa(xy_significant);
     r.set_exp(er);
     r.set_sign(is_neg);
     r
@@ -411,7 +421,8 @@ fn test_addition() {
         c.as_f64()
     }
 
-    assert_eq!(add_helper(8., -4.), 4.);
+    assert_eq!(add_helper(1., 1.), 2.);
+    assert_eq!(add_helper(8., 4.), 12.);
     assert_eq!(add_helper(8., 4.), 12.);
     assert_eq!(add_helper(128., 2.), 130.);
     assert_eq!(add_helper(128., -8.), 120.);
