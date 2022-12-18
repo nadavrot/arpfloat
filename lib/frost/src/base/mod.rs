@@ -352,6 +352,10 @@ pub fn add<const E: usize, const M: usize>(
     x: Float<E, M>,
     y: Float<E, M>,
 ) -> Float<E, M> {
+    if y.get_exp() > x.get_exp() {
+        return add(y, x);
+    }
+
     assert!(x.get_exp() >= y.get_exp());
     assert!(!x.in_special_exp() && !y.in_special_exp());
 
@@ -361,43 +365,43 @@ pub fn add<const E: usize, const M: usize>(
 
     // Addition of the mantissa.
 
-    let y_significant = y.get_mantissa() >> (exp_delta);
-    let x_significant = x.get_mantissa();
+    let y_significand = y.get_mantissa() >> exp_delta.min(63);
+    let x_significand = x.get_mantissa();
 
     let mut is_neg = x.is_negative();
 
     let is_plus = x.get_sign() == y.get_sign();
 
-    let mut xy_significant;
+    let mut xy_significand;
     if is_plus {
-        let res = x_significant.overflowing_add(y_significant);
-        xy_significant = res.0;
+        let res = x_significand.overflowing_add(y_significand);
+        xy_significand = res.0;
         if res.1 {
-            xy_significant >>= 1;
-            xy_significant |= 1 << 63; // Set the implicit bit the overflowed.
+            xy_significand >>= 1;
+            xy_significand |= 1 << 63; // Set the implicit bit the overflowed.
             er += 1;
         }
     } else {
-        if y_significant > x_significant {
-            xy_significant = y_significant - x_significant;
+        if y_significand > x_significand {
+            xy_significand = y_significand - x_significand;
             is_neg ^= true;
         } else {
-            xy_significant = x_significant - y_significant;
+            xy_significand = x_significand - y_significand;
         }
         // Cancellation happened, we need to normalize the number.
         // Shift xy_significant to the left, and subtract from the exponent
         // until you underflow or until xy_sig is normalized.
-        let lz = xy_significant.leading_zeros() as u64;
+        let lz = xy_significand.leading_zeros() as u64;
         let lower_bound = Float::<E, M>::get_exp_bounds().0;
         // How far can we lower the exponent.
         let delta_to_min = er - lower_bound;
         let shift = delta_to_min.min(lz as i64).min(63);
-        xy_significant <<= shift;
+        xy_significand <<= shift;
         er -= shift;
     }
 
     // Handle the case of cancellation (zero or very close to zero).
-    if xy_significant == 0 {
+    if xy_significand == 0 {
         let mut r = Float::<E, M>::default();
         r.set_mantissa(0);
         r.set_unbiased_exp(0);
@@ -406,7 +410,7 @@ pub fn add<const E: usize, const M: usize>(
     }
 
     let mut r = Float::<E, M>::default();
-    r.set_mantissa(xy_significant);
+    r.set_mantissa(xy_significand);
     r.set_exp(er);
     r.set_sign(is_neg);
     r
@@ -437,7 +441,7 @@ fn test_addition() {
 
     assert_eq!(add_helper(-15., 15.), 0.);
 
-    for i in 1..15 {
+    for i in -4..15 {
         for j in i..15 {
             assert_eq!(
                 add_helper(f64::from(j), f64::from(i)),
