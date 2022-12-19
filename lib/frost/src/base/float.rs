@@ -64,16 +64,16 @@ impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
         self.in_special_exp() && self.get_frac_mantissa() != 0
     }
 
+    pub fn is_normal(&self) -> bool {
+        self.get_unbiased_exp() != 0
+    }
+
     pub fn from_f32(float: f32) -> Self {
         Self::from_bits::<8, 23>(float.to_bits() as u64)
     }
 
     pub fn from_f64(float: f64) -> Self {
         Self::from_bits::<11, 52>(float.to_bits())
-    }
-
-    pub fn is_normal(&self) -> bool {
-        self.get_unbiased_exp() != 0
     }
 
     pub fn from_u64(val: u64) -> Self {
@@ -156,7 +156,7 @@ impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
 
     /// \return the fractional part of the mantissa without the implicit 1 or 0.
     /// [(0/1).xxxxxx].
-    pub fn get_frac_mantissa(&self) -> u64 {
+    fn get_frac_mantissa(&self) -> u64 {
         self.mantissa << 1
     }
 
@@ -166,7 +166,7 @@ impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
     }
 
     /// \returns the unbiased exponent.
-    pub fn get_unbiased_exp(&self) -> u64 {
+    fn get_unbiased_exp(&self) -> u64 {
         self.exp
     }
 
@@ -186,7 +186,7 @@ impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
     }
 
     /// Sets the unbiased exponent to \p new_exp.
-    pub fn set_unbiased_exp(&mut self, new_exp: u64) {
+    fn set_unbiased_exp(&mut self, new_exp: u64) {
         self.exp = new_exp
     }
     // \returns the bias for this Float type.

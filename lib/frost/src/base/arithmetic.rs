@@ -1,12 +1,11 @@
 use super::float::Float;
 
-
 /// \returns (\p x - \p y).
 pub fn sub<const E: usize, const M: usize>(
-  x: Float<E, M>,
-  y: Float<E, M>,
+    x: Float<E, M>,
+    y: Float<E, M>,
 ) -> Float<E, M> {
-  add(x, y.neg())
+    add(x, y.neg())
 }
 
 /// \returns (\p x + \p y).
@@ -65,11 +64,7 @@ pub fn add<const E: usize, const M: usize>(
 
     // Handle the case of cancellation (zero or very close to zero).
     if xy_significand == 0 {
-        let mut r = Float::<E, M>::default();
-        r.set_mantissa(0);
-        r.set_unbiased_exp(0);
-        r.set_sign(is_neg);
-        return r;
+        return Float::<E, M>::zero(is_neg);
     }
 
     let mut r = Float::<E, M>::default();
@@ -127,7 +122,7 @@ fn test_addition_large_numbers() {
         a = add(a, a);
     }
 
-    let mut b = one.clone();
+    let mut b = one;
     while sub(add(a, b), a) != b {
         b = add(b, one);
     }
