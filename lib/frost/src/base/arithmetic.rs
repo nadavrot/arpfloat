@@ -130,3 +130,30 @@ fn test_addition_large_numbers() {
     assert_eq!(a.as_f64(), 9007199254740992.);
     assert_eq!(b.as_f64(), 2.);
 }
+
+#[test]
+fn add_denormals() {
+    use super::float::FP64;
+
+    let v0 = f64::from_bits(0x0000_0000_0010_0001);
+    let v1 = f64::from_bits(0x0000_0000_1001_0001);
+    let v2 = f64::from_bits(0x1000_0000_0001_0001);
+
+    fn add_f64(a: f64, b: f64) -> f64 {
+        let a = FP64::from_f64(a);
+        let b = FP64::from_f64(b);
+        add(a, b).as_f64()
+    }
+
+    // Add and subtract denormals.
+    assert_eq!(add_f64(v0, v1), v0 + v1);
+    assert_eq!(add_f64(v0, -v0), v0 - v0);
+    assert_eq!(add_f64(v0, v2), v0 + v2);
+    assert_eq!(add_f64(v2, v1), v2 + v1);
+    assert_eq!(add_f64(v2, -v1), v2 - v1);
+
+    // Add and subtract denormals and normal numbers.
+    assert_eq!(add_f64(v0, 10.), v0 + 10.);
+    assert_eq!(add_f64(v0, -10.), v0 - 10.);
+    assert_eq!(add_f64(10000., v0), 10000. + v0);
+}
