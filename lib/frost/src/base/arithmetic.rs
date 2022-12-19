@@ -1,5 +1,15 @@
 use super::float::Float;
 
+
+/// \returns (\p x - \p y).
+pub fn sub<const E: usize, const M: usize>(
+  x: Float<E, M>,
+  y: Float<E, M>,
+) -> Float<E, M> {
+  add(x, y.neg())
+}
+
+/// \returns (\p x + \p y).
 // See Chapter 8. Algorithms for the Five Basic Operations -- Pg 248
 pub fn add<const E: usize, const M: usize>(
     x: Float<E, M>,
@@ -113,12 +123,12 @@ fn test_addition_large_numbers() {
     let one = FP64::from_i64(1);
     let mut a = FP64::from_i64(1);
 
-    while add(add(a, one), a.neg()) == one {
+    while sub(add(a, one), a) == one {
         a = add(a, a);
     }
 
     let mut b = one.clone();
-    while add(add(a, b), a.neg()) != b {
+    while sub(add(a, b), a) != b {
         b = add(b, one);
     }
 

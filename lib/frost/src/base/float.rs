@@ -242,7 +242,7 @@ impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
     }
 
     pub fn neg(&self) -> Self {
-        let mut a = self.clone();
+        let mut a = *self;
         a.set_sign(!self.get_sign());
         a
     }
