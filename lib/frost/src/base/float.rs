@@ -91,7 +91,7 @@ impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
         // Figure out how to shift the input to align the first bit with the
         // msb of the mantissa.
         let lz = val.leading_zeros();
-        let size_in_bits = 64 - lz -1;
+        let size_in_bits = 64 - lz - 1;
 
         // If we can't adjust the exponent then this is infinity.
         if size_in_bits > Self::get_exp_bounds().1 as u32 {
@@ -124,6 +124,14 @@ impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
         let mantissa = float & mask(M) as u64;
         let mut a = Self::default();
         a.set_sign(sign == 1);
+
+        // Check for NaN/Inf
+        if biased_exp == mask(E) as i64 {
+            if mantissa == 0 {
+                return Self::inf(sign == 1);
+            }
+            return Self::nan(sign == 1);
+        }
 
         // Check that the loaded value fits within the bounds of the float.
         let exp = biased_exp - Self::compute_ieee745_bias(E) as i64;
@@ -217,16 +225,20 @@ impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
         let mut x = Float::<E, S>::default();
         let exp_bounds = Float::<E, S>::get_exp_bounds();
         let exp = self.get_exp();
+
+        if self.is_nan() {
+            return Float::<E, S>::nan(self.sign);
+        }
+        if self.is_inf() {
+            return Float::<E, S>::inf(self.sign);
+        }
+        // Overflow.
         if exp > exp_bounds.1 {
             return Float::<E, S>::inf(self.get_sign());
         }
 
         x.set_sign(self.get_sign());
         x.set_exp(self.get_exp());
-        // Handle Nan/Inf.
-        if self.in_special_exp() {
-            x.set_unbiased_exp(mask(E) as u64);
-        }
         x.set_mantissa(self.get_mantissa());
         x
     }
@@ -357,9 +369,12 @@ fn test_from_integers() {
 
 #[test]
 fn test_nan_inf() {
+    assert!(FP64::nan(true).as_f64().is_nan());
     assert_eq!(FP64::zero(false).as_f64(), 0.0);
     assert_eq!(FP64::zero(true).as_f64(), -0.0);
 
+    assert!(FP64::nan(true).is_nan());
+    assert!(FP64::inf(true).is_inf());
     {
         let a = FP32::from_f32(f32::from_bits(0x3f8fffff));
         assert!(!a.is_inf());

@@ -207,7 +207,15 @@ fn add_special_values() {
 
     for v0 in values {
         for v1 in values {
-            assert_eq!(add_f64(v0, v1).to_bits(), (v0 + v1).to_bits());
+            let r0 = add_f64(v0, v1);
+            let r1 = v0 + v1;
+            assert_eq!(r0.is_finite(), r1.is_finite());
+            assert_eq!(r0.is_nan(), r1.is_nan());
+            assert_eq!(r0.is_infinite(), r1.is_infinite());
+            let r0_bits = r0.to_bits();
+            let r1_bits = r1.to_bits();
+            // Check that the results are bit identical, or are both NaN.
+            assert!(!r0.is_nan() || r0_bits == r1_bits);
         }
     }
 }
