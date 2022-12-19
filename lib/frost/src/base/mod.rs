@@ -145,14 +145,24 @@ impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
 
     pub fn from_bits<const E: usize, const M: usize>(float: u64) -> Self {
         // Extract the biased exponent (wipe the sign and mantissa).
-        let biased_exp = (float >> M) & mask(E) as u64;
+        let biased_exp = ((float >> M) & mask(E) as u64) as i64;
         // Wipe the original exponent and mantissa.
         let sign = (float >> (E + M)) & 1;
         // Wipe the sign and exponent.
         let mantissa = float & mask(M) as u64;
         let mut a = Self::default();
         a.set_sign(sign == 1);
-        a.set_exp(biased_exp as i64 - Self::compute_ieee745_bias(E) as i64);
+
+        // Check that the loaded value fits within the bounds of the float.
+        let exp = biased_exp - Self::compute_ieee745_bias(E) as i64;
+        let bounds = Self::get_exp_bounds();
+        if exp < bounds.0 {
+            return Self::zero(sign == 1);
+        } else if exp > bounds.1 {
+            return Self::inf(sign == 1);
+        }
+
+        a.set_exp(exp);
         let leading_1 = biased_exp != 0;
         let new_mantissa =
             expand_mantissa_to_explicit::<M>(mantissa, leading_1);
@@ -343,9 +353,9 @@ fn test_from_integers() {
     assert_eq!(FP64::from_i64(0).as_f64(), 0.);
 
     for i in -100..100 {
-        let a = FP64::from_i64(i);
-        let b = FP64::from_f64(i as f64);
-        assert_eq!(a.as_f64(), b.as_f64());
+        let a = FP32::from_i64(i);
+        let b = FP32::from_f64(i as f64);
+        assert_eq!(a.as_f32(), b.as_f32());
     }
 }
 
