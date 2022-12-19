@@ -4,3 +4,4 @@ mod utils;
 
 pub use arithmetic::{add, sub};
 pub use float::{Float, FP16, FP32, FP64};
+pub use utils::RoundMode;

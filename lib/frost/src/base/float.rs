@@ -1,3 +1,4 @@
+use super::utils;
 use super::utils::expand_mantissa_to_explicit;
 use super::utils::mask;
 
@@ -239,7 +240,10 @@ impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
 
         x.set_sign(self.get_sign());
         x.set_exp(self.get_exp());
-        x.set_mantissa(self.get_mantissa());
+        let mut m = self.get_mantissa();
+        // Round the S bits of the output mantissa (+1 for the implicit bit).
+        m = utils::round_to_even(m, S + 1, utils::RoundMode::Even);
+        x.set_mantissa(m);
         x
     }
 
@@ -417,5 +421,16 @@ fn test_nan_inf() {
         assert!(b.is_inf());
         assert!(!b.is_nan());
         assert!(b.is_negative());
+    }
+}
+
+#[test]
+fn test_cast_down() {
+    // Check that we can cast the numbers down, matching the hardware casting.
+    let vals = [0.3, 0.1, 14151241515., 14151215.];
+    for v in vals {
+        let res = FP64::from_f64(v).as_f32();
+        assert_eq!(FP64::from_f64(v).as_f64().to_bits(), v.to_bits());
+        assert!(res == v as f32);
     }
 }
