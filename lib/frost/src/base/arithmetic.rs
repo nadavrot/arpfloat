@@ -104,3 +104,24 @@ fn test_addition() {
         }
     }
 }
+
+// Pg 120.  Chapter 4. Basic Properties and Algorithms.
+#[test]
+fn test_addition_large_numbers() {
+    use super::float::FP64;
+
+    let one = FP64::from_i64(1);
+    let mut a = FP64::from_i64(1);
+
+    while add(add(a, one), a.neg()) == one {
+        a = add(a, a);
+    }
+
+    let mut b = one.clone();
+    while add(add(a, b), a.neg()) != b {
+        b = add(b, one);
+    }
+
+    assert_eq!(a.as_f64(), 9007199254740992.);
+    assert_eq!(b.as_f64(), 2.);
+}

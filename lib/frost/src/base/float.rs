@@ -1,7 +1,7 @@
 use super::utils::expand_mantissa_to_explicit;
 use super::utils::mask;
 
-#[derive(Debug, Clone, Copy, Default)]
+#[derive(Debug, Clone, Copy, Default, PartialEq)]
 pub struct Float<const EXPONENT: usize, const MANTISSA: usize> {
     // The Sign bit.
     sign: bool,
@@ -240,6 +240,13 @@ impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
         let bits = b.as_native_float::<11, 52>();
         f64::from_bits(bits)
     }
+
+    pub fn neg(&self) -> Self {
+        let mut a = self.clone();
+        a.set_sign(!self.get_sign());
+        a
+    }
+
     pub fn dump(&self) {
         let exp = self.get_exp();
         let mantissa = self.get_mantissa();
