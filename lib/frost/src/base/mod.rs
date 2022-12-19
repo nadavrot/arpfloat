@@ -48,7 +48,7 @@ pub struct Float<const EXPONENT: usize, const MANTISSA: usize> {
 }
 
 impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
-    pub fn new(sign: bool, exp: i64, sig: u64) -> Float<EXPONENT, MANTISSA> {
+    pub fn new(sign: bool, exp: i64, sig: u64) -> Self {
         let mut a = Self::default();
         a.set_sign(sign);
         a.set_exp(exp);
@@ -56,14 +56,22 @@ impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
         a
     }
 
-    pub fn inf(sign: bool) -> Float<EXPONENT, MANTISSA> {
+    pub fn zero(sign: bool) -> Self {
+        let mut a = Self::default();
+        a.set_sign(sign);
+        a.set_unbiased_exp(0);
+        a.set_mantissa(0);
+        a
+    }
+
+    pub fn inf(sign: bool) -> Self {
         let mut a = Self::default();
         a.set_sign(sign);
         a.set_unbiased_exp(mask(EXPONENT) as u64);
         a.set_mantissa(0);
         a
     }
-    pub fn nan(sign: bool) -> Float<EXPONENT, MANTISSA> {
+    pub fn nan(sign: bool) -> Self {
         let mut a = Self::default();
         a.set_sign(sign);
         a.set_unbiased_exp(mask(EXPONENT) as u64);
@@ -91,11 +99,11 @@ impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
         self.in_special_exp() && self.get_frac_mantissa() != 0
     }
 
-    pub fn from_f32(float: f32) -> Float<EXPONENT, MANTISSA> {
+    pub fn from_f32(float: f32) -> Self {
         Self::from_bits::<8, 23>(float.to_bits() as u64)
     }
 
-    pub fn from_f64(float: f64) -> Float<EXPONENT, MANTISSA> {
+    pub fn from_f64(float: f64) -> Self {
         Self::from_bits::<11, 52>(float.to_bits())
     }
 
@@ -103,9 +111,39 @@ impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
         self.get_unbiased_exp() != 0
     }
 
-    pub fn from_bits<const E: usize, const M: usize>(
-        float: u64,
-    ) -> Float<EXPONENT, MANTISSA> {
+    pub fn from_u64(val: u64) -> Self {
+        if val == 0 {
+            return Self::zero(false);
+        }
+
+        // Figure out how to shift the input to align the first bit with the
+        // msb of the mantissa.
+        let lz = val.leading_zeros();
+        let size_in_bits = 64 - lz;
+
+        // If we can't adjust the exponent then this is infinity.
+        if size_in_bits > Self::get_exp_bounds().1 as u32 {
+            return Self::inf(false);
+        }
+
+        let mut a = Self::default();
+        a.set_exp(size_in_bits as i64 - 1);
+        a.set_mantissa(val << lz);
+        a.set_sign(false);
+        a
+    }
+
+    pub fn from_i64(val: i64) -> Self {
+        if val < 0 {
+            let mut a = Self::from_u64(-val as u64);
+            a.set_sign(true);
+            return a;
+        }
+
+        Self::from_u64(val as u64)
+    }
+
+    pub fn from_bits<const E: usize, const M: usize>(float: u64) -> Self {
         // Extract the biased exponent (wipe the sign and mantissa).
         let biased_exp = (float >> M) & mask(E) as u64;
         // Wipe the original exponent and mantissa.
@@ -132,7 +170,7 @@ impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
         self.sign = s;
     }
 
-    /// \returns the mantissa (with the possible leading 1).
+    /// \returns the mantissa (including the implicit 0/1 bit).
     pub fn get_mantissa(&self) -> u64 {
         // We clear the bottom bits before returning them to ensure that we
         // don't increase the accuracy of the number. Notice that we only count
@@ -147,7 +185,7 @@ impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
         self.mantissa << 1
     }
 
-    /// Sets the mantissa to \p sg (including the possible leading 1).
+    /// Sets the mantissa to \p sg (including the implicit 0/1 bit).
     pub fn set_mantissa(&mut self, sg: u64) {
         self.mantissa = sg;
     }
@@ -301,7 +339,21 @@ fn constructor_test() {
 }
 
 #[test]
+fn test_from_integers() {
+    assert_eq!(FP64::from_i64(0).as_f64(), 0.);
+
+    for i in -100..100 {
+        let a = FP64::from_i64(i);
+        let b = FP64::from_f64(i as f64);
+        assert_eq!(a.as_f64(), b.as_f64());
+    }
+}
+
+#[test]
 fn test_nan_inf() {
+    assert_eq!(FP64::zero(false).as_f64(), 0.0);
+    assert_eq!(FP64::zero(true).as_f64(), -0.0);
+
     {
         let a = FP32::from_f32(f32::from_bits(0x3f8fffff));
         assert!(!a.is_inf());
@@ -415,7 +467,6 @@ pub fn add<const E: usize, const M: usize>(
     r.set_sign(is_neg);
     r
 }
-
 #[test]
 fn test_addition() {
     fn add_helper(a: f64, b: f64) -> f64 {
