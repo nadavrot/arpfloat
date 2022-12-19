@@ -287,7 +287,7 @@ fn test_round_trip_native_float_conversion() {
 
     let f = f32::from_bits(0x000000);
     let a = FP32::from_f32(f);
-    assert_eq!(a.is_normal(), false);
+    assert!(!a.is_normal());
     assert_eq!(f, a.as_f32());
 }
 #[test]
@@ -318,8 +318,8 @@ fn constructor_test() {
     let values: [u32; 5] =
         [0x3f8fffff, 0x40800000, 0x3f000000, 0xc60b40ec, 0xbc675793];
 
-    for i in 0..5 {
-        let output = f32::from_bits(values[i]);
+    for v in values {
+        let output = f32::from_bits(v);
         let a = FP64::from_f32(output);
         let b: FP32 = a.cast();
         assert_eq!(a.as_f32(), output);
