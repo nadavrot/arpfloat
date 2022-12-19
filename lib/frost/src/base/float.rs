@@ -208,7 +208,8 @@ impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
     /// \returns the bounds of the upper and lower bounds of the exponent.
     pub fn get_exp_bounds() -> (i64, i64) {
         let exp_min: i64 = -(Self::get_bias() as i64);
-        let exp_max: i64 = ((1 << EXPONENT) - Self::get_bias()) as i64;
+        // The highest value is 0xFFFE, because 0xFFFF is used for signaling.
+        let exp_max: i64 = ((1 << EXPONENT) - Self::get_bias() - 2) as i64;
         (exp_min, exp_max)
     }
 
