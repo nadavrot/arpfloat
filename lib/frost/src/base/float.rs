@@ -91,7 +91,7 @@ impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
         // Figure out how to shift the input to align the first bit with the
         // msb of the mantissa.
         let lz = val.leading_zeros();
-        let size_in_bits = 64 - lz;
+        let size_in_bits = 64 - lz -1;
 
         // If we can't adjust the exponent then this is infinity.
         if size_in_bits > Self::get_exp_bounds().1 as u32 {
@@ -99,7 +99,7 @@ impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
         }
 
         let mut a = Self::default();
-        a.set_exp(size_in_bits as i64 - 1);
+        a.set_exp(size_in_bits as i64);
         a.set_mantissa(val << lz);
         a.set_sign(false);
         a
