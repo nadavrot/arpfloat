@@ -40,7 +40,9 @@ impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
         let mut a = Self::default();
         a.set_sign(sign);
         a.set_unbiased_exp(mask(EXPONENT) as u64);
-        a.set_mantissa((1 << MANTISSA) - 1);
+        // Set two bits: the implicit mantissa 1' and a non-zero payload.
+        // [1.1000.....]
+        a.set_mantissa(0xc000_0000_0000_0000);
         a
     }
 
@@ -62,6 +64,11 @@ impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
     /// \returns True if the Float is a positive or negative NaN.
     pub fn is_nan(&self) -> bool {
         self.in_special_exp() && self.get_frac_mantissa() != 0
+    }
+
+    /// \returns True if the Float is a positive or negative NaN.
+    pub fn is_zero(&self) -> bool {
+        self.get_unbiased_exp() == 0 && self.get_mantissa() == 0
     }
 
     pub fn is_normal(&self) -> bool {

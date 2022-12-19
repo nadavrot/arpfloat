@@ -18,6 +18,32 @@ pub fn add<const E: usize, const M: usize>(
         return add(y, x);
     }
 
+    let same_sign = x.get_sign() != y.get_sign();
+
+    // 8.3. Floating-Point Addition and Subtraction 247
+    if x.is_nan() {
+        return Float::<E, M>::nan(x.get_sign());
+    }
+    if y.is_nan() {
+        return Float::<E, M>::nan(y.get_sign());
+    }
+    if x.is_inf() {
+        if y.is_inf() && same_sign {
+            return Float::<E, M>::nan(true);
+        }
+        return Float::<E, M>::inf(x.get_sign());
+    }
+    if y.is_inf() {
+        if x.is_inf() && same_sign {
+            return Float::<E, M>::nan(true);
+        }
+        return Float::<E, M>::inf(y.get_sign());
+    }
+
+    if x.is_zero() && y.is_zero() {
+        return Float::<E, M>::zero(x.get_sign() && y.get_sign());
+    }
+
     assert!(x.get_exp() >= y.get_exp());
     assert!(!x.in_special_exp() && !y.in_special_exp());
 
@@ -64,7 +90,7 @@ pub fn add<const E: usize, const M: usize>(
 
     // Handle the case of cancellation (zero or very close to zero).
     if xy_significand == 0 {
-        return Float::<E, M>::zero(is_neg);
+        return Float::<E, M>::zero(false);
     }
 
     let mut r = Float::<E, M>::default();
@@ -156,4 +182,32 @@ fn add_denormals() {
     assert_eq!(add_f64(v0, 10.), v0 + 10.);
     assert_eq!(add_f64(v0, -10.), v0 - 10.);
     assert_eq!(add_f64(10000., v0), 10000. + v0);
+}
+
+#[test]
+fn add_special_values() {
+    // Test the addition of different irregular values.
+    let values = [
+        -f64::NAN,
+        f64::NAN,
+        f64::INFINITY,
+        f64::NEG_INFINITY,
+        0.0,
+        -0.0,
+        10.,
+        -10.,
+    ];
+    use super::float::FP64;
+
+    fn add_f64(a: f64, b: f64) -> f64 {
+        let a = FP64::from_f64(a);
+        let b = FP64::from_f64(b);
+        add(a, b).as_f64()
+    }
+
+    for v0 in values {
+        for v1 in values {
+            assert_eq!(add_f64(v0, v1).to_bits(), (v0 + v1).to_bits());
+        }
+    }
 }
