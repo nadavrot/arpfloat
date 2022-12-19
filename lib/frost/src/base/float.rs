@@ -286,6 +286,12 @@ fn test_round_trip_native_float_conversion() {
     let a = FP64::from_f64(pi);
     assert_eq!(pi, a.as_f64());
 
+    assert!(FP64::from_f64(f64::NAN).is_nan());
+    assert!(!FP64::from_f64(f64::NAN).is_inf());
+    assert!(FP64::from_f64(f64::INFINITY).is_inf());
+    assert!(!FP64::from_f64(f64::INFINITY).is_nan());
+    assert!(FP64::from_f64(f64::NEG_INFINITY).is_inf());
+
     let a_float = f32::from_bits(0x3f8fffff);
     let a = FP64::from_f32(a_float);
     let b: FP32 = a.cast();
