@@ -311,8 +311,9 @@ fn setter_test() {
 
 #[test]
 fn test_conversion_wide_range() {
-    for i in 0..(1 << 16) {
+    for i in 0..(1 << 14) {
         let val = f32::from_bits(i << 16);
+        assert!(val.is_finite());
         let a = FP64::from_f32(val);
         let b: FP32 = a.cast();
         let res = b.as_f32();
@@ -337,6 +338,7 @@ fn constructor_test() {
 #[test]
 fn test_from_integers() {
     assert_eq!(FP64::from_i64(0).as_f64(), 0.);
+    assert_eq!(FP16::from_i64(65534).as_f64(), 65504.0);
     assert_eq!(FP16::from_i64(65535).as_f64(), 65504.0);
     assert_eq!(FP16::from_i64(65536).as_f64(), f64::INFINITY);
 
