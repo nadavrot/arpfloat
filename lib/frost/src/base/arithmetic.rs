@@ -1,4 +1,5 @@
 use super::float::Float;
+use super::utils;
 
 /// \returns (\p x - \p y).
 pub fn sub<const E: usize, const M: usize>(
@@ -50,6 +51,7 @@ pub fn add<const E: usize, const M: usize>(
     // Mantissa alignment.
     let exp_delta = x.get_exp() - y.get_exp();
     let mut er = x.get_exp();
+    let exp_bounds = Float::<E, M>::get_exp_bounds();
 
     // Addition of the mantissa.
 
@@ -80,7 +82,7 @@ pub fn add<const E: usize, const M: usize>(
         // Shift xy_significant to the left, and subtract from the exponent
         // until you underflow or until xy_sig is normalized.
         let lz = xy_significand.leading_zeros() as u64;
-        let lower_bound = Float::<E, M>::get_exp_bounds().0;
+        let lower_bound = exp_bounds.0;
         // How far can we lower the exponent.
         let delta_to_min = er - lower_bound;
         let shift = delta_to_min.min(lz as i64).min(63);
@@ -93,7 +95,17 @@ pub fn add<const E: usize, const M: usize>(
         return Float::<E, M>::zero(false);
     }
 
+    // Handle overflow and underflows.
+    if er > exp_bounds.1 {
+        return Float::<E, M>::inf(is_neg);
+    } else if er < exp_bounds.0 {
+        return Float::<E, M>::zero(is_neg);
+    }
+
     let mut r = Float::<E, M>::default();
+    xy_significand =
+        utils::round_to_even(xy_significand, M + 1, utils::RoundMode::Even);
+
     r.set_mantissa(xy_significand);
     r.set_exp(er);
     r.set_sign(is_neg);
@@ -186,16 +198,23 @@ fn add_denormals() {
 
 #[test]
 fn add_special_values() {
-    // Test the addition of different irregular values.
+    // Test the addition of various irregular values.
     let values = [
         -f64::NAN,
         f64::NAN,
         f64::INFINITY,
         f64::NEG_INFINITY,
+        f64::EPSILON,
+        -f64::EPSILON,
+        f64::MIN,
+        f64::MAX,
         0.0,
         -0.0,
         10.,
         -10.,
+        -0.00001,
+        0.1,
+        355. / 113.,
     ];
     use super::float::FP64;
 

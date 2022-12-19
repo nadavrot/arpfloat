@@ -1,5 +1,3 @@
-
-
 /// \returns a mask full of 1s, of \p b bits.
 pub fn mask(b: usize) -> usize {
     (1 << (b)) - 1
