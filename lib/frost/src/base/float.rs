@@ -215,6 +215,12 @@ impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
 
     pub fn cast<const E: usize, const S: usize>(&self) -> Float<E, S> {
         let mut x = Float::<E, S>::default();
+        let exp_bounds = Float::<E, S>::get_exp_bounds();
+        let exp = self.get_exp();
+        if exp > exp_bounds.1 {
+            return Float::<E, S>::inf(self.get_sign());
+        }
+
         x.set_sign(self.get_sign());
         x.set_exp(self.get_exp());
         // Handle Nan/Inf.
