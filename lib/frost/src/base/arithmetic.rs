@@ -103,12 +103,10 @@ pub fn add<const E: usize, const M: usize>(
     }
 
     let mut r = Float::<E, M>::default();
-    xy_significand =
-        utils::round_to_even(xy_significand, M + 1, utils::RoundMode::Even);
-
     r.set_mantissa(xy_significand);
     r.set_exp(er);
     r.set_sign(is_neg);
+    r.round(M + 1, utils::RoundMode::Even);
     r
 }
 #[test]
@@ -206,6 +204,7 @@ fn add_special_values() {
         f64::NEG_INFINITY,
         f64::EPSILON,
         -f64::EPSILON,
+        0.000000000000000000000000000000000000001,
         f64::MIN,
         f64::MAX,
         0.0,
@@ -289,13 +288,11 @@ pub fn mul<const E: usize, const M: usize>(
     xy_mantissa <<= shift;
     exp -= shift;
 
-    let xy_mantissa =
-        utils::round_to_even(xy_mantissa, M + 1, utils::RoundMode::Even);
-
     let mut r = Float::<E, M>::default();
     r.set_mantissa(xy_mantissa);
     r.set_exp(exp);
     r.set_sign(sign);
+    r.round(M + 1, utils::RoundMode::Even);
     r
 }
 

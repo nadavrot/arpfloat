@@ -1,6 +1,6 @@
 use super::utils;
 use super::utils::expand_mantissa_to_explicit;
-use super::utils::mask;
+use super::utils::{mask, RoundMode};
 
 #[derive(Debug, Clone, Copy, Default, PartialEq)]
 pub struct Float<const EXPONENT: usize, const MANTISSA: usize> {
@@ -103,6 +103,7 @@ impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
         a.set_exp(size_in_bits as i64);
         a.set_mantissa(val << lz);
         a.set_sign(false);
+        a.round(MANTISSA + 1, RoundMode::Even);
         a
     }
 
@@ -163,11 +164,7 @@ impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
 
     /// \returns the mantissa (including the implicit 0/1 bit).
     pub fn get_mantissa(&self) -> u64 {
-        // We clear the bottom bits before returning them to ensure that we
-        // don't increase the accuracy of the number. Notice that we only count
-        // the digits after the period in the count (1.xxxxxx).
-        let unused_bits = 64 - MANTISSA - 1;
-        (self.mantissa >> unused_bits) << unused_bits
+        self.mantissa
     }
 
     /// \return the fractional part of the mantissa without the implicit 1 or 0.
@@ -238,12 +235,12 @@ impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
             return Float::<E, S>::inf(self.get_sign());
         }
 
+        x.set_mantissa(self.get_mantissa());
         x.set_sign(self.get_sign());
         x.set_exp(self.get_exp());
-        let mut m = self.get_mantissa();
+
         // Round the S bits of the output mantissa (+1 for the implicit bit).
-        m = utils::round_to_even(m, S + 1, utils::RoundMode::Even);
-        x.set_mantissa(m);
+        x.round(S + 1, utils::RoundMode::Even);
         x
     }
 
@@ -359,9 +356,23 @@ fn constructor_test() {
 
 #[test]
 fn test_from_integers() {
+    let pi = 355. / 133.;
+    let e = 193. / 71.;
+
+    assert_eq!(FP32::from_i64(1 << 32).as_f32(), (1u64 << 32) as f32);
+    assert_eq!(FP32::from_i64(1 << 34).as_f32(), (1u64 << 34) as f32);
+    assert_eq!(FP32::from_f64(pi).as_f32(), (pi) as f32);
+    assert_eq!(FP32::from_f64(e).as_f32(), (e) as f32);
+    assert_eq!(FP32::from_u64(8388610).as_f32(), 8388610 as f32);
+
+    for i in 0..(1 << 16) {
+        assert_eq!(FP32::from_u64(i << 12).as_f32(), (i << 12) as f32);
+    }
+
     assert_eq!(FP64::from_i64(0).as_f64(), 0.);
-    assert_eq!(FP16::from_i64(65534).as_f64(), 65504.0);
-    assert_eq!(FP16::from_i64(65535).as_f64(), 65504.0);
+    assert_eq!(FP16::from_i64(65500).as_f64(), 65504.0);
+    assert_eq!(FP16::from_i64(65504).as_f64(), 65504.0);
+    assert_eq!(FP16::from_i64(65535).as_f64(), f64::INFINITY);
     assert_eq!(FP16::from_i64(65536).as_f64(), f64::INFINITY);
 
     for i in -100..100 {
@@ -433,4 +444,66 @@ fn test_cast_down() {
         assert_eq!(FP64::from_f64(v).as_f64().to_bits(), v.to_bits());
         assert!(res == v as f32);
     }
+}
+
+impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
+    /// Round the mantissa to \p num_bits of accuracy, using the \p mode
+    /// rounding mode. Zero the rest of the mantissa is filled with zeros.
+    /// This operation may overflow, in which case we update the exponent.
+    //
+    /// xxxxxxxxx becomes xxxxy0000, where y, could be rounded up.
+    pub fn round(&mut self, num_bits: usize, mode: RoundMode) {
+        assert!(num_bits < 64);
+        let val = self.mantissa;
+        let rest_bits = 64 - num_bits;
+        let is_odd = ((val >> rest_bits) & 0x1) == 1;
+        let bottom = val & mask(rest_bits) as u64;
+        let half = 1 << (rest_bits - 1) as u64;
+
+        // Clear the lower part.
+        let val = (val >> rest_bits) << rest_bits;
+
+        match mode {
+            RoundMode::Trunc => {
+                self.mantissa = val;
+            }
+            RoundMode::Even => {
+                if bottom > half || ((bottom == half) && is_odd) {
+                    // If the next few bits are over the half point then round up.
+                    // Or if the next few bits are exactly half, break the tie and go to even.
+                    // This may overflow, so we'll need to adjust the exponent.
+                    let r = val.overflowing_add(1 << rest_bits);
+                    self.mantissa = r.0;
+                    if r.1 {
+                        self.exp += 1;
+                    }
+                } else {
+                    self.mantissa = val;
+                }
+            }
+        }
+    }
+}
+
+#[test]
+fn test_round() {
+    let a = 0b100001000001010010110111101011001111001010110000000000000000000;
+    let b = 0b100001000001010010110111101011001111001011000000000000000000000;
+    let mut val = FP64::default();
+    val.set_mantissa(a);
+    val.round(44, RoundMode::Even);
+    assert_eq!(val.get_mantissa(), b);
+
+    let a = 0b101111;
+    let b = 0b110000;
+    let c = 0b100000;
+    let mut val = FP64::default();
+    val.set_mantissa(a);
+    val.round(60, RoundMode::Even);
+    assert_eq!(val.get_mantissa(), b);
+
+    let mut val = FP64::default();
+    val.set_mantissa(a);
+    val.round(60, RoundMode::Trunc);
+    assert_eq!(val.get_mantissa(), c);
 }
