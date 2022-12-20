@@ -1,5 +1,3 @@
-
-
 use super::float::Float;
 use super::utils;
 
@@ -270,7 +268,7 @@ pub fn mul<const E: usize, const M: usize>(
         return Float::<E, M>::zero(sign);
     }
 
-    let exp = x.get_exp() + y.get_exp();
+    let mut exp = x.get_exp() + y.get_exp() + 1;
 
     // Handle overflow and underflows.
     if exp > exp_bounds.1 {
@@ -282,13 +280,20 @@ pub fn mul<const E: usize, const M: usize>(
     let x_mantissa = x.get_mantissa() as u128;
     let y_mantissa = y.get_mantissa() as u128;
     let xy_mantissa: u128 = x_mantissa * y_mantissa;
-    let xy_mantissa: u64 = (xy_mantissa >> 63) as u64;
+    let mut xy_mantissa: u64 = (xy_mantissa >> 64) as u64;
 
-    let xy_significand =
+    let lz = xy_mantissa.leading_zeros() as u64;
+    // How far can we lower the exponent.
+    let delta_to_min = exp - exp_bounds.0;
+    let shift = delta_to_min.min(lz as i64).min(63);
+    xy_mantissa <<= shift;
+    exp -= shift;
+
+    let xy_mantissa =
         utils::round_to_even(xy_mantissa, M + 1, utils::RoundMode::Even);
 
     let mut r = Float::<E, M>::default();
-    r.set_mantissa(xy_significand);
+    r.set_mantissa(xy_mantissa);
     r.set_exp(exp);
     r.set_sign(sign);
     r
@@ -308,4 +313,28 @@ fn test_multiplication() {
 
     assert_eq!(mul_helper(1., 1.), 1.);
     assert_eq!(mul_helper(10., 10.), 100.);
+}
+
+#[test]
+fn mul_regular_values() {
+    // Test the addition of regular values.
+    let values = [-5.0, 0., -0., 24., 1., 11., 10000., 256., 0.1, 3., 17.5];
+    use super::float::FP64;
+
+    fn mul_f64(a: f64, b: f64) -> f64 {
+        let a = FP64::from_f64(a);
+        let b = FP64::from_f64(b);
+        mul(a, b).as_f64()
+    }
+
+    for v0 in values {
+        for v1 in values {
+            let r0 = mul_f64(v0, v1);
+            let r1 = v0 * v1;
+            let r0_bits = r0.to_bits();
+            let r1_bits = r1.to_bits();
+            // Check that the results are bit identical, or are both NaN.
+            assert_eq!(r0_bits, r1_bits);
+        }
+    }
 }
