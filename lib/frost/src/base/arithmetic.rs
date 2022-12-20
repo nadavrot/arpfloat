@@ -1,3 +1,5 @@
+
+
 use super::float::Float;
 use super::utils;
 
@@ -68,7 +70,7 @@ pub fn add<const E: usize, const M: usize>(
         xy_significand = res.0;
         if res.1 {
             xy_significand >>= 1;
-            xy_significand |= 1 << 63; // Set the implicit bit the overflowed.
+            xy_significand |= 1 << 63; // Set the implicit bit that overflowed.
             er += 1;
         }
     } else {
@@ -237,4 +239,73 @@ fn add_special_values() {
             assert!(!r0.is_nan() || r0_bits == r1_bits);
         }
     }
+}
+/// \returns (\p x * \p y).
+// See Chapter 8. Algorithms for the Five Basic Operations -- Pg 251
+pub fn mul<const E: usize, const M: usize>(
+    x: Float<E, M>,
+    y: Float<E, M>,
+) -> Float<E, M> {
+    let sign = x.get_sign() ^ y.get_sign();
+    let exp_bounds = Float::<E, M>::get_exp_bounds();
+
+    if x.is_nan() || y.is_nan() {
+        return Float::<E, M>::nan(sign);
+    }
+
+    if x.is_inf() {
+        if y.is_zero() {
+            return Float::<E, M>::nan(x.get_sign());
+        }
+        return Float::<E, M>::inf(x.get_sign());
+    }
+    if y.is_inf() {
+        if x.is_zero() {
+            return Float::<E, M>::nan(y.get_sign());
+        }
+        return Float::<E, M>::inf(y.get_sign());
+    }
+
+    if x.is_zero() && y.is_zero() {
+        return Float::<E, M>::zero(sign);
+    }
+
+    let exp = x.get_exp() + y.get_exp();
+
+    // Handle overflow and underflows.
+    if exp > exp_bounds.1 {
+        return Float::<E, M>::inf(sign);
+    } else if exp < exp_bounds.0 {
+        return Float::<E, M>::zero(sign);
+    }
+
+    let x_mantissa = x.get_mantissa() as u128;
+    let y_mantissa = y.get_mantissa() as u128;
+    let xy_mantissa: u128 = x_mantissa * y_mantissa;
+    let xy_mantissa: u64 = (xy_mantissa >> 63) as u64;
+
+    let xy_significand =
+        utils::round_to_even(xy_mantissa, M + 1, utils::RoundMode::Even);
+
+    let mut r = Float::<E, M>::default();
+    r.set_mantissa(xy_significand);
+    r.set_exp(exp);
+    r.set_sign(sign);
+    r
+}
+
+#[test]
+fn test_multiplication() {
+    use super::float::FP64;
+
+    fn mul_helper(a: f64, b: f64) -> f64 {
+        let a = FP64::from_f64(a);
+        let b = FP64::from_f64(b);
+        let c = mul(a, b);
+        c.dump();
+        c.as_f64()
+    }
+
+    assert_eq!(mul_helper(1., 1.), 1.);
+    assert_eq!(mul_helper(10., 10.), 100.);
 }
