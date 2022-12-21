@@ -74,13 +74,19 @@ pub fn get_special_test_values() -> [f64; 20] {
 }
 
 // Linear-feedback shift register.
-pub struct LFSR {
+pub struct Lfsr {
     state: u32,
 }
 
-impl LFSR {
-    pub fn new() -> LFSR {
-        LFSR { state: 0x13371337 }
+impl Default for Lfsr {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl Lfsr {
+    pub fn new() -> Lfsr {
+        Lfsr { state: 0x13371337 }
     }
 
     pub fn next(&mut self) {
@@ -110,7 +116,7 @@ impl LFSR {
 
 #[test]
 fn test_lfsr_balance() {
-    let mut lfsr = LFSR::new();
+    let mut lfsr = Lfsr::new();
 
     // Count the number of items, and the number of 1s.
     let mut items = 0;
@@ -130,7 +136,7 @@ fn test_lfsr_balance() {
 }
 #[test]
 fn test_repetition() {
-    let mut lfsr = LFSR::new();
+    let mut lfsr = Lfsr::new();
     let first = lfsr.get();
     let second = lfsr.get();
 

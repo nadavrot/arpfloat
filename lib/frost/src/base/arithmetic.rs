@@ -367,7 +367,7 @@ fn test_mul_special_values() {
 #[test]
 fn test_mul_random_vals() {
     use crate::base::FP64;
-    let mut lfsr = utils::LFSR::new();
+    let mut lfsr = utils::Lfsr::new();
 
     fn mul_f64(a: f64, b: f64) -> f64 {
         let a = FP64::from_f64(a);
