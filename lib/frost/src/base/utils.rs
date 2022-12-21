@@ -46,3 +46,29 @@ pub enum RoundMode {
 pub fn compute_ieee745_bias(exponent_bits: usize) -> usize {
     (1 << (exponent_bits - 1)) - 1
 }
+
+/// \returns list of interesting values that various tests use to catch edge cases.
+pub fn get_special_test_values() -> [f64; 20] {
+    [
+        -f64::NAN,
+        f64::NAN,
+        f64::INFINITY,
+        f64::NEG_INFINITY,
+        f64::EPSILON,
+        -f64::EPSILON,
+        0.000000000000000000000000000000000000001,
+        f64::MIN,
+        f64::MAX,
+        std::f64::consts::PI,
+        std::f64::consts::LN_2,
+        std::f64::consts::SQRT_2,
+        std::f64::consts::E,
+        0.0,
+        -0.0,
+        10.,
+        -10.,
+        -0.00001,
+        0.1,
+        355. / 113.,
+    ]
+}

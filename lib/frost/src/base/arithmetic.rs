@@ -197,24 +197,8 @@ fn add_denormals() {
 #[test]
 fn add_special_values() {
     // Test the addition of various irregular values.
-    let values = [
-        -f64::NAN,
-        f64::NAN,
-        f64::INFINITY,
-        f64::NEG_INFINITY,
-        f64::EPSILON,
-        -f64::EPSILON,
-        0.000000000000000000000000000000000000001,
-        f64::MIN,
-        f64::MAX,
-        0.0,
-        -0.0,
-        10.,
-        -10.,
-        -0.00001,
-        0.1,
-        355. / 113.,
-    ];
+    let values = utils::get_special_test_values();
+
     use super::float::FP64;
 
     fn add_f64(a: f64, b: f64) -> f64 {
@@ -344,24 +328,8 @@ fn mul_regular_values() {
 #[test]
 fn test_mul_special_values() {
     // Test the multiplication of various irregular values.
-    let values = [
-        -f64::NAN,
-        f64::NAN,
-        f64::INFINITY,
-        f64::NEG_INFINITY,
-        f64::EPSILON,
-        -f64::EPSILON,
-        0.000000000000000000000000000000000000001,
-        f64::MIN,
-        f64::MAX,
-        0.0,
-        -0.0,
-        10.,
-        -10.,
-        -0.00001,
-        0.1,
-        355. / 113.,
-    ];
+    let values = utils::get_special_test_values();
+
     use super::float::FP64;
 
     fn mul_f64(a: f64, b: f64) -> f64 {
