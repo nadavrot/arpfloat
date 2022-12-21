@@ -37,7 +37,7 @@ impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
         Self::from_u64(val as u64)
     }
 
-    pub fn from_bits<const E: usize, const M: usize>(float: u64) -> Self {
+    fn from_bits<const E: usize, const M: usize>(float: u64) -> Self {
         // Extract the biased exponent (wipe the sign and mantissa).
         let biased_exp = ((float >> M) & mask(E) as u64) as i64;
         // Wipe the original exponent and mantissa.
