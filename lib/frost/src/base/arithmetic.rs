@@ -228,7 +228,10 @@ pub fn mul<const E: usize, const M: usize>(
     y: Float<E, M>,
 ) -> Float<E, M> {
     let sign = x.get_sign() ^ y.get_sign();
+
+    // Record the bounds of the exponent (and the value of denormal exponent).
     let exp_bounds = Float::<E, M>::get_exp_bounds();
+    assert_eq!(exp_bounds.0 + Float::<E, M>::get_bias() as i64, 0);
 
     if x.is_nan() || y.is_nan() {
         return Float::<E, M>::nan(sign);
@@ -251,8 +254,6 @@ pub fn mul<const E: usize, const M: usize>(
         return Float::<E, M>::zero(sign);
     }
 
-    let mut exp = x.get_exp() + y.get_exp() + 1;
-
     let x_mantissa = x.get_mantissa() as u128;
     let y_mantissa = y.get_mantissa() as u128;
     let xy_mantissa: u128 = x_mantissa * y_mantissa;
@@ -264,8 +265,21 @@ pub fn mul<const E: usize, const M: usize>(
 
     let lz = xy_mantissa.leading_zeros() as u64;
     assert!(lz < 64);
+
+    let mut exp = x.get_exp() + y.get_exp() + 1;
+
+    // Handle normal numbers.
     xy_mantissa <<= lz;
     exp -= lz as i64;
+
+    // Handle the case of numbers falling into denormals.
+    // Check if shifting the number brings us below the legal exp range, but
+    // not all the way down to zero.
+    let exp_delta = exp_bounds.0 - exp;
+    if exp_delta > 0 && exp_delta < 64 {
+        xy_mantissa >>= exp_delta + 1;
+        exp = exp_bounds.0;
+    }
 
     // Handle overflow and underflows.
     if exp > exp_bounds.1 {
@@ -347,5 +361,42 @@ fn test_mul_special_values() {
             // Check that the results are bit identical, or are both NaN.
             assert!(r1.is_nan() || r0_bits == r1_bits);
         }
+    }
+}
+
+#[test]
+fn test_mul_random_vals() {
+    use crate::base::FP64;
+    let mut lfsr = utils::LFSR::new();
+
+    fn mul_f64(a: f64, b: f64) -> f64 {
+        let a = FP64::from_f64(a);
+        let b = FP64::from_f64(b);
+        a.dump();
+        b.dump();
+        let k = mul(a, b);
+        k.dump();
+        k.as_f64()
+    }
+
+    for _ in 0..50 {
+        let v0 = lfsr.get64();
+        let v1 = lfsr.get64();
+
+        let f0 = f64::from_bits(v0);
+        let f1 = f64::from_bits(v1);
+
+        let r0 = mul_f64(f0, f1);
+        let r1 = f0 * f1;
+
+        FP64::from_f64(r1).dump();
+
+        assert_eq!(r0.is_finite(), r1.is_finite());
+        assert_eq!(r0.is_nan(), r1.is_nan());
+        assert_eq!(r0.is_infinite(), r1.is_infinite());
+        let r0_bits = r0.to_bits();
+        let r1_bits = r1.to_bits();
+        // Check that the results are bit identical, or are both NaN.
+        assert!(r1.is_nan() || r0_bits == r1_bits);
     }
 }

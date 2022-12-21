@@ -154,6 +154,19 @@ impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
             sign, self.exp, exp, mantissa
         );
     }
+
+    /// Convert denormals into normal values. Notice that this
+    /// may create exponent values that are not legal.
+    pub fn normalize(&mut self) {
+        if self.is_normal() || self.is_zero() {
+            return;
+        }
+
+        let lz = self.mantissa.leading_zeros() as u64;
+        assert!(lz > 0 && lz < 64);
+        self.mantissa <<= lz;
+        self.exp -= lz;
+    }
 }
 
 pub type FP16 = Float<5, 10>;
