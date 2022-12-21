@@ -149,9 +149,10 @@ impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
         let exp = self.get_exp();
         let mantissa = self.get_mantissa();
         let sign = self.get_sign() as usize;
+        let is_denormal = if self.is_normal() { "" } else { "*" };
         println!(
-            "FP[S={} : E={} (biased {}) :SI=0x{:x}]",
-            sign, self.exp, exp, mantissa
+            "FP[S={} : E={} (biased {}) :SI=0x{:x}{}]",
+            sign, self.exp, exp, mantissa, is_denormal
         );
     }
 
