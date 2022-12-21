@@ -252,15 +252,15 @@ pub fn mul<const E: usize, const M: usize>(
 
     if x.is_inf() {
         if y.is_zero() {
-            return Float::<E, M>::nan(x.get_sign());
+            return Float::<E, M>::nan(sign);
         }
-        return Float::<E, M>::inf(x.get_sign());
+        return Float::<E, M>::inf(sign);
     }
     if y.is_inf() {
         if x.is_zero() {
-            return Float::<E, M>::nan(y.get_sign());
+            return Float::<E, M>::nan(sign);
         }
-        return Float::<E, M>::inf(y.get_sign());
+        return Float::<E, M>::inf(sign);
     }
 
     if x.is_zero() && y.is_zero() {
@@ -269,24 +269,29 @@ pub fn mul<const E: usize, const M: usize>(
 
     let mut exp = x.get_exp() + y.get_exp() + 1;
 
+    let x_mantissa = x.get_mantissa() as u128;
+    let y_mantissa = y.get_mantissa() as u128;
+    let xy_mantissa: u128 = x_mantissa * y_mantissa;
+    let mut xy_mantissa: u64 = (xy_mantissa >> 64) as u64;
+
+    if xy_mantissa == 0 {
+        return Float::<E, M>::zero(sign);
+    }
+
+    let lz = xy_mantissa.leading_zeros() as u64;
+
+    // How far can we lower the exponent.
+    let delta_to_min = exp - exp_bounds.0;
+    let shift = delta_to_min.min(lz as i64).min(63);
+    xy_mantissa <<= shift;
+    exp -= shift;
+
     // Handle overflow and underflows.
     if exp > exp_bounds.1 {
         return Float::<E, M>::inf(sign);
     } else if exp < exp_bounds.0 {
         return Float::<E, M>::zero(sign);
     }
-
-    let x_mantissa = x.get_mantissa() as u128;
-    let y_mantissa = y.get_mantissa() as u128;
-    let xy_mantissa: u128 = x_mantissa * y_mantissa;
-    let mut xy_mantissa: u64 = (xy_mantissa >> 64) as u64;
-
-    let lz = xy_mantissa.leading_zeros() as u64;
-    // How far can we lower the exponent.
-    let delta_to_min = exp - exp_bounds.0;
-    let shift = delta_to_min.min(lz as i64).min(63);
-    xy_mantissa <<= shift;
-    exp -= shift;
 
     let mut r = Float::<E, M>::default();
     r.set_mantissa(xy_mantissa);
@@ -332,6 +337,50 @@ fn mul_regular_values() {
             let r1_bits = r1.to_bits();
             // Check that the results are bit identical, or are both NaN.
             assert_eq!(r0_bits, r1_bits);
+        }
+    }
+}
+
+#[test]
+fn test_mul_special_values() {
+    // Test the multiplication of various irregular values.
+    let values = [
+        -f64::NAN,
+        f64::NAN,
+        f64::INFINITY,
+        f64::NEG_INFINITY,
+        f64::EPSILON,
+        -f64::EPSILON,
+        0.000000000000000000000000000000000000001,
+        f64::MIN,
+        f64::MAX,
+        0.0,
+        -0.0,
+        10.,
+        -10.,
+        -0.00001,
+        0.1,
+        355. / 113.,
+    ];
+    use super::float::FP64;
+
+    fn mul_f64(a: f64, b: f64) -> f64 {
+        let a = FP64::from_f64(a);
+        let b = FP64::from_f64(b);
+        mul(a, b).as_f64()
+    }
+
+    for v0 in values {
+        for v1 in values {
+            let r0 = mul_f64(v0, v1);
+            let r1 = v0 * v1;
+            assert_eq!(r0.is_finite(), r1.is_finite());
+            assert_eq!(r0.is_nan(), r1.is_nan());
+            assert_eq!(r0.is_infinite(), r1.is_infinite());
+            let r0_bits = r0.to_bits();
+            let r1_bits = r1.to_bits();
+            // Check that the results are bit identical, or are both NaN.
+            assert!(r1.is_nan() || r0_bits == r1_bits);
         }
     }
 }
