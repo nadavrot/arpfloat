@@ -41,3 +41,8 @@ pub enum RoundMode {
     Trunc,
     Even,
 }
+
+// \returns the bias for this Float type.
+pub fn compute_ieee745_bias(exponent_bits: usize) -> usize {
+    (1 << (exponent_bits - 1)) - 1
+}
