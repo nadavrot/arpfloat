@@ -72,3 +72,71 @@ pub fn get_special_test_values() -> [f64; 20] {
         355. / 113.,
     ]
 }
+
+// Linear-feedback shift register.
+pub struct LFSR {
+    state: u32,
+}
+
+impl LFSR {
+    pub fn new() -> LFSR {
+        LFSR { state: 0x13371337 }
+    }
+
+    pub fn next(&mut self) {
+        let a = (self.state >> 24) & 1;
+        let b = (self.state >> 23) & 1;
+        let c = (self.state >> 22) & 1;
+        let d = (self.state >> 17) & 1;
+        let n = a ^ b ^ c ^ d ^ 1;
+        self.state <<= 1;
+        self.state |= n;
+    }
+
+    pub fn get(&mut self) -> u32 {
+        let mut res: u32 = 0;
+        for _ in 0..32 {
+            self.next();
+            res <<= 1;
+            res ^= self.state & 0x1;
+        }
+        res
+    }
+
+    pub fn get64(&mut self) -> u64 {
+        ((self.get() as u64) << 32) | self.get() as u64
+    }
+}
+
+#[test]
+fn test_lfsr_balance() {
+    let mut lfsr = LFSR::new();
+
+    // Count the number of items, and the number of 1s.
+    let mut items = 0;
+    let mut ones = 0;
+
+    for _ in 0..10000 {
+        let mut u = lfsr.get();
+        for _ in 0..32 {
+            items += 1;
+            ones += u & 1;
+            u >>= 1;
+        }
+    }
+    // Make sure that we have around 50% 1s and 50% zeros.
+    assert!((ones as f64) < (0.55 * items as f64));
+    assert!((ones as f64) > (0.45 * items as f64));
+}
+#[test]
+fn test_repetition() {
+    let mut lfsr = LFSR::new();
+    let first = lfsr.get();
+    let second = lfsr.get();
+
+    // Make sure that the items don't repeat themselves too frequently.
+    for _ in 0..30000 {
+        assert_ne!(first, lfsr.get());
+        assert_ne!(second, lfsr.get());
+    }
+}
