@@ -263,12 +263,9 @@ pub fn mul<const E: usize, const M: usize>(
     }
 
     let lz = xy_mantissa.leading_zeros() as u64;
-
-    // How far can we lower the exponent.
-    let delta_to_min = exp - exp_bounds.0;
-    let shift = delta_to_min.min(lz as i64).min(63);
-    xy_mantissa <<= shift;
-    exp -= shift;
+    assert!(lz < 64);
+    xy_mantissa <<= lz;
+    exp -= lz as i64;
 
     // Handle overflow and underflows.
     if exp > exp_bounds.1 {
