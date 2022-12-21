@@ -231,7 +231,6 @@ pub fn mul<const E: usize, const M: usize>(
 
     // Record the bounds of the exponent (and the value of denormal exponent).
     let exp_bounds = Float::<E, M>::get_exp_bounds();
-    assert_eq!(exp_bounds.0 + Float::<E, M>::get_bias() as i64, 0);
 
     if x.is_nan() || y.is_nan() {
         return Float::<E, M>::nan(sign);

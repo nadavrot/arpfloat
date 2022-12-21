@@ -7,7 +7,7 @@ pub struct Float<const EXPONENT: usize, const MANTISSA: usize> {
     // The Sign bit.
     sign: bool,
     // The Exponent.
-    exp: u64,
+    exp: i64,
     // The significand, including the possible implicit bit, aligned to the
     // left. Format [1xxxxxxx........]
     mantissa: u64,
@@ -103,13 +103,13 @@ impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
     }
 
     /// \returns the unbiased exponent.
-    fn get_unbiased_exp(&self) -> u64 {
-        self.exp
+    pub fn get_unbiased_exp(&self) -> u64 {
+        (self.exp + Self::get_bias()) as u64
     }
 
     /// \returns the biased exponent.
     pub fn get_exp(&self) -> i64 {
-        self.exp as i64 - Self::get_bias() as i64
+        self.exp
     }
 
     /// Sets the biased exponent to \p new_exp.
@@ -117,25 +117,25 @@ impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
         let (exp_min, exp_max) = Self::get_exp_bounds();
         assert!(new_exp <= exp_max);
         assert!(exp_min <= new_exp);
-
-        let new_exp: i64 = new_exp + (Self::get_bias() as i64);
-        self.exp = new_exp as u64
+        self.exp = new_exp
     }
 
     /// Sets the unbiased exponent to \p new_exp.
     fn set_unbiased_exp(&mut self, new_exp: u64) {
-        self.exp = new_exp
+        self.exp = new_exp as i64 - Self::get_bias()
     }
 
-    pub fn get_bias() -> u64 {
-        utils::compute_ieee745_bias(EXPONENT) as u64
+    /// Returns the exponent bias for the number, as a positive number.
+    /// https://en.wikipedia.org/wiki/IEEE_754#Basic_and_interchange_formats
+    fn get_bias() -> i64 {
+        utils::compute_ieee745_bias(EXPONENT) as i64
     }
 
     /// \returns the bounds of the upper and lower bounds of the exponent.
     pub fn get_exp_bounds() -> (i64, i64) {
-        let exp_min: i64 = -(Self::get_bias() as i64);
+        let exp_min: i64 = -Self::get_bias();
         // The highest value is 0xFFFE, because 0xFFFF is used for signaling.
-        let exp_max: i64 = ((1 << EXPONENT) - Self::get_bias() - 2) as i64;
+        let exp_max: i64 = (1 << EXPONENT) - Self::get_bias() - 2;
         (exp_min, exp_max)
     }
 
@@ -166,7 +166,7 @@ impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
         let lz = self.mantissa.leading_zeros() as u64;
         assert!(lz > 0 && lz < 64);
         self.mantissa <<= lz;
-        self.exp -= lz;
+        self.exp -= lz as i64;
     }
 }
 

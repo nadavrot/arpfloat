@@ -101,7 +101,7 @@ impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
         // https://en.wikipedia.org/wiki/IEEE_754
         let mut bits: u64 = self.get_sign() as u64;
         bits <<= E;
-        bits |= (self.get_exp() + Self::get_bias() as i64) as u64;
+        bits |= self.get_unbiased_exp();
         bits <<= M;
         let mant = self.get_mantissa();
         let mant = mant << 1; // Clear the explicit '1' bit.
