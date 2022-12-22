@@ -344,7 +344,7 @@ impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
                     return true;
                 }
 
-                self.mantissa & 0x1 == 1
+                loss.is_exactly_half() && self.mantissa & 0x1 == 1
             }
         }
     }

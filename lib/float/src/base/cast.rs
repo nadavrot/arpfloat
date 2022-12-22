@@ -7,7 +7,7 @@ use crate::base::float::LossFraction;
 impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
     pub fn from_u64(val: u64) -> Self {
         let mut a = Self::new(false, MANTISSA as i64, val);
-        a.normalize(RoundingMode::NearestTiesToAway, LossFraction::ExactlyZero);
+        a.normalize(RoundingMode::NearestTiesToEven, LossFraction::ExactlyZero);
         a
     }
 
@@ -268,9 +268,6 @@ fn test_cast_down_complex() {
         let res = FP64::from_f64(v).as_f32();
         assert_eq!(FP64::from_f64(v).as_f64().to_bits(), v.to_bits());
         assert_eq!(v.is_nan(), res.is_nan());
-        println!("======== {} =========", v);
-        println!("{} != {}", res, v as f32);
-        println!("{:32b} X!=\n{:32b} V", res.to_bits(), (v as f32).to_bits());
         assert!(v.is_nan() || res == v as f32);
     }
 }
