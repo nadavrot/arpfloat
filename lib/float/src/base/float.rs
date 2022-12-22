@@ -3,7 +3,10 @@ use super::utils;
 #[derive(Debug, Clone, Copy)]
 pub enum RoundingMode {
     NearestTiesToEven,
-    ToZero,
+    NearestTiesToAway,
+    Zero,
+    Positive,
+    Negative,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -235,7 +238,7 @@ impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
         let val = (val >> rest_bits) << rest_bits;
 
         match mode {
-            RoundingMode::ToZero => {
+            RoundingMode::Zero => {
                 self.mantissa = val;
             }
             RoundingMode::NearestTiesToEven => {
@@ -251,6 +254,9 @@ impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
                 } else {
                     self.mantissa = val;
                 }
+            }
+            _ => {
+                panic!("Unsupported rounding mode");
             }
         }
     }
@@ -272,6 +278,6 @@ fn test_round() {
     assert_eq!(val.get_mantissa(), b);
 
     let mut val = FP64::new(false, 0, a);
-    val.round(60, RoundingMode::ToZero);
+    val.round(60, RoundingMode::Zero);
     assert_eq!(val.get_mantissa(), c);
 }
