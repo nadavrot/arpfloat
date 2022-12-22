@@ -100,7 +100,6 @@ impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
     }
     pub fn as_f32(&self) -> f32 {
         let b: FP32 = self.cast();
-        b.dump();
         let bits = b.as_native_float();
         f32::from_bits(bits as u32)
     }
