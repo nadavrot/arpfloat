@@ -412,7 +412,7 @@ impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
             // Did the mantissa overflow?
             if (self.mantissa >> Self::get_precision()) > 0 {
                 // Can we fix the exponent?
-                if self.exp <= bounds.1 {
+                if self.exp < bounds.1 {
                     self.shift_significand_right(1);
                 } else {
                     *self = Self::inf(self.sign);

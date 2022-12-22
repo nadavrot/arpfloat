@@ -7,7 +7,7 @@ use crate::base::float::LossFraction;
 impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
     pub fn from_u64(val: u64) -> Self {
         let mut a = Self::new(false, MANTISSA as i64, val);
-        a.normalize(RoundingMode::NearestTiesToEven, LossFraction::ExactlyZero);
+        a.normalize(RoundingMode::NearestTiesToAway, LossFraction::ExactlyZero);
         a
     }
 
@@ -56,9 +56,7 @@ impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
             self.get_mantissa(),
             self.get_category(),
         );
-        x.dump();
         x.normalize(RoundingMode::NearestTiesToEven, LossFraction::ExactlyZero);
-        x.dump();
         x
     }
 
@@ -84,7 +82,6 @@ impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
                 exp = (self.get_exp() + Self::get_bias()) as u64;
             }
         }
-        println!("exp = {:x}, m = {:x}", exp, mantissa);
 
         let mut bits: u64 = self.get_sign() as u64;
         bits <<= EXPONENT;
@@ -95,9 +92,7 @@ impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
         bits
     }
     pub fn as_f32(&self) -> f32 {
-        self.dump();
         let b: FP32 = self.cast();
-        b.dump();
         let bits = b.as_native_float();
         f32::from_bits(bits as u32)
     }
@@ -140,7 +135,6 @@ fn test_round_trip_native_float_cast() {
 
     let f = f32::from_bits(0x000000);
     let a = FP32::from_f32(f);
-    a.dump();
     assert!(!a.is_normal());
     assert_eq!(f, a.as_f32());
 }
@@ -190,7 +184,8 @@ fn test_cast_from_integers() {
     assert_eq!(FP64::from_i64(0).as_f64(), 0.);
     assert_eq!(FP16::from_i64(65500).as_f64(), 65504.0);
     assert_eq!(FP16::from_i64(65504).as_f64(), 65504.0);
-    assert_eq!(FP16::from_i64(65535).as_f64(), 65536.0);
+    assert_eq!(FP16::from_i64(65519).as_f64(), 65504.0);
+    assert_eq!(FP16::from_i64(65520).as_f64(), f64::INFINITY);
     assert_eq!(FP16::from_i64(65536).as_f64(), f64::INFINITY);
 
     for i in -100..100 {
