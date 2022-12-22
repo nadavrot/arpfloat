@@ -7,12 +7,28 @@ pub enum RoundingMode {
 }
 
 #[derive(Debug, Clone, Copy)]
-enum LossFraction {
+pub enum LossFraction {
     ExactlyZero,  //0000000
     LessThanHalf, //0xxxxxx
     ExactlyHalf,  //1000000
     MoreThanHalf, //1xxxxxx
 }
+
+impl LossFraction {
+    pub fn is_exactly_zero(&self) -> bool {
+        matches!(self, Self::ExactlyZero)
+    }
+    pub fn is_lt_half(&self) -> bool {
+        matches!(self, Self::LessThanHalf)
+    }
+    pub fn is_exactly_half(&self) -> bool {
+        matches!(self, Self::ExactlyHalf)
+    }
+    pub fn is_mt_half(&self) -> bool {
+        matches!(self, Self::MoreThanHalf)
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Category {
     Infinity,

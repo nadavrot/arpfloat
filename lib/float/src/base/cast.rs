@@ -1,8 +1,8 @@
-use crate::base::float::Category;
-
 use super::float::{Float, RoundingMode, FP32, FP64};
 use super::utils;
 use super::utils::{expand_mantissa_to_explicit, mask};
+use crate::base::float::Category;
+use crate::base::float::LossFraction;
 
 impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
     pub fn from_u64(val: u64) -> Self {
@@ -300,5 +300,47 @@ fn test_cast_down_complex() {
         println!("{:32b} X!=\n{:32b} V", res.to_bits(), (v as f32).to_bits());
 
         assert!(v.is_nan() || res == v as f32);
+    }
+}
+
+impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
+    pub fn normalize(&mut self) {}
+
+    /// \returns the fractional part that's lost during truncation of the
+    /// \p bits lower bits.
+    pub fn get_loss_kind_of_trunc(val: u64, bits: u64) -> LossFraction {
+        let s = val << (64 - bits);
+        if s == 0 {
+            return LossFraction::ExactlyZero;
+        } else if s == (1 << 63) {
+            return LossFraction::ExactlyHalf;
+        } else if s > (1 << 63) {
+            return LossFraction::MoreThanHalf;
+        }
+        LossFraction::LessThanHalf
+    }
+
+    //// Shift \p val by \p bits, and report the loss.
+    pub fn shiftRight(&mut self, val: u64, bits: u64) -> (u64, LossFraction) {
+        assert!(bits < 64, "Shift overflow");
+        let l = Self::get_loss_kind_of_trunc(val, bits);
+        (val >> bits, l)
+    }
+
+    /// Combine the loss of accuracy with \p msb more significant and \p lsb
+    /// less significant.
+    pub fn combine_loss_fraction(
+        &self,
+        msb: LossFraction,
+        lsb: LossFraction,
+    ) -> LossFraction {
+        if !lsb.is_exactly_half() {
+            if msb.is_exactly_zero() {
+                return LossFraction::LessThanHalf;
+            } else if msb.is_exactly_half() {
+                return LossFraction::MoreThanHalf;
+            }
+        }
+        msb
     }
 }
