@@ -74,23 +74,17 @@ impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
 
     pub fn cast<const E: usize, const S: usize>(&self) -> Float<E, S> {
         let mut x = Float::<E, S>::default();
-        let exp_bounds = Float::<E, S>::get_exp_bounds();
-        let exp = self.get_exp();
-
         if self.is_nan() {
             return Float::<E, S>::nan(self.get_sign());
         }
         if self.is_inf() {
             return Float::<E, S>::inf(self.get_sign());
         }
-        // Overflow.
-        if exp > exp_bounds.1 {
-            return Float::<E, S>::inf(self.get_sign());
-        }
-
         x.set_mantissa(self.get_mantissa());
         x.set_sign(self.get_sign());
         x.set_exp(self.get_exp());
+
+        x.legalize();
 
         // Round the S bits of the output mantissa (+1 for the implicit bit).
         x.round(S + 1, utils::RoundMode::Even);
@@ -267,12 +261,34 @@ fn test_cast_zero_nan_inf() {
 }
 
 #[test]
+fn test_cast_denormals() {
+    {
+        let a = FP32::new_denormal(false, 0x134ff);
+        assert!(!a.is_normal());
+        // After casting to FP64, this should no longer be a denormal.
+        let b: FP64 = a.cast();
+        assert!(b.is_normal());
+        assert!(b.is_legal());
+    }
+}
+
+#[test]
 fn test_cast_down_easy() {
     // Check that we can cast the numbers down, matching the hardware casting.
-    let vals = [0.3, 0.1, 14151241515., 14151215.];
-    for v in vals {
+    for v in [0.3, 0.1, 14151241515., 14151215., 0.0000000001, 1000000000.] {
         let res = FP64::from_f64(v).as_f32();
         assert_eq!(FP64::from_f64(v).as_f64().to_bits(), v.to_bits());
         assert!(res == v as f32);
+    }
+}
+
+#[test]
+fn test_cast_down_complex() {
+    // Try casting a bunch of difficult values such as inf, nan, denormals, etc.
+    for v in utils::get_special_test_values() {
+        let res = FP64::from_f64(v).as_f32();
+        assert_eq!(FP64::from_f64(v).as_f64().to_bits(), v.to_bits());
+        assert_eq!(v.is_nan(), res.is_nan());
+        assert!(v.is_nan() || res == v as f32);
     }
 }

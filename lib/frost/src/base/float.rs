@@ -14,11 +14,27 @@ pub struct Float<const EXPONENT: usize, const MANTISSA: usize> {
 }
 
 impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
-    pub fn new(sign: bool, exp: i64, sig: u64) -> Self {
+    /// Create a new normal floating point number.
+    pub fn new(sign: bool, exp: i64, m: u64) -> Self {
+        assert!(m.leading_zeros() == 0, "A normal Mantissa starts w/ 1 msb");
+        assert_ne!(exp, Self::get_exp_bounds().0);
+        Self::raw(sign, exp, m)
+    }
+    /// Create a new normal floating point number, without checks.
+    pub fn raw(sign: bool, exp: i64, m: u64) -> Self {
         let mut a = Self::default();
         a.set_sign(sign);
         a.set_exp(exp);
-        a.set_mantissa(sig);
+        a.set_mantissa(m);
+        a
+    }
+
+    /// Create a new de-normal floating point number.
+    pub fn new_denormal(sign: bool, m: u64) -> Self {
+        let mut a = Self::default();
+        a.set_sign(sign);
+        a.set_unbiased_exp(0);
+        a.set_mantissa(m);
         a
     }
 
@@ -114,9 +130,6 @@ impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
 
     /// Sets the biased exponent to \p new_exp.
     pub fn set_exp(&mut self, new_exp: i64) {
-        let (exp_min, exp_max) = Self::get_exp_bounds();
-        assert!(new_exp <= exp_max);
-        assert!(exp_min <= new_exp);
         self.exp = new_exp
     }
 
@@ -149,24 +162,8 @@ impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
         let exp = self.get_exp();
         let mantissa = self.get_mantissa();
         let sign = self.get_sign() as usize;
-        let is_denormal = if self.is_normal() { "" } else { "*" };
-        println!(
-            "FP[S={} : E={} (biased {}) :SI=0x{:x}{}]",
-            sign, self.exp, exp, mantissa, is_denormal
-        );
-    }
-
-    /// Convert denormals into normal values. Notice that this
-    /// may create exponent values that are not legal.
-    pub fn normalize(&mut self) {
-        if self.is_normal() || self.is_zero() {
-            return;
-        }
-
-        let lz = self.mantissa.leading_zeros() as u64;
-        assert!(lz > 0 && lz < 64);
-        self.mantissa <<= lz;
-        self.exp -= lz as i64;
+        let dn = if self.is_normal() { "" } else { "*" };
+        println!("FP[S={} : E={} {}: M = 0x{:x}]", sign, exp, dn, mantissa);
     }
 }
 
@@ -180,7 +177,7 @@ fn setter_test() {
     assert_eq!(FP32::get_bias(), 127);
     assert_eq!(FP64::get_bias(), 1023);
 
-    let a: Float<6, 10> = Float::new(false, 2, 12);
+    let a: Float<6, 10> = Float::new(false, 2, (1 << 63) + 12);
     let mut b = a;
     b.set_exp(b.get_exp());
     assert_eq!(a.get_exp(), b.get_exp());
@@ -246,4 +243,103 @@ fn test_round() {
     val.set_mantissa(a);
     val.round(60, RoundMode::Trunc);
     assert_eq!(val.get_mantissa(), c);
+}
+
+impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
+    /// \return true if the number is in a legal form, which means that it is
+    /// normalized and within the allowed exponent range.
+    pub fn is_legal(&self) -> bool {
+        let bounds = Self::get_exp_bounds();
+        let is1x = self.mantissa.leading_zeros() == 0;
+        // Check if this is a number in the normal range.
+        if is1x && (self.exp <= bounds.1 && self.exp > bounds.0) {
+            true
+        } else if self.exp == bounds.0 && !is1x {
+            // This is a denormal number.
+            true
+        } else {
+            // Nan, Inf are legal.
+            self.in_special_exp()
+        }
+    }
+
+    /// Convert the number into a normal form: denormal, normal, zero or
+    /// infinity. The procedure handles normals that need to turn into
+    /// denormals, and numbers that fall out of bounds.
+    pub fn legalize(&mut self) {
+        if self.is_legal() {
+            return;
+        }
+
+        let bounds = Self::get_exp_bounds();
+
+        // Normalize zeros.
+        if self.mantissa == 0 {
+            *self = Self::zero(self.sign);
+            return;
+        }
+
+        // Try to promote denormals.
+        let lz = self.mantissa.leading_zeros();
+        if lz != 0 && ((self.exp + lz as i64) > bounds.0) {
+            // This is a mantissa without a leading 1 that does not have a
+            // denormal exponent. Shift it into the normal range and legalize
+            // the exponent later.
+            self.mantissa <<= lz;
+            self.exp -= lz as i64;
+            assert_ne!(self.exp, bounds.0);
+        }
+
+        // If the number should have an explicit leading 1 if it's not a
+        // denormal.
+        assert!(!(lz == 0 && self.exp == bounds.0));
+
+        // Handle small exponents.
+        if self.exp < bounds.0 {
+            // The exponent is below the allowed exponent range. Try to turn it
+            // into a denormal.
+            let exp_delta = bounds.0 - self.exp;
+            if exp_delta > 0 && exp_delta < 64 {
+                self.mantissa >>= exp_delta + 1;
+                self.exp = bounds.0;
+                return;
+            }
+            // The number is too small. Drop to zero.
+            *self = Self::zero(self.sign);
+            return;
+        }
+
+        // Handle large exponents.
+        if self.exp > bounds.1 {
+            *self = Self::inf(self.sign);
+        }
+    }
+}
+
+#[test]
+fn test_legalization() {
+    // Small number to zero.
+    let mut a = FP32::raw(false, -1000, 0x0000000013371337);
+    a.legalize();
+    assert!(a.is_legal() && a.is_zero() && !a.is_inf() && !a.is_normal());
+
+    // Small normal number to a small normal number.
+    let mut a = FP32::raw(false, 0, 0x1);
+    a.legalize();
+    assert!(a.is_legal());
+    assert_eq!(a.get_exp(), -63);
+
+    // Denorm to denorm.
+    let mut a = FP32::raw(false, -120, 0x1);
+    a.legalize();
+    assert!(a.is_legal());
+    assert_eq!(a.get_exp(), -127);
+    assert_eq!(a.get_mantissa(), 64);
+
+    // Denorm to a small normal number.
+    let mut a = FP32::raw(false, -120, 1 << 60);
+    a.legalize();
+    assert!(a.is_legal());
+    assert_eq!(a.get_exp(), -123);
+    assert_eq!(a.get_mantissa(), 0x8000000000000000);
 }
