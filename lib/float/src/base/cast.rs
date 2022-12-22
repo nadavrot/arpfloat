@@ -1,6 +1,6 @@
 use super::float::{Float, RoundingMode, FP32, FP64};
 use super::utils;
-use super::utils::{expand_mantissa_to_explicit, mask};
+use super::utils::mask;
 use crate::base::float::Category;
 use crate::base::float::LossFraction;
 
@@ -35,115 +35,98 @@ impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
         Self::from_u64(val as u64)
     }
 
-    fn from_bits<const E: usize, const M: usize>(float: u64) -> Self {
+    fn from_bits(float: u64) -> Self {
         // Extract the biased exponent (wipe the sign and mantissa).
-        let biased_exp = ((float >> M) & mask(E) as u64) as i64;
+        let biased_exp = ((float >> MANTISSA) & mask(EXPONENT) as u64) as i64;
         // Wipe the original exponent and mantissa.
-        let sign = (float >> (E + M)) & 1;
+        let sign = (float >> (EXPONENT + MANTISSA)) & 1;
         // Wipe the sign and exponent.
-        let mantissa = float & mask(M) as u64;
+        let mut mantissa = float & mask(MANTISSA) as u64;
 
         let sign = sign == 1;
 
         // Check for NaN/Inf
-        if biased_exp == mask(E) as i64 {
+        if biased_exp == mask(EXPONENT) as i64 {
             if mantissa == 0 {
                 return Self::inf(sign);
             }
             return Self::nan(sign);
         }
 
-        // Check that the loaded value fits within the bounds of the float.
-        let exp = biased_exp - utils::compute_ieee745_bias(E) as i64;
-        let bounds = Self::get_exp_bounds();
-        if exp < bounds.0 {
-            return Self::zero(sign);
-        } else if exp > bounds.1 {
-            return Self::inf(sign);
+        // Add the implicit bit for normal numbers.
+        if biased_exp != 0 {
+            mantissa += 1u64 << MANTISSA;
         }
 
-        let leading_1 = biased_exp != 0;
-        let new_mantissa =
-            expand_mantissa_to_explicit::<M>(mantissa, leading_1);
-        Self::new(sign, exp, new_mantissa)
+        let exp = biased_exp - utils::compute_ieee745_bias(EXPONENT) as i64;
+        Self::new(sign, exp, mantissa)
     }
 
-    pub fn cast<const E: usize, const S: usize>(&self) -> Float<E, S> {
-        let mut x = Float::<E, S>::raw(
+    pub fn cast<const E: usize, const M: usize>(&self) -> Float<E, M> {
+        let exp_delta = MANTISSA as i64 - M as i64;
+        let mut x = Float::<E, M>::raw(
             self.get_sign(),
-            self.get_exp(),
+            self.get_exp() - exp_delta,
             self.get_mantissa(),
             self.get_category(),
         );
+        x.dump();
         x.normalize(RoundingMode::NearestTiesToEven, LossFraction::ExactlyZero);
+        x.dump();
         x
     }
 
-    fn as_native_float<const E: usize, const M: usize>(&self) -> u64 {
+    fn as_native_float(&self) -> u64 {
         // https://en.wikipedia.org/wiki/IEEE_754
         let mantissa: u64;
         let exp: u64;
-
-        println!("Encoding :");
-        self.dump();
-        println!("E = {}, M = {}", E, M);
-
         match self.get_category() {
             Category::Infinity => {
                 mantissa = 0;
-                exp = mask(E) as u64;
+                exp = mask(EXPONENT) as u64;
             }
             Category::NaN => {
-                mantissa = 1 << (M - 1);
-                exp = mask(E) as u64;
+                mantissa = 1 << (MANTISSA - 1);
+                exp = mask(EXPONENT) as u64;
             }
             Category::Zero => {
                 mantissa = 0;
                 exp = 0;
             }
             Category::Normal => {
-                let mant = self.get_mantissa();
-                let mant = mant << 1; // Clear the explicit '1' bit.
-                mantissa = mant >> (64 - M); // Put the mantissa in place.
-                println!("bias = {}", Float::<E, M>::get_bias());
-                println!("exp = {}", self.get_exp());
-                exp = (self.get_exp() + Float::<E, M>::get_bias()) as u64;
+                mantissa = self.get_mantissa() & utils::mask(MANTISSA) as u64;
+                exp = (self.get_exp() + Self::get_bias()) as u64;
             }
         }
-
-        // Encode denormals, get rid of the implicit bit.
-        if exp == 0 {
-            // mantissa = mantissa >> 1;
-        }
-
         println!("exp = {:x}, m = {:x}", exp, mantissa);
 
         let mut bits: u64 = self.get_sign() as u64;
-        bits <<= E;
+        bits <<= EXPONENT;
         bits |= exp;
-        bits <<= M;
-        assert!(mantissa <= 1 << M);
+        bits <<= MANTISSA;
+        assert!(mantissa <= 1 << MANTISSA);
         bits |= mantissa;
         bits
     }
     pub fn as_f32(&self) -> f32 {
+        self.dump();
         let b: FP32 = self.cast();
         b.dump();
-        let bits = b.as_native_float::<8, 23>();
+        let bits = b.as_native_float();
         f32::from_bits(bits as u32)
     }
     pub fn as_f64(&self) -> f64 {
         let b: FP64 = self.cast();
-        let bits = b.as_native_float::<11, 52>();
+        let bits = b.as_native_float();
         f64::from_bits(bits)
     }
 
     pub fn from_f32(float: f32) -> Self {
-        Self::from_bits::<8, 23>(float.to_bits() as u64)
+        FP32::from_bits(float.to_bits() as u64).cast()
     }
 
     pub fn from_f64(float: f64) -> Self {
-        Self::from_bits::<11, 52>(float.to_bits())
+        FP64::from_bits(float.to_bits()).cast()
     }
 }
 

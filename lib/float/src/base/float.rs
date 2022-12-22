@@ -241,7 +241,7 @@ fn shift_right_with_loss(val: u64, bits: u64) -> (u64, LossFraction) {
 /// Combine the loss of accuracy with \p msb more significant and \p lsb
 /// less significant.
 fn combine_loss_fraction(msb: LossFraction, lsb: LossFraction) -> LossFraction {
-    if !lsb.is_exactly_half() {
+    if !lsb.is_exactly_zero() {
         if msb.is_exactly_zero() {
             return LossFraction::LessThanHalf;
         } else if msb.is_exactly_half() {
@@ -313,15 +313,14 @@ impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
         assert!(self.mantissa <= 1 << Self::get_precision());
     }
 
-    fn shift_significand_left(&mut self, amt: u64) {
+    pub fn shift_significand_left(&mut self, amt: u64) {
         self.exp -= amt as i64;
         self.mantissa <<= amt;
         self.check_bounds()
     }
 
-    fn shift_significand_right(&mut self, amt: u64) -> LossFraction {
+    pub fn shift_significand_right(&mut self, amt: u64) -> LossFraction {
         self.exp += amt as i64;
-        self.mantissa >>= amt;
         let res = shift_right_with_loss(self.mantissa, amt);
         self.mantissa = res.0;
         self.check_bounds();
