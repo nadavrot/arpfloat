@@ -6,21 +6,7 @@ use crate::base::float::LossFraction;
 
 impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
     pub fn from_u64(val: u64) -> Self {
-        if val == 0 {
-            return Self::zero(false);
-        }
-
-        // Figure out how to shift the input to align the first bit with the
-        // msb of the mantissa.
-        let lz = val.leading_zeros();
-        let size_in_bits = 64 - lz - 1;
-
-        // If we can't adjust the exponent then this is infinity.
-        if size_in_bits > Self::get_exp_bounds().1 as u32 {
-            return Self::inf(false);
-        }
-
-        let mut a = Self::new(false, size_in_bits as i64, val << lz);
+        let mut a = Self::new(false, MANTISSA as i64, val);
         a.normalize(RoundingMode::NearestTiesToEven, LossFraction::ExactlyZero);
         a
     }
