@@ -78,8 +78,15 @@ impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
                 exp = 0;
             }
             Category::Normal => {
-                mantissa = self.get_mantissa() & utils::mask(MANTISSA) as u64;
                 exp = (self.get_exp() + Self::get_bias()) as u64;
+                if exp == 0 {
+                    // Encode denormals.
+                    mantissa =
+                        self.get_mantissa() >> 1 & utils::mask(MANTISSA) as u64;
+                } else {
+                    mantissa =
+                        self.get_mantissa() & utils::mask(MANTISSA) as u64;
+                }
             }
         }
 
@@ -93,6 +100,7 @@ impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
     }
     pub fn as_f32(&self) -> f32 {
         let b: FP32 = self.cast();
+        b.dump();
         let bits = b.as_native_float();
         f32::from_bits(bits as u32)
     }
@@ -260,9 +268,9 @@ fn test_cast_down_complex() {
         let res = FP64::from_f64(v).as_f32();
         assert_eq!(FP64::from_f64(v).as_f64().to_bits(), v.to_bits());
         assert_eq!(v.is_nan(), res.is_nan());
+        println!("======== {} =========", v);
         println!("{} != {}", res, v as f32);
         println!("{:32b} X!=\n{:32b} V", res.to_bits(), (v as f32).to_bits());
-
         assert!(v.is_nan() || res == v as f32);
     }
 }

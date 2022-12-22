@@ -187,7 +187,7 @@ impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
             }
             Category::Normal => {
                 let m = self.mantissa;
-                println!("FP[{} E={} M = 0x{:x}]", sign, self.exp, m);
+                println!("FP[{} E={} M = 0x{:b}]", sign, self.exp, m);
             }
         }
     }
