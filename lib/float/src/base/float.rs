@@ -97,4 +97,27 @@ impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
         }
         return false;
     }
+
+    pub fn dump(&self) {
+        let sign = if self.sign { "-" } else { "+" };
+        match self.category {
+            Category::NaN => {
+                println!("[{}NaN]", sign);
+            }
+            Category::Infinity => {
+                println!("[{}Inf]", sign);
+            }
+            Category::Zero => {
+                println!("[{}0.0]", sign);
+            }
+            Category::Normal => {
+                let m = self.mantissa;
+                println!("FP[{} E={} M = 0x{:x}]", sign, self.exp, m);
+            }
+        }
+    }
 }
+
+pub type FP16 = Float<5, 10>;
+pub type FP32 = Float<8, 23>;
+pub type FP64 = Float<11, 52>;
