@@ -305,42 +305,53 @@ fn test_cast_down_complex() {
 
 impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
     pub fn normalize(&mut self) {}
+}
 
-    /// \returns the fractional part that's lost during truncation of the
-    /// \p bits lower bits.
-    pub fn get_loss_kind_of_trunc(val: u64, bits: u64) -> LossFraction {
-        let s = val << (64 - bits);
-        if s == 0 {
-            return LossFraction::ExactlyZero;
-        } else if s == (1 << 63) {
-            return LossFraction::ExactlyHalf;
-        } else if s > (1 << 63) {
+/// \returns the fractional part that's lost during truncation of the
+/// \p bits lower bits.
+pub fn get_loss_kind_of_trunc(val: u64, bits: u64) -> LossFraction {
+    let s = val << (64 - bits);
+    if s == 0 {
+        return LossFraction::ExactlyZero;
+    } else if s == (1 << 63) {
+        return LossFraction::ExactlyHalf;
+    } else if s > (1 << 63) {
+        return LossFraction::MoreThanHalf;
+    }
+    LossFraction::LessThanHalf
+}
+
+//// Shift \p val by \p bits, and report the loss.
+fn shift_right(val: u64, bits: u64) -> (u64, LossFraction) {
+    assert!(bits < 64, "Shift overflow");
+    let loss = get_loss_kind_of_trunc(val, bits);
+    (val >> bits, loss)
+}
+
+/// Combine the loss of accuracy with \p msb more significant and \p lsb
+/// less significant.
+fn combine_loss_fraction(msb: LossFraction, lsb: LossFraction) -> LossFraction {
+    if !lsb.is_exactly_half() {
+        if msb.is_exactly_zero() {
+            return LossFraction::LessThanHalf;
+        } else if msb.is_exactly_half() {
             return LossFraction::MoreThanHalf;
         }
-        LossFraction::LessThanHalf
     }
+    msb
+}
 
-    //// Shift \p val by \p bits, and report the loss.
-    pub fn shiftRight(&mut self, val: u64, bits: u64) -> (u64, LossFraction) {
-        assert!(bits < 64, "Shift overflow");
-        let l = Self::get_loss_kind_of_trunc(val, bits);
-        (val >> bits, l)
-    }
+#[test]
+fn shift_right_fraction() {
+    let res = shift_right(0b10000000, 3);
+    assert!(res.1.is_exactly_zero());
 
-    /// Combine the loss of accuracy with \p msb more significant and \p lsb
-    /// less significant.
-    pub fn combine_loss_fraction(
-        &self,
-        msb: LossFraction,
-        lsb: LossFraction,
-    ) -> LossFraction {
-        if !lsb.is_exactly_half() {
-            if msb.is_exactly_zero() {
-                return LossFraction::LessThanHalf;
-            } else if msb.is_exactly_half() {
-                return LossFraction::MoreThanHalf;
-            }
-        }
-        msb
-    }
+    let res = shift_right(0b10000111, 3);
+    assert!(res.1.is_mt_half());
+
+    let res = shift_right(0b10000100, 3);
+    assert!(res.1.is_exactly_half());
+
+    let res = shift_right(0b10000001, 3);
+    assert!(res.1.is_lt_half());
 }
