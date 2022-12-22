@@ -46,8 +46,8 @@ pub struct Float<const EXPONENT: usize, const MANTISSA: usize> {
     sign: bool,
     // The Exponent.
     exp: i64,
-    // The significand, including the implicit bit, aligned to the left.
-    // Format [1xxxxxxx........]
+    // The significand, including the implicit bit, aligned to the right.
+    // Format [00000001xxxxxxx].
     mantissa: u64,
     // The kind of number this float represents.
     category: Category,
@@ -199,85 +199,152 @@ impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
         let exp_max: i64 = (1 << EXPONENT) - Self::get_bias() - 2;
         (exp_min, exp_max)
     }
+
+    /// \returns the number of bits in the significand, including the integer
+    /// part.
+    pub fn get_precision() -> u64 {
+        (MANTISSA + 1) as u64
+    }
 }
 
 pub type FP16 = Float<5, 10>;
 pub type FP32 = Float<8, 23>;
 pub type FP64 = Float<11, 52>;
 
-impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
-    pub fn clip(&mut self) {
-        if self.mantissa == 0 {
-            *self = Self::zero(self.sign);
-        } else if self.exp > Self::get_exp_bounds().1 {
-            *self = Self::inf(self.sign);
-        }
-        if self.exp < Self::get_exp_bounds().0 {
-            *self = Self::zero(self.sign);
+/// \returns the fractional part that's lost during truncation of the
+/// \p bits lower bits.
+pub fn get_loss_kind_of_trunc(val: u64, bits: u64) -> LossFraction {
+    let s = val << (64 - bits);
+    if s == 0 {
+        return LossFraction::ExactlyZero;
+    } else if s == (1 << 63) {
+        return LossFraction::ExactlyHalf;
+    } else if s > (1 << 63) {
+        return LossFraction::MoreThanHalf;
+    }
+    LossFraction::LessThanHalf
+}
+
+//// Shift \p val by \p bits, and report the loss.
+fn shift_right_with_loss(val: u64, bits: u64) -> (u64, LossFraction) {
+    assert!(bits < 64, "Shift overflow");
+    let loss = get_loss_kind_of_trunc(val, bits);
+    (val >> bits, loss)
+}
+
+/// Combine the loss of accuracy with \p msb more significant and \p lsb
+/// less significant.
+fn combine_loss_fraction(msb: LossFraction, lsb: LossFraction) -> LossFraction {
+    if !lsb.is_exactly_half() {
+        if msb.is_exactly_zero() {
+            return LossFraction::LessThanHalf;
+        } else if msb.is_exactly_half() {
+            return LossFraction::MoreThanHalf;
         }
     }
-
-    /// Round the mantissa to \p num_bits of accuracy, using the \p mode
-    /// rounding mode. Zero the rest of the mantissa is filled with zeros.
-    /// This operation may overflow, in which case we update the exponent.
-    //
-    /// xxxxxxxxx becomes xxxxy0000, where y, could be rounded up.
-    pub fn round(&mut self, num_bits: usize, mode: RoundingMode) {
-        if !self.is_normal() {
-            return;
-        }
-
-        assert!(num_bits < 64);
-        let val = self.mantissa;
-        let rest_bits = 64 - num_bits;
-        let is_odd = ((val >> rest_bits) & 0x1) == 1;
-        let bottom = val & utils::mask(rest_bits) as u64;
-        let half = 1 << (rest_bits - 1) as u64;
-
-        // Clear the lower part.
-        let val = (val >> rest_bits) << rest_bits;
-
-        match mode {
-            RoundingMode::Zero => {
-                self.mantissa = val;
-            }
-            RoundingMode::NearestTiesToEven => {
-                if bottom > half || ((bottom == half) && is_odd) {
-                    // If the next few bits are over the half point then round up.
-                    // Or if the next few bits are exactly half, break the tie and go to even.
-                    // This may overflow, so we'll need to adjust the exponent.
-                    let r = val.overflowing_add(1 << rest_bits);
-                    self.mantissa = r.0;
-                    if r.1 {
-                        self.exp += 1;
-                    }
-                } else {
-                    self.mantissa = val;
-                }
-            }
-            _ => {
-                panic!("Unsupported rounding mode");
-            }
-        }
-    }
+    msb
 }
 
 #[test]
-fn test_round() {
-    let a = 0b100001000001010010110111101011001111001010110000000000000000000;
-    let b = 0b100001000001010010110111101011001111001011000000000000000000000;
-    let mut val = FP64::new(false, 0, a);
-    val.round(44, RoundingMode::NearestTiesToEven);
-    assert_eq!(val.get_mantissa(), b);
+fn shift_right_fraction() {
+    let res = shift_right_with_loss(0b10000000, 3);
+    assert!(res.1.is_exactly_zero());
 
-    let a = 0b101111;
-    let b = 0b110000;
-    let c = 0b100000;
-    let mut val = FP64::new(false, 0, a);
-    val.round(60, RoundingMode::NearestTiesToEven);
-    assert_eq!(val.get_mantissa(), b);
+    let res = shift_right_with_loss(0b10000111, 3);
+    assert!(res.1.is_mt_half());
 
-    let mut val = FP64::new(false, 0, a);
-    val.round(60, RoundingMode::Zero);
-    assert_eq!(val.get_mantissa(), c);
+    let res = shift_right_with_loss(0b10000100, 3);
+    assert!(res.1.is_exactly_half());
+
+    let res = shift_right_with_loss(0b10000001, 3);
+    assert!(res.1.is_lt_half());
+}
+
+/// \returns the first digit after the msb. This allows us to support
+/// MSB index of zero.
+fn next_msb(val: u64) -> u64 {
+    64 - val.leading_zeros() as u64
+}
+
+#[test]
+fn text_next_msb() {
+    assert_eq!(next_msb(0x0), 0);
+    assert_eq!(next_msb(0x1), 1);
+    assert_eq!(next_msb(0xff), 8);
+}
+
+impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
+    pub fn overflow(&mut self, rm: RoundingMode) {}
+
+    pub fn check_bounds(&self) {
+        let bounds = Self::get_exp_bounds();
+        assert!(self.exp >= bounds.0);
+        assert!(self.exp <= bounds.1);
+        assert!(self.mantissa <= 1 << Self::get_precision());
+    }
+
+    pub fn shift_significand_left(&mut self, amt: u64) {
+        self.exp -= amt as i64;
+        self.mantissa <<= amt;
+        self.check_bounds()
+    }
+
+    pub fn shift_significand_right(&mut self, amt: u64) -> LossFraction {
+        self.exp += amt as i64;
+        self.mantissa >>= amt;
+        let res = shift_right_with_loss(self.mantissa, amt);
+        self.mantissa = res.0;
+        self.check_bounds();
+        res.1
+    }
+
+    pub fn normalize(&mut self, rm: RoundingMode, loss: LossFraction) {
+        if !self.is_normal() {
+            return;
+        }
+        let mut loss = loss;
+        let bounds = Self::get_exp_bounds();
+
+        // Align the number so that the MSB bit will be MANTISSA + 1.
+        let mut exp_change =
+            next_msb(self.mantissa) as i64 - Self::get_precision() as i64;
+
+        // Handle overflowing exponents.
+        if self.exp + exp_change > bounds.1 {
+            self.overflow(rm);
+            self.check_bounds();
+            return;
+        }
+
+        // Handle underflowing low exponents.
+        if self.exp + exp_change < bounds.0 {
+            // TODO: we ignore denormal encoding here and pretend that they
+            // don't exist in normalized floats. Should the float/double encoder
+            // handle them?
+            exp_change = bounds.0 - self.exp;
+        }
+
+        if exp_change < 0 {
+            // Handle reducing the exponent.
+            assert!(loss.is_exactly_zero(), "losing information");
+            self.shift_significand_left(-exp_change as u64);
+            return;
+        } else if exp_change > 0 {
+            // Handle increasing the exponent.
+            let loss2 = self.shift_significand_right(exp_change as u64);
+            loss = combine_loss_fraction(loss2, loss);
+        }
+
+        //Step II - round the number.
+
+        // If no work was done, or a preserving shift then we are done.
+        if loss.is_exactly_zero() {
+            // Canonicalize to zero.
+            if self.mantissa == 0 {
+                *self = Self::zero(self.sign);
+                return;
+            }
+            return;
+        }
+    }
 }

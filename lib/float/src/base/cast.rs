@@ -21,7 +21,7 @@ impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
         }
 
         let mut a = Self::new(false, size_in_bits as i64, val << lz);
-        a.round(MANTISSA + 1, RoundingMode::NearestTiesToEven);
+        a.normalize(RoundingMode::NearestTiesToEven, LossFraction::ExactlyZero);
         a
     }
 
@@ -75,7 +75,7 @@ impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
             self.get_mantissa(),
             self.get_category(),
         );
-        x.round(S + 1, RoundingMode::NearestTiesToEven);
+        x.normalize(RoundingMode::NearestTiesToEven, LossFraction::ExactlyZero);
         x
     }
 
@@ -301,57 +301,4 @@ fn test_cast_down_complex() {
 
         assert!(v.is_nan() || res == v as f32);
     }
-}
-
-impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
-    pub fn normalize(&mut self) {}
-}
-
-/// \returns the fractional part that's lost during truncation of the
-/// \p bits lower bits.
-pub fn get_loss_kind_of_trunc(val: u64, bits: u64) -> LossFraction {
-    let s = val << (64 - bits);
-    if s == 0 {
-        return LossFraction::ExactlyZero;
-    } else if s == (1 << 63) {
-        return LossFraction::ExactlyHalf;
-    } else if s > (1 << 63) {
-        return LossFraction::MoreThanHalf;
-    }
-    LossFraction::LessThanHalf
-}
-
-//// Shift \p val by \p bits, and report the loss.
-fn shift_right(val: u64, bits: u64) -> (u64, LossFraction) {
-    assert!(bits < 64, "Shift overflow");
-    let loss = get_loss_kind_of_trunc(val, bits);
-    (val >> bits, loss)
-}
-
-/// Combine the loss of accuracy with \p msb more significant and \p lsb
-/// less significant.
-fn combine_loss_fraction(msb: LossFraction, lsb: LossFraction) -> LossFraction {
-    if !lsb.is_exactly_half() {
-        if msb.is_exactly_zero() {
-            return LossFraction::LessThanHalf;
-        } else if msb.is_exactly_half() {
-            return LossFraction::MoreThanHalf;
-        }
-    }
-    msb
-}
-
-#[test]
-fn shift_right_fraction() {
-    let res = shift_right(0b10000000, 3);
-    assert!(res.1.is_exactly_zero());
-
-    let res = shift_right(0b10000111, 3);
-    assert!(res.1.is_mt_half());
-
-    let res = shift_right(0b10000100, 3);
-    assert!(res.1.is_exactly_half());
-
-    let res = shift_right(0b10000001, 3);
-    assert!(res.1.is_lt_half());
 }
