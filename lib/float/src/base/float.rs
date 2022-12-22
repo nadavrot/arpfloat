@@ -1,4 +1,4 @@
-use super::utils;
+use super::utils::{self, mask};
 
 #[derive(Debug, Clone, Copy)]
 pub enum RoundingMode {
@@ -29,6 +29,12 @@ impl LossFraction {
     }
     pub fn is_mt_half(&self) -> bool {
         matches!(self, Self::MoreThanHalf)
+    }
+    pub fn is_lte_half(&self) -> bool {
+        self.is_lt_half() || self.is_exactly_half()
+    }
+    pub fn is_gte_half(&self) -> bool {
+        self.is_mt_half() || self.is_exactly_half()
     }
 }
 
@@ -274,7 +280,31 @@ fn text_next_msb() {
 }
 
 impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
-    pub fn overflow(&mut self, rm: RoundingMode) {}
+    pub fn overflow(&mut self, rm: RoundingMode) {
+        let bounds = Self::get_exp_bounds();
+        let inf = Self::inf(self.sign);
+        let max = Self::new(self.sign, bounds.1, mask(MANTISSA) as u64);
+
+        *self = match rm {
+            RoundingMode::NearestTiesToEven => inf,
+            RoundingMode::NearestTiesToAway => inf,
+            RoundingMode::Zero => max,
+            RoundingMode::Positive => {
+                if self.sign {
+                    max
+                } else {
+                    inf
+                }
+            }
+            RoundingMode::Negative => {
+                if self.sign {
+                    inf
+                } else {
+                    max
+                }
+            }
+        }
+    }
 
     pub fn check_bounds(&self) {
         let bounds = Self::get_exp_bounds();
@@ -298,6 +328,28 @@ impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
         res.1
     }
 
+    /// \returns True if we need to round away from zero (increment the mantissa).
+    fn need_round_away_from_zero(
+        &self,
+        rm: RoundingMode,
+        loss: LossFraction,
+    ) -> bool {
+        assert!(self.is_normal() || self.is_zero());
+        match rm {
+            RoundingMode::Positive => self.sign == false,
+            RoundingMode::Negative => self.sign == true,
+            RoundingMode::Zero => false,
+            RoundingMode::NearestTiesToAway => loss.is_gte_half(),
+            RoundingMode::NearestTiesToEven => {
+                if loss.is_mt_half() {
+                    return true;
+                }
+
+                return self.mantissa & 0x1 == 1;
+            }
+        }
+    }
+
     pub fn normalize(&mut self, rm: RoundingMode, loss: LossFraction) {
         if !self.is_normal() {
             return;
@@ -305,36 +357,38 @@ impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
         let mut loss = loss;
         let bounds = Self::get_exp_bounds();
 
-        // Align the number so that the MSB bit will be MANTISSA + 1.
-        let mut exp_change =
-            next_msb(self.mantissa) as i64 - Self::get_precision() as i64;
+        let nmsb = next_msb(self.mantissa) as i64;
 
-        // Handle overflowing exponents.
-        if self.exp + exp_change > bounds.1 {
-            self.overflow(rm);
-            self.check_bounds();
-            return;
+        if nmsb > 0 {
+            // Align the number so that the MSB bit will be MANTISSA + 1.
+            let mut exp_change = nmsb - Self::get_precision() as i64;
+
+            // Handle overflowing exponents.
+            if self.exp + exp_change > bounds.1 {
+                self.overflow(rm);
+                self.check_bounds();
+                return;
+            }
+
+            // Handle underflowing low exponents.
+            if self.exp + exp_change < bounds.0 {
+                // TODO: we ignore denormal encoding here and pretend that they
+                // don't exist in normalized floats. Should the float/double encoder
+                // handle them?
+                exp_change = bounds.0 - self.exp;
+            }
+
+            if exp_change < 0 {
+                // Handle reducing the exponent.
+                assert!(loss.is_exactly_zero(), "losing information");
+                self.shift_significand_left(-exp_change as u64);
+                return;
+            } else if exp_change > 0 {
+                // Handle increasing the exponent.
+                let loss2 = self.shift_significand_right(exp_change as u64);
+                loss = combine_loss_fraction(loss2, loss);
+            }
         }
-
-        // Handle underflowing low exponents.
-        if self.exp + exp_change < bounds.0 {
-            // TODO: we ignore denormal encoding here and pretend that they
-            // don't exist in normalized floats. Should the float/double encoder
-            // handle them?
-            exp_change = bounds.0 - self.exp;
-        }
-
-        if exp_change < 0 {
-            // Handle reducing the exponent.
-            assert!(loss.is_exactly_zero(), "losing information");
-            self.shift_significand_left(-exp_change as u64);
-            return;
-        } else if exp_change > 0 {
-            // Handle increasing the exponent.
-            let loss2 = self.shift_significand_right(exp_change as u64);
-            loss = combine_loss_fraction(loss2, loss);
-        }
-
         //Step II - round the number.
 
         // If no work was done, or a preserving shift then we are done.
@@ -345,6 +399,12 @@ impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
                 return;
             }
             return;
+        }
+
+        if self.need_round_away_from_zero(rm, loss) {
+            if self.mantissa == 0 {
+                self.exp = bounds.0
+            }
         }
     }
 }
