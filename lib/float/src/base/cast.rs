@@ -148,18 +148,6 @@ fn test_round_trip_native_float_cast() {
 }
 
 #[test]
-fn test_cast_wide_range() {
-    for i in 0..(1 << 14) {
-        let val = f32::from_bits(i << 16);
-        assert!(val.is_finite());
-        let a = FP64::from_f32(val);
-        let b: FP32 = a.cast();
-        let res = b.as_f32();
-        assert_eq!(res.to_bits(), (i << 16));
-    }
-}
-
-#[test]
 fn test_cast_easy_ctor() {
     let values = [0x3f8fffff, 0x40800000, 0x3f000000, 0xc60b40ec, 0xbc675793];
 
