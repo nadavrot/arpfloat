@@ -280,7 +280,7 @@ fn text_next_msb() {
 }
 
 impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
-    pub fn overflow(&mut self, rm: RoundingMode) {
+    fn overflow(&mut self, rm: RoundingMode) {
         let bounds = Self::get_exp_bounds();
         let inf = Self::inf(self.sign);
         let max = Self::new(self.sign, bounds.1, mask(MANTISSA) as u64);
@@ -306,20 +306,20 @@ impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
         }
     }
 
-    pub fn check_bounds(&self) {
+    fn check_bounds(&self) {
         let bounds = Self::get_exp_bounds();
         assert!(self.exp >= bounds.0);
         assert!(self.exp <= bounds.1);
         assert!(self.mantissa <= 1 << Self::get_precision());
     }
 
-    pub fn shift_significand_left(&mut self, amt: u64) {
+    fn shift_significand_left(&mut self, amt: u64) {
         self.exp -= amt as i64;
         self.mantissa <<= amt;
         self.check_bounds()
     }
 
-    pub fn shift_significand_right(&mut self, amt: u64) -> LossFraction {
+    fn shift_significand_right(&mut self, amt: u64) -> LossFraction {
         self.exp += amt as i64;
         self.mantissa >>= amt;
         let res = shift_right_with_loss(self.mantissa, amt);
@@ -336,8 +336,8 @@ impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
     ) -> bool {
         assert!(self.is_normal() || self.is_zero());
         match rm {
-            RoundingMode::Positive => self.sign == false,
-            RoundingMode::Negative => self.sign == true,
+            RoundingMode::Positive => !self.sign,
+            RoundingMode::Negative => self.sign,
             RoundingMode::Zero => false,
             RoundingMode::NearestTiesToAway => loss.is_gte_half(),
             RoundingMode::NearestTiesToEven => {
@@ -345,7 +345,7 @@ impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
                     return true;
                 }
 
-                return self.mantissa & 0x1 == 1;
+                self.mantissa & 0x1 == 1
             }
         }
     }
@@ -359,6 +359,7 @@ impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
 
         let nmsb = next_msb(self.mantissa) as i64;
 
+        // Step I - adjust the exponent.
         if nmsb > 0 {
             // Align the number so that the MSB bit will be MANTISSA + 1.
             let mut exp_change = nmsb - Self::get_precision() as i64;
@@ -389,9 +390,10 @@ impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
                 loss = combine_loss_fraction(loss2, loss);
             }
         }
+
         //Step II - round the number.
 
-        // If no work was done, or a preserving shift then we are done.
+        // If nothing moved or the shift didn't mess things up then we're done.
         if loss.is_exactly_zero() {
             // Canonicalize to zero.
             if self.mantissa == 0 {
@@ -401,10 +403,28 @@ impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
             return;
         }
 
+        // Check if we need to round away from zero.
         if self.need_round_away_from_zero(rm, loss) {
             if self.mantissa == 0 {
                 self.exp = bounds.0
             }
+
+            self.mantissa += 1;
+            // Did the mantissa overflow?
+            if (self.mantissa >> Self::get_precision()) > 0 {
+                // Can we fix the exponent?
+                if self.exp <= bounds.1 {
+                    self.shift_significand_right(1);
+                } else {
+                    *self = Self::inf(self.sign);
+                    return;
+                }
+            }
         }
-    }
+
+        // Canonicalize.
+        if self.mantissa == 0 {
+            *self = Self::zero(self.sign);
+        }
+    } // round.
 }
