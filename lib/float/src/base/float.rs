@@ -232,15 +232,15 @@ pub type FP16 = Float<5, 10>;
 pub type FP32 = Float<8, 23>;
 pub type FP64 = Float<11, 52>;
 
-/// \returns the fractional part that's lost during truncation of the
-/// \p bits lower bits.
-pub fn get_loss_kind_of_trunc(val: u64, bits: u64) -> LossFraction {
-    let s = val << (64 - bits);
-    if s == 0 {
+/// \returns the fractional part that's lost during truncation of  \p val.
+/// Val needs to be aligned to the left, so the MSB of the number is aligned
+/// to the MSB of the word.
+pub fn get_loss_kind_of_trunc(val: u64) -> LossFraction {
+    if val == 0 {
         return LossFraction::ExactlyZero;
-    } else if s == (1 << 63) {
+    } else if val == (1 << 63) {
         return LossFraction::ExactlyHalf;
-    } else if s > (1 << 63) {
+    } else if val > (1 << 63) {
         return LossFraction::MoreThanHalf;
     }
     LossFraction::LessThanHalf
@@ -248,9 +248,13 @@ pub fn get_loss_kind_of_trunc(val: u64, bits: u64) -> LossFraction {
 
 //// Shift \p val by \p bits, and report the loss.
 fn shift_right_with_loss(val: u64, bits: u64) -> (u64, LossFraction) {
-    assert!(bits < 64, "Shift overflow");
-    let loss = get_loss_kind_of_trunc(val, bits);
-    (val >> bits, loss)
+    if bits < 64 {
+        let loss = get_loss_kind_of_trunc(val << (64 - bits));
+        (val >> bits, loss)
+    } else {
+        let loss = get_loss_kind_of_trunc(val);
+        (0, loss)
+    }
 }
 
 /// Combine the loss of accuracy with \p msb more significant and \p lsb
