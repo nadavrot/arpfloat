@@ -48,7 +48,15 @@ impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
         Self::add_normals(a, b)
     }
 
-    pub fn add(a: Self, b: Self, subtract: bool) -> Self {
+    pub fn add(a: Self, b: Self) -> Self {
+        Self::add_sub(a, b, false)
+    }
+
+    pub fn sub(a: Self, b: Self) -> Self {
+        Self::add_sub(a, b, true)
+    }
+
+    pub fn add_sub(a: Self, b: Self, subtract: bool) -> Self {
         match (a.get_category(), b.get_category()) {
             (Category::NaN, Category::Infinity)
             | (Category::NaN, Category::NaN)
@@ -90,7 +98,7 @@ fn test_add() {
     use super::float::FP64;
     let a = FP64::from_u64(1);
     let b = FP64::from_u64(2);
-    let _ = FP64::add(a, b, false);
+    let _ = FP64::add(a, b);
 }
 
 #[test]
@@ -100,7 +108,7 @@ fn test_addition() {
     fn add_helper(a: f64, b: f64) -> f64 {
         let a = FP64::from_f64(a);
         let b = FP64::from_f64(b);
-        let c = FP64::add(a, b, false);
+        let c = FP64::add(a, b);
         c.as_f64()
     }
 
@@ -130,4 +138,25 @@ fn test_addition() {
             );
         }
     }
+}
+
+// Pg 120.  Chapter 4. Basic Properties and Algorithms.
+#[test]
+fn test_addition_large_numbers() {
+    use super::float::FP64;
+
+    let one = FP64::from_i64(1);
+    let mut a = FP64::from_i64(1);
+
+    while FP64::sub(FP64::add(a, one), a) == one {
+        a = FP64::add(a, a);
+    }
+
+    let mut b = one;
+    while FP64::sub(FP64::add(a, b), a) != b {
+        b = FP64::add(b, one);
+    }
+
+    assert_eq!(a.as_f64(), 9007199254740992.);
+    assert_eq!(b.as_f64(), 2.);
 }
