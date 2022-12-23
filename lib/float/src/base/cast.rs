@@ -39,12 +39,16 @@ impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
             return Self::nan(sign);
         }
 
+        let mut exp = biased_exp - utils::compute_ieee745_bias(EXPONENT) as i64;
+
         // Add the implicit bit for normal numbers.
         if biased_exp != 0 {
             mantissa += 1u64 << MANTISSA;
+        } else {
+            // Handle denormals, adjust the exponent to the legal range.
+            exp += 1;
         }
 
-        let exp = biased_exp - utils::compute_ieee745_bias(EXPONENT) as i64;
         Self::new(sign, exp, mantissa)
     }
 
@@ -63,7 +67,7 @@ impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
     fn as_native_float(&self) -> u64 {
         // https://en.wikipedia.org/wiki/IEEE_754
         let mantissa: u64;
-        let exp: u64;
+        let mut exp: u64;
         match self.get_category() {
             Category::Infinity => {
                 mantissa = 0;
@@ -79,14 +83,11 @@ impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
             }
             Category::Normal => {
                 exp = (self.get_exp() + Self::get_bias()) as u64;
-                if exp == 0 {
-                    // Encode denormals.
-                    mantissa =
-                        self.get_mantissa() >> 1 & utils::mask(MANTISSA) as u64;
-                } else {
-                    mantissa =
-                        self.get_mantissa() & utils::mask(MANTISSA) as u64;
+                assert!(exp > 0);
+                if (exp == 1) && ((self.get_mantissa() >> MANTISSA) == 0) {
+                    exp = 0;
                 }
+                mantissa = self.get_mantissa() & utils::mask(MANTISSA) as u64;
             }
         }
 
@@ -245,6 +246,19 @@ fn test_cast_down_easy() {
         let res = FP64::from_f64(v).as_f32();
         assert_eq!(FP64::from_f64(v).as_f64().to_bits(), v.to_bits());
         assert!(res == v as f32);
+    }
+}
+
+#[test]
+fn test_load_store_all_f32() {
+    // Try to load and store normals and denormals.
+    for i in 0..(1u64 << 16) {
+        let in_f = f32::from_bits((i << 10) as u32);
+        let fp_f = FP32::from_f32(in_f);
+        let out_f = fp_f.as_f32();
+        assert_eq!(in_f.is_nan(), out_f.is_nan());
+        assert_eq!(in_f.is_infinite(), out_f.is_infinite());
+        assert!(in_f.is_nan() || (in_f.to_bits() == out_f.to_bits()));
     }
 }
 
