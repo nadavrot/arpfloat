@@ -173,6 +173,21 @@ impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
         self.category
     }
 
+    pub fn neg(&self) -> Self {
+        Self::raw(!self.sign, self.exp, self.mantissa, self.category)
+    }
+
+    /// \returns True if abs(self) < abs(other).
+    pub fn absolute_less_than(&self, other: Self) -> bool {
+        if self.exp < other.get_exp() {
+            true
+        } else if self.exp > other.get_exp() {
+            return false;
+        } else {
+            return self.mantissa < other.get_mantissa();
+        }
+    }
+
     pub fn dump(&self) {
         let sign = if self.sign { "-" } else { "+" };
         match self.category {
