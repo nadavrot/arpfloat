@@ -68,7 +68,7 @@ impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
 
             (Category::Zero, Category::NaN)
             | (Category::Normal, Category::NaN)
-            | (Category::Infinity, Category::NaN) => Self::nan(a.get_sign()),
+            | (Category::Infinity, Category::NaN) => Self::nan(b.get_sign()),
 
             (Category::Normal, Category::Infinity)
             | (Category::Zero, Category::Infinity) => {
@@ -80,8 +80,8 @@ impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
             (Category::Zero, Category::Zero) => Self::zero(false),
 
             (Category::Infinity, Category::Infinity) => {
-                if a.get_sign() ^ b.get_sign() != subtract {
-                    return Self::nan(a.get_sign());
+                if a.get_sign() ^ b.get_sign() ^ subtract {
+                    return Self::nan(a.get_sign() ^ b.get_sign());
                 }
                 Self::inf(a.get_sign())
             }
@@ -159,4 +159,68 @@ fn test_addition_large_numbers() {
 
     assert_eq!(a.as_f64(), 9007199254740992.);
     assert_eq!(b.as_f64(), 2.);
+}
+
+#[test]
+fn add_denormals() {
+    use super::float::FP64;
+
+    let v0 = f64::from_bits(0x0000_0000_0010_0010);
+    let v1 = f64::from_bits(0x0000_0000_1001_0010);
+    let v2 = f64::from_bits(0x1000_0000_0001_0010);
+
+    let a0 = FP64::from_f64(v0);
+    assert_eq!(a0.as_f64(), v0);
+
+    fn add_f64(a: f64, b: f64) -> f64 {
+        let a0 = FP64::from_f64(a);
+        let b0 = FP64::from_f64(b);
+        assert_eq!(a0.as_f64(), a);
+        FP64::add(a0, b0).as_f64()
+    }
+
+    // Add and subtract denormals.
+    assert_eq!(add_f64(v0, v1), v0 + v1);
+    assert_eq!(add_f64(v0, -v0), v0 - v0);
+    assert_eq!(add_f64(v0, v2), v0 + v2);
+    assert_eq!(add_f64(v2, v1), v2 + v1);
+    assert_eq!(add_f64(v2, -v1), v2 - v1);
+
+    // Add and subtract denormals and normal numbers.
+    assert_eq!(add_f64(v0, 10.), v0 + 10.);
+    assert_eq!(add_f64(v0, -10.), v0 - 10.);
+    assert_eq!(add_f64(10000., v0), 10000. + v0);
+}
+
+#[test]
+fn add_special_values() {
+    use crate::base::utils;
+
+    // Test the addition of various irregular values.
+    let values = utils::get_special_test_values();
+
+    use super::float::FP64;
+
+    fn add_f64(a: f64, b: f64) -> f64 {
+        let a = FP64::from_f64(a);
+        let b = FP64::from_f64(b);
+        FP64::add(a, b).as_f64()
+    }
+
+    for v0 in values {
+        for v1 in values {
+            let r0 = add_f64(v0, v1);
+            let r1 = v0 + v1;
+            assert_eq!(r0.is_finite(), r1.is_finite());
+            assert_eq!(r0.is_nan(), r1.is_nan());
+            assert_eq!(r0.is_infinite(), r1.is_infinite());
+            let r0_bits = r0.to_bits();
+            let r1_bits = r1.to_bits();
+            println!("{}  + {}", v0, v1);
+            println!("{} vs {}", r0, r1);
+            println!("|{:64b} X vs \n|{:64b} V", r0_bits, r1_bits);
+            // Check that the results are bit identical, or are both NaN.
+            assert!(!r0.is_nan() || r0_bits == r1_bits);
+        }
+    }
 }
