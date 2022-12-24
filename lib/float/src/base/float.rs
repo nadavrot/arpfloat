@@ -36,6 +36,15 @@ impl LossFraction {
     pub fn is_gte_half(&self) -> bool {
         self.is_mt_half() || self.is_exactly_half()
     }
+
+    // Return the inverted loss fraction.
+    pub fn invert(&self) -> LossFraction {
+        match self {
+            LossFraction::LessThanHalf => LossFraction::MoreThanHalf,
+            LossFraction::MoreThanHalf => LossFraction::LessThanHalf,
+            _ => {*self}
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
