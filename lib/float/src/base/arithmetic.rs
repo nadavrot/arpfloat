@@ -77,7 +77,9 @@ impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
 
             (Category::Zero, Category::Normal) => b,
 
-            (Category::Zero, Category::Zero) => Self::zero(false),
+            (Category::Zero, Category::Zero) => {
+                Self::zero(a.get_sign() && b.get_sign())
+            }
 
             (Category::Infinity, Category::Infinity) => {
                 if a.get_sign() ^ b.get_sign() ^ subtract {
