@@ -224,3 +224,31 @@ fn add_special_values() {
         }
     }
 }
+
+#[test]
+fn test_simple() {
+    use super::float::FP64;
+
+    let a: f64 = 24.0;
+    let b: f64 = 0.1;
+
+    println!("Input");
+    println!("| {:64b} X  ({})", a.to_bits(), a);
+    println!("| {:64b} V  ({})", b.to_bits(), b);
+
+    let af = FP64::from_f64(a);
+    let bf = FP64::from_f64(b);
+    let cf = FP64::add(af, bf);
+
+    let r0 = cf.as_f64();
+    let r1: f64 = 24.0f64 + 0.1f64;
+
+    println!("Output");
+    println!("| {:64b} X  ({})", r0.to_bits(), r0);
+    println!("| {:64b} V  ({})", r1.to_bits(), r1);
+
+    println!("What happened:");
+    af.dump();
+    bf.dump();
+    cf.dump();
+}
