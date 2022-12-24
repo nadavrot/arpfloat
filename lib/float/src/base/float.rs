@@ -336,7 +336,7 @@ impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
         }
     }
 
-    fn check_bounds(&self) {
+    pub fn check_bounds(&self) {
         let bounds = Self::get_exp_bounds();
         assert!(self.exp >= bounds.0);
         assert!(self.exp <= bounds.1);
@@ -346,14 +346,12 @@ impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
     pub fn shift_significand_left(&mut self, amt: u64) {
         self.exp -= amt as i64;
         self.mantissa <<= amt;
-        self.check_bounds()
     }
 
     pub fn shift_significand_right(&mut self, amt: u64) -> LossFraction {
         self.exp += amt as i64;
         let res = shift_right_with_loss(self.mantissa, amt);
         self.mantissa = res.0;
-        self.check_bounds();
         res.1
     }
 
