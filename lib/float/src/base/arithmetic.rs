@@ -6,7 +6,7 @@ impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
         b: Self,
         subtract: bool,
     ) -> (Self, LossFraction) {
-        let mut loss = LossFraction::ExactlyZero;
+        let loss;
 
         // Align the input numbers on the same exponent.
         let bits = a.get_exp() - b.get_exp();
@@ -296,7 +296,7 @@ fn test_add_random_vals() {
     // Check that the results are bit identical, or are both NaN.
     assert!(r1.is_nan() || r0_bits == r1_bits);
 
-    for i in 0..500 {
+    for _ in 0..50000 {
         let v0 = lfsr.get64();
         let v1 = lfsr.get64();
 
