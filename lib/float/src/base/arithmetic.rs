@@ -1,51 +1,73 @@
 use super::float::{Category, Float, LossFraction, RoundingMode};
 
 impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
-    pub fn add_normals(a: Self, b: Self) -> Self {
-        assert!(a.get_exp() >= b.get_exp());
-        let mut b = b;
+    pub fn add_or_sub_normals(
+        a: Self,
+        b: Self,
+        subtract: bool,
+    ) -> (Self, LossFraction) {
+        let mut loss = LossFraction::ExactlyZero;
 
-        let mut is_neg = a.is_negative();
-        let is_plus = a.get_sign() == b.get_sign();
+        // Align the input numbers on the same exponent.
+        let bits = a.get_exp() - b.get_exp();
 
-        // Align the mantissa of RHS to have the same alignment as LHS.
-        let exp_delta = a.get_exp() - b.get_exp();
-        assert!(exp_delta >= 0);
-        if exp_delta > 0 {
-            b.shift_significand_right(exp_delta as u64);
-        }
-        assert!(a.get_exp() == b.get_exp());
+        // Can transform (a-b) to (a + -b), either way, there are cases where
+        // subtraction needs to happen.
+        let subtract = subtract ^ (a.get_sign() ^ b.get_sign());
+        if subtract {
+            let mut b = b;
+            let mut a = a;
 
-        // Compute the significand.
-        let a_significand = a.get_mantissa();
-        let b_significand = b.get_mantissa();
-        let ab_significand;
+            // Align the input numbers. We shift LHS one bit to the left to
+            // allow carry/borrow in case of underflow as result of subtraction.
+            if bits == 0 {
+                loss = LossFraction::ExactlyZero;
+            } else if bits > 0 {
+                loss = b.shift_significand_right((bits - 1) as u64);
+                a.shift_significand_left(1);
+            } else {
+                loss = a.shift_significand_right((-bits - 1) as u64);
+                b.shift_significand_left(1);
+            }
 
-        if is_plus {
-            let res = a_significand.overflowing_add(b_significand);
-            ab_significand = res.0;
-            assert!(!res.1, "Must not overflow!");
-        } else if b_significand > a_significand {
-            ab_significand = b_significand - a_significand;
-            is_neg ^= true;
+            let a_mantissa = a.get_mantissa();
+            let b_mantissa = b.get_mantissa();
+            let ab_mantissa;
+            let mut sign = a.get_sign();
+
+            // Figure out the carry from the shifting operations that dropped
+            // bits.
+            let c = if let LossFraction::ExactlyZero = loss {
+                0
+            } else {
+                1
+            };
+
+            // Figure out which mantissa is larger, to make sure that we don't
+            // overflow the subtraction.
+            if a.absolute_less_than(b) {
+                // A < B
+                ab_mantissa = b_mantissa - a_mantissa - c;
+                sign = !sign;
+            } else {
+                // A >= B
+                ab_mantissa = a_mantissa - b_mantissa - c;
+            }
+            return (Self::new(sign, a.get_exp(), ab_mantissa), loss.invert());
         } else {
-            // Cancellation happened, we need to normalize the number.
-            ab_significand = a_significand - b_significand;
+            // Handle the easy case of Add:
+            let mut b = b;
+            let mut a = a;
+            let ab_mantissa;
+            if bits > 0 {
+                loss = b.shift_significand_right((bits) as u64);
+            } else {
+                loss = a.shift_significand_right((-bits) as u64);
+            }
+            assert!(a.get_exp() == b.get_exp());
+            ab_mantissa = a.get_mantissa() + b.get_mantissa();
+            return (Self::new(a.get_sign(), a.get_exp(), ab_mantissa), loss);
         }
-        let mut x = Self::new(is_neg, a.get_exp(), ab_significand);
-        x.normalize(RoundingMode::NearestTiesToAway, LossFraction::ExactlyZero);
-        x
-    }
-
-    pub fn add_or_sub_normals(a: Self, b: Self, subtract: bool) -> Self {
-        // Make sure that the RHS exponent is larger and eliminate the
-        // subtraction by flipping the sign of the RHS.
-        if a.absolute_less_than(b) {
-            let a = if subtract { a.neg() } else { a };
-            return Self::add_normals(b, a);
-        }
-        let b = if subtract { b.neg() } else { b };
-        Self::add_normals(a, b)
     }
 
     pub fn add(a: Self, b: Self) -> Self {
@@ -89,7 +111,9 @@ impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
             }
 
             (Category::Normal, Category::Normal) => {
-                Self::add_or_sub_normals(a, b, subtract)
+                let mut res = Self::add_or_sub_normals(a, b, subtract);
+                res.0.normalize(RoundingMode::NearestTiesToEven, res.1);
+                res.0
             }
         }
     }
@@ -170,6 +194,7 @@ fn add_denormals() {
     let v0 = f64::from_bits(0x0000_0000_0010_0010);
     let v1 = f64::from_bits(0x0000_0000_1001_0010);
     let v2 = f64::from_bits(0x1000_0000_0001_0010);
+    assert_eq!(add_f64(v2, -v1), v2 - v1);
 
     let a0 = FP64::from_f64(v0);
     assert_eq!(a0.as_f64(), v0);
@@ -213,14 +238,11 @@ fn add_special_values() {
         for v1 in values {
             let r0 = add_f64(v0, v1);
             let r1 = v0 + v1;
+            let r0_bits = r0.to_bits();
+            let r1_bits = r1.to_bits();
             assert_eq!(r0.is_finite(), r1.is_finite());
             assert_eq!(r0.is_nan(), r1.is_nan());
             assert_eq!(r0.is_infinite(), r1.is_infinite());
-            let r0_bits = r0.to_bits();
-            let r1_bits = r1.to_bits();
-            println!("{}  + {}", v0, v1);
-            println!("{} vs {}", r0, r1);
-            println!("|{:64b} X vs \n|{:64b} V", r0_bits, r1_bits);
             // Check that the results are bit identical, or are both NaN.
             assert!(!r0.is_nan() || r0_bits == r1_bits);
         }
@@ -231,26 +253,65 @@ fn add_special_values() {
 fn test_simple() {
     use super::float::FP64;
 
-    let a: f64 = 24.0;
+    let a: f64 = -24.0;
     let b: f64 = 0.1;
-
-    println!("Input");
-    println!("| {:64b} X  ({})", a.to_bits(), a);
-    println!("| {:64b} V  ({})", b.to_bits(), b);
 
     let af = FP64::from_f64(a);
     let bf = FP64::from_f64(b);
     let cf = FP64::add(af, bf);
 
     let r0 = cf.as_f64();
-    let r1: f64 = 24.0f64 + 0.1f64;
+    let r1: f64 = a + b;
+    assert_eq!(r0, r1);
+}
 
-    println!("Output");
-    println!("| {:64b} X  ({})", r0.to_bits(), r0);
-    println!("| {:64b} V  ({})", r1.to_bits(), r1);
+#[test]
+fn test_add_random_vals() {
+    use crate::base::utils;
+    use crate::base::FP64;
 
-    println!("What happened:");
-    af.dump();
-    bf.dump();
-    cf.dump();
+    let mut lfsr = utils::Lfsr::new();
+
+    let v0: u64 = 0x645e91f69778bad3;
+    let v1: u64 = 0xe4d91b16be9ae0c5;
+
+    fn add_f64(a: f64, b: f64) -> f64 {
+        let a = FP64::from_f64(a);
+        let b = FP64::from_f64(b);
+        let k = FP64::add(a, b);
+        k.as_f64()
+    }
+
+    let f0 = f64::from_bits(v0);
+    let f1 = f64::from_bits(v1);
+
+    let r0 = add_f64(f0, f1);
+    let r1 = f0 + f1;
+
+    assert_eq!(r0.is_finite(), r1.is_finite());
+    assert_eq!(r0.is_nan(), r1.is_nan());
+    assert_eq!(r0.is_infinite(), r1.is_infinite());
+    let r0_bits = r0.to_bits();
+    let r1_bits = r1.to_bits();
+    // Check that the results are bit identical, or are both NaN.
+    assert!(r1.is_nan() || r0_bits == r1_bits);
+
+    for i in 0..500 {
+        let v0 = lfsr.get64();
+        let v1 = lfsr.get64();
+
+        let f0 = f64::from_bits(v0);
+        let f1 = f64::from_bits(v1);
+
+        let r0 = add_f64(f0, f1);
+        let r1 = f0 + f1;
+
+        assert_eq!(r0.is_finite(), r1.is_finite());
+        assert_eq!(r0.is_nan(), r1.is_nan());
+        assert_eq!(r0.is_infinite(), r1.is_infinite());
+        let r0_bits = r0.to_bits();
+        let r1_bits = r1.to_bits();
+        // Check that the results are bit identical, or are both NaN.
+        assert!(r1.is_nan() || r0_bits == r1_bits);
+    }
 }
