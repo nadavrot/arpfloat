@@ -42,7 +42,7 @@ impl LossFraction {
         match self {
             LossFraction::LessThanHalf => LossFraction::MoreThanHalf,
             LossFraction::MoreThanHalf => LossFraction::LessThanHalf,
-            _ => {*self}
+            _ => *self,
         }
     }
 }
@@ -258,7 +258,7 @@ pub fn get_loss_kind_of_trunc(val: u64) -> LossFraction {
 //// Shift \p val by \p bits, and report the loss.
 fn shift_right_with_loss(val: u64, bits: u64) -> (u64, LossFraction) {
     if bits == 0 {
-        return (val, LossFraction::ExactlyZero)
+        (val, LossFraction::ExactlyZero)
     } else if bits < 64 {
         let loss = get_loss_kind_of_trunc(val << (64 - bits));
         (val >> bits, loss)
