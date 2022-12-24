@@ -398,11 +398,9 @@ impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
                 return;
             }
 
-            // Handle underflowing low exponents.
+            // Handle underflowing low exponents. Don't allow to go below the
+            // legal exponent range.
             if self.exp + exp_change < bounds.0 {
-                // TODO: we ignore denormal encoding here and pretend that they
-                // don't exist in normalized floats. Should the float/double encoder
-                // handle them?
                 exp_change = bounds.0 - self.exp;
             }
 
