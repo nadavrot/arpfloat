@@ -25,9 +25,7 @@ impl<const PARTS: usize> BigInt<PARTS> {
     }
 
     pub fn from_parts(parts: &[u64; PARTS]) -> Self {
-        BigInt {
-            parts: parts.clone(),
-        }
+        BigInt { parts: *parts }
     }
 
     // Add \p rhs to self, and return true if the operation overflowed.
@@ -35,8 +33,7 @@ impl<const PARTS: usize> BigInt<PARTS> {
         let mut carry: bool = false;
         for i in 0..PARTS {
             let first = self.parts[i].overflowing_add(rhs.parts[i]);
-            let second =
-                first.0.overflowing_add(if carry { 1u64 } else { 0u64 });
+            let second = first.0.overflowing_add(carry as u64);
             carry = first.1 || second.1;
             self.parts[i] = second.0;
         }
@@ -160,6 +157,12 @@ impl<const PARTS: usize> BigInt<PARTS> {
     }
 }
 
+impl<const PARTS: usize> Default for BigInt<PARTS> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 #[test]
 fn test_shl() {
     let mut x = BigInt::<4>::from_u64(0xff00ff);
@@ -196,11 +199,11 @@ fn test_add_basic() {
     x.dump();
     y.dump();
     let c1 = x.add(y);
-    assert_eq!(c1, false);
+    assert!(!c1);
     assert_eq!(x.get_part(0), 0xffffffffffffffff);
     x.dump();
     let c2 = x.add(z);
-    assert_eq!(c2, false);
+    assert!(!c2);
     assert_eq!(x.get_part(0), 0xe);
     assert_eq!(x.get_part(1), 0x1);
     x.dump();
