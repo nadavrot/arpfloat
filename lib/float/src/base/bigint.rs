@@ -15,6 +15,27 @@ impl<const PARTS: usize> BigInt<PARTS> {
         bi
     }
 
+    pub fn from_u128(val: u128) -> Self {
+        let mut bi = BigInt { parts: [0; PARTS] };
+        bi.parts[0] = val as u64;
+        bi.parts[1] = (val >> 64) as u64;
+        bi
+    }
+
+    pub fn to_u64(&self) -> u64 {
+        for i in 1..PARTS {
+            assert_eq!(self.parts[i], 0);
+        }
+        self.parts[0]
+    }
+
+    pub fn to_u128(&self) -> u128 {
+        for i in 2..PARTS {
+            assert_eq!(self.parts[i], 0);
+        }
+        (self.parts[0] as u128) + ((self.parts[1] as u128) << 64)
+    }
+
     pub fn trunc<const P: usize>(&self) -> BigInt<P> {
         let mut n = BigInt::<P>::new();
         assert!(P <= PARTS, "Can't truncate to a larger size");
@@ -52,6 +73,18 @@ impl<const PARTS: usize> BigInt<PARTS> {
             self.parts[i] = second.0;
         }
         carry
+    }
+
+    // Add \p rhs to self, and return true if the operation overflowed (borrow).
+    pub fn sub(&mut self, rhs: Self) -> bool {
+        let mut borrow: bool = false;
+        for i in 0..PARTS {
+            let first = self.parts[i].overflowing_sub(rhs.parts[i]);
+            let second = first.0.overflowing_sub(borrow as u64);
+            borrow = first.1 || second.1;
+            self.parts[i] = second.0;
+        }
+        borrow
     }
 
     // multiply \p rhs to self, and return true if the operation overflowed.
@@ -223,8 +256,11 @@ fn test_add_basic() {
     x.dump();
 }
 
-#[test]
-fn test_mul_random_vals() {
+#[allow(dead_code)]
+fn test_with_random_values(
+    correct: fn(u128, u128) -> (u128, bool),
+    test: fn(u128, u128) -> (u128, bool),
+) {
     use super::utils::Lfsr;
 
     let mut lfsr = Lfsr::new();
@@ -235,27 +271,59 @@ fn test_mul_random_vals() {
         let v2 = lfsr.get64();
         let v3 = lfsr.get64();
 
-        let mut x = BigInt::<2>::from_parts(&[v0, v1]);
-        let y = BigInt::<2>::from_parts(&[v2, v3]);
-
         let n1 = (v0 as u128) + ((v1 as u128) << 64);
         let n2 = (v2 as u128) + ((v3 as u128) << 64);
-        let res1 = n1.overflowing_mul(n2);
 
-        assert_eq!(x.get_part(0), n1 as u64);
-        assert_eq!(x.get_part(1), (n1 >> 64) as u64);
-        x.dump();
-        y.dump();
-        let c0 = x.mul::<4>(y);
-        x.dump();
-
-        println!("{:x}", res1.0);
-        println!("{:x}-{:x}", x.get_part(1), x.get_part(0));
-
-        assert_eq!(x.get_part(0), res1.0 as u64);
-        assert_eq!(x.get_part(1), (res1.0 >> 64) as u64);
-        assert_eq!(c0, res1.1);
+        let v1 = correct(n1, n2);
+        let v2 = test(n1, n2);
+        assert_eq!(v1.0, v2.0, "Incorrect value");
+        assert_eq!(v1.0, v2.0, "Incorrect carry");
     }
+}
+
+#[test]
+fn test_sub_basic() {
+    let mut x = BigInt::<2>::from_parts(&[0x0, 0x1]);
+    let y = BigInt::<2>::from_u64(0x1);
+    let c1 = x.sub(y);
+    assert!(!c1);
+    assert_eq!(x.get_part(0), 0xffffffffffffffff);
+    assert_eq!(x.get_part(1), 0);
+}
+
+#[test]
+fn test_basic_operations() {
+    fn correct_sub(a: u128, b: u128) -> (u128, bool) {
+        a.overflowing_sub(b)
+    }
+    fn correct_add(a: u128, b: u128) -> (u128, bool) {
+        a.overflowing_add(b)
+    }
+    fn correct_mul(a: u128, b: u128) -> (u128, bool) {
+        a.overflowing_mul(b)
+    }
+    fn test_sub(a: u128, b: u128) -> (u128, bool) {
+        let mut a = BigInt::<2>::from_u128(a);
+        let b = BigInt::<2>::from_u128(b);
+        let c = a.sub(b);
+        (a.to_u128(), c)
+    }
+    fn test_add(a: u128, b: u128) -> (u128, bool) {
+        let mut a = BigInt::<2>::from_u128(a);
+        let b = BigInt::<2>::from_u128(b);
+        let c = a.add(b);
+        (a.to_u128(), c)
+    }
+    fn test_mul(a: u128, b: u128) -> (u128, bool) {
+        let mut a = BigInt::<2>::from_u128(a);
+        let b = BigInt::<2>::from_u128(b);
+        let c = a.mul::<4>(b);
+        (a.to_u128(), c)
+    }
+
+    test_with_random_values(correct_mul, test_mul);
+    test_with_random_values(correct_add, test_add);
+    test_with_random_values(correct_sub, test_sub);
 }
 
 #[test]
