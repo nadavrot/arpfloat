@@ -133,3 +133,49 @@ fn text_next_msb() {
     assert_eq!(next_msb(0x1), 1);
     assert_eq!(next_msb(0xff), 8);
 }
+
+
+// Multiply a and b, and return the (low, high) parts.
+#[allow(dead_code)]
+fn mul_part(a: u64, b: u64) -> (u64, u64) {
+    let half_bits = u64::BITS / 2;
+    let half_mask = (((1 as u64) << half_bits) - 1) as u64;
+
+    let a_lo = a & half_mask;
+    let a_hi = a >> half_bits;
+    let b_lo = b & half_mask;
+    let b_hi = b >> half_bits;
+
+    let ab_hi = a_hi * b_hi;
+    let ab_mid = a_hi * b_lo;
+    let ba_mid = b_hi * a_lo;
+    let ab_low = a_lo * b_lo;
+
+    let carry =
+        ((ab_mid & half_mask) + (ba_mid & half_mask) + (ab_low >> half_bits))
+            >> half_bits;
+    let low = (ab_mid << half_bits)
+        .overflowing_add(ba_mid << half_bits)
+        .0
+        .overflowing_add(ab_low)
+        .0;
+
+    let high = (ab_hi + (ab_mid >> half_bits) + (ba_mid >> half_bits)) + carry;
+    return (low, high);
+}
+
+#[test]
+fn test_mul_parts() {
+    use super::utils::Lfsr;
+
+    let mut lfsr = Lfsr::new();
+
+    for _ in 0..500 {
+        let v0 = lfsr.get64();
+        let v1 = lfsr.get64();
+        let res = mul_part(v0, v1);
+        let full = v0 as u128 * v1 as u128;
+        assert_eq!(full as u64, res.0);
+        assert_eq!((full >> 64) as u64, res.1);
+    }
+}
