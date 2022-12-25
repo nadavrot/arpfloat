@@ -104,11 +104,11 @@ impl<const PARTS: usize> BigInt<PARTS> {
         }
     }
 
-    fn get_part(&self, idx: usize) -> PartTy {
+    pub fn get_part(&self, idx: usize) -> PartTy {
         self.parts[idx]
     }
 
-    fn dump(&self) {
+    pub fn dump(&self) {
         print!("[");
         for i in (0..PARTS).rev() {
             let width = PartTy::BITS as usize;
