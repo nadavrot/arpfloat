@@ -425,3 +425,63 @@ fn mul_regular_values() {
         }
     }
 }
+
+
+#[test]
+fn test_mul_special_values() {
+    // Test the multiplication of various irregular values.
+    let values = utils::get_special_test_values();
+
+    use super::float::FP64;
+
+    fn mul_f64(a: f64, b: f64) -> f64 {
+        let a = FP64::from_f64(a);
+        let b = FP64::from_f64(b);
+        FP64::mul(a, b).as_f64()
+    }
+
+    for v0 in values {
+        for v1 in values {
+            let r0 = mul_f64(v0, v1);
+            let r1 = v0 * v1;
+            assert_eq!(r0.is_finite(), r1.is_finite());
+            assert_eq!(r0.is_nan(), r1.is_nan());
+            assert_eq!(r0.is_infinite(), r1.is_infinite());
+            let r0_bits = r0.to_bits();
+            let r1_bits = r1.to_bits();
+            // Check that the results are bit identical, or are both NaN.
+            assert!(r1.is_nan() || r0_bits == r1_bits);
+        }
+    }
+}
+
+#[test]
+fn test_mul_random_vals() {
+    use crate::base::FP64;
+    let mut lfsr = utils::Lfsr::new();
+
+    fn mul_f64(a: f64, b: f64) -> f64 {
+        let a = FP64::from_f64(a);
+        let b = FP64::from_f64(b);
+        let k = FP64::mul(a, b);
+        k.as_f64()
+    }
+
+    for _ in 0..50 {
+        let v0 = lfsr.get64();
+        let v1 = lfsr.get64();
+
+        let f0 = f64::from_bits(v0);
+        let f1 = f64::from_bits(v1);
+
+        let r0 = mul_f64(f0, f1);
+        let r1 = f0 * f1;
+        assert_eq!(r0.is_finite(), r1.is_finite());
+        assert_eq!(r0.is_nan(), r1.is_nan());
+        assert_eq!(r0.is_infinite(), r1.is_infinite());
+        let r0_bits = r0.to_bits();
+        let r1_bits = r1.to_bits();
+        // Check that the results are bit identical, or are both NaN.
+        assert!(r1.is_nan() || r0_bits == r1_bits);
+    }
+}
