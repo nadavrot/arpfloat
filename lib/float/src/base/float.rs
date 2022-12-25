@@ -394,7 +394,9 @@ impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
                 assert!(loss.is_exactly_zero(), "losing information");
                 self.shift_significand_left(-exp_change as u64);
                 return;
-            } else if exp_change > 0 {
+            }
+
+            if exp_change > 0 {
                 // Handle increasing the exponent.
                 let loss2 = self.shift_significand_right(exp_change as u64);
                 loss = combine_loss_fraction(loss2, loss);

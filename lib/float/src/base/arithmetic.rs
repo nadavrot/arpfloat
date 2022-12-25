@@ -38,11 +38,7 @@ impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
 
             // Figure out the carry from the shifting operations that dropped
             // bits.
-            let c = if let LossFraction::ExactlyZero = loss {
-                0
-            } else {
-                1
-            };
+            let c = !loss.is_exactly_zero() as u64;
 
             // Figure out which mantissa is larger, to make sure that we don't
             // overflow the subtraction.
@@ -54,20 +50,19 @@ impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
                 // A >= B
                 ab_mantissa = a_mantissa - b_mantissa - c;
             }
-            return (Self::new(sign, a.get_exp(), ab_mantissa), loss.invert());
+            (Self::new(sign, a.get_exp(), ab_mantissa), loss.invert())
         } else {
             // Handle the easy case of Add:
             let mut b = b;
             let mut a = a;
-            let ab_mantissa;
             if bits > 0 {
                 loss = b.shift_significand_right((bits) as u64);
             } else {
                 loss = a.shift_significand_right((-bits) as u64);
             }
             assert!(a.get_exp() == b.get_exp());
-            ab_mantissa = a.get_mantissa() + b.get_mantissa();
-            return (Self::new(a.get_sign(), a.get_exp(), ab_mantissa), loss);
+            let ab_mantissa = a.get_mantissa() + b.get_mantissa();
+            (Self::new(a.get_sign(), a.get_exp(), ab_mantissa), loss)
         }
     }
 
@@ -305,7 +300,7 @@ impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
     pub fn mul(a: Self, b: Self) -> Self {
         let sign = a.get_sign() ^ b.get_sign();
 
-        return match (a.get_category(), b.get_category()) {
+        match (a.get_category(), b.get_category()) {
             (Category::Zero, Category::NaN)
             | (Category::Normal, Category::NaN)
             | (Category::Infinity, Category::NaN) => Self::nan(b.get_sign()),
@@ -328,7 +323,7 @@ impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
                 res.normalize(RoundingMode::NearestTiesToEven, loss);
                 res
             }
-        };
+        }
     }
 
     fn shift_right_with_loss128(val: u128, bits: u64) -> (u128, LossFraction) {
