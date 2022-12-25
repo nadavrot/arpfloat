@@ -426,7 +426,6 @@ fn mul_regular_values() {
     }
 }
 
-
 #[test]
 fn test_mul_special_values() {
     // Test the multiplication of various irregular values.
