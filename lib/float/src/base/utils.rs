@@ -134,7 +134,6 @@ fn text_next_msb() {
     assert_eq!(next_msb(0xff), 8);
 }
 
-
 // Multiply a and b, and return the (low, high) parts.
 #[allow(dead_code)]
 fn mul_part(a: u64, b: u64) -> (u64, u64) {
