@@ -1,3 +1,5 @@
+use std::cmp::Ordering;
+
 #[derive(Debug, Clone, Copy)]
 pub struct BigInt<const PARTS: usize> {
     parts: [u64; PARTS],
@@ -45,6 +47,17 @@ impl<const PARTS: usize> BigInt<PARTS> {
         n
     }
 
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        for i in (0..PARTS).rev() {
+            match self.parts[i].cmp(&other.parts[i]) {
+                std::cmp::Ordering::Less => return Ordering::Less,
+                std::cmp::Ordering::Equal => {}
+                std::cmp::Ordering::Greater => return Ordering::Greater,
+            }
+        }
+        Ordering::Equal
+    }
+
     /// \returns the index of the most significant bit (the highest '1'),
     /// using 1-based counting (the first bit is 1, and zero means no bits are
     /// set).
@@ -64,7 +77,7 @@ impl<const PARTS: usize> BigInt<PARTS> {
     }
 
     // Add \p rhs to self, and return true if the operation overflowed.
-    pub fn add(&mut self, rhs: Self) -> bool {
+    pub fn add(&mut self, rhs: &Self) -> bool {
         let mut carry: bool = false;
         for i in 0..PARTS {
             let first = self.parts[i].overflowing_add(rhs.parts[i]);
@@ -76,7 +89,7 @@ impl<const PARTS: usize> BigInt<PARTS> {
     }
 
     // Add \p rhs to self, and return true if the operation overflowed (borrow).
-    pub fn sub(&mut self, rhs: Self) -> bool {
+    pub fn sub(&mut self, rhs: &Self) -> bool {
         let mut borrow: bool = false;
         for i in 0..PARTS {
             let first = self.parts[i].overflowing_sub(rhs.parts[i]);
@@ -245,11 +258,11 @@ fn test_add_basic() {
     let z = BigInt::<2>::from_u64(0xf);
     x.dump();
     y.dump();
-    let c1 = x.add(y);
+    let c1 = x.add(&y);
     assert!(!c1);
     assert_eq!(x.get_part(0), 0xffffffffffffffff);
     x.dump();
-    let c2 = x.add(z);
+    let c2 = x.add(&z);
     assert!(!c2);
     assert_eq!(x.get_part(0), 0xe);
     assert_eq!(x.get_part(1), 0x1);
@@ -285,7 +298,7 @@ fn test_with_random_values(
 fn test_sub_basic() {
     let mut x = BigInt::<2>::from_parts(&[0x0, 0x1]);
     let y = BigInt::<2>::from_u64(0x1);
-    let c1 = x.sub(y);
+    let c1 = x.sub(&y);
     assert!(!c1);
     assert_eq!(x.get_part(0), 0xffffffffffffffff);
     assert_eq!(x.get_part(1), 0);
@@ -305,13 +318,13 @@ fn test_basic_operations() {
     fn test_sub(a: u128, b: u128) -> (u128, bool) {
         let mut a = BigInt::<2>::from_u128(a);
         let b = BigInt::<2>::from_u128(b);
-        let c = a.sub(b);
+        let c = a.sub(&b);
         (a.to_u128(), c)
     }
     fn test_add(a: u128, b: u128) -> (u128, bool) {
         let mut a = BigInt::<2>::from_u128(a);
         let b = BigInt::<2>::from_u128(b);
-        let c = a.add(b);
+        let c = a.add(&b);
         (a.to_u128(), c)
     }
     fn test_mul(a: u128, b: u128) -> (u128, bool) {
@@ -321,9 +334,34 @@ fn test_basic_operations() {
         (a.to_u128(), c)
     }
 
+    fn correct_cmp(a: u128, b: u128) -> (u128, bool) {
+        (
+            match a.cmp(&b) {
+                Ordering::Less => 1,
+                Ordering::Equal => 2,
+                Ordering::Greater => 3,
+            } as u128,
+            false,
+        )
+    }
+    fn test_cmp(a: u128, b: u128) -> (u128, bool) {
+        let a = BigInt::<2>::from_u128(a);
+        let b = BigInt::<2>::from_u128(b);
+
+        (
+            match a.cmp(&b) {
+                Ordering::Less => 1,
+                Ordering::Equal => 2,
+                Ordering::Greater => 3,
+            } as u128,
+            false,
+        )
+    }
+
     test_with_random_values(correct_mul, test_mul);
     test_with_random_values(correct_add, test_add);
     test_with_random_values(correct_sub, test_sub);
+    test_with_random_values(correct_cmp, test_cmp);
 }
 
 #[test]
