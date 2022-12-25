@@ -24,6 +24,20 @@ impl<const PARTS: usize> BigInt<PARTS> {
         n
     }
 
+    /// \returns the index of the most significant bit (the highest '1'),
+    /// using 1-based counting (the first bit is 1, and zero means no bits are
+    /// set).
+    pub fn msb_index(&self) -> usize {
+        for i in (0..PARTS).rev() {
+            let part = self.parts[i];
+            if part != 0 {
+                let idx = 64 - part.leading_zeros() as usize;
+                return i * 64 + idx;
+            }
+        }
+        0
+    }
+
     pub fn from_parts(parts: &[u64; PARTS]) -> Self {
         BigInt { parts: *parts }
     }
@@ -241,5 +255,27 @@ fn test_mul_random_vals() {
         assert_eq!(x.get_part(0), res1.0 as u64);
         assert_eq!(x.get_part(1), (res1.0 >> 64) as u64);
         assert_eq!(c0, res1.1);
+    }
+}
+
+#[test]
+fn test_msb() {
+    let x = BigInt::<5>::from_u64(0xffffffff00000000);
+    assert_eq!(x.msb_index(), 64);
+
+    let x = BigInt::<5>::from_u64(0x0);
+    assert_eq!(x.msb_index(), 0);
+
+    let x = BigInt::<5>::from_u64(0x1);
+    assert_eq!(x.msb_index(), 1);
+
+    let mut x = BigInt::<5>::from_u64(0x1);
+    x.shift_left(189);
+    assert_eq!(x.msb_index(), 189 + 1);
+
+    for i in 0..256 {
+        let mut x = BigInt::<5>::from_u64(0x1);
+        x.shift_left(i);
+        assert_eq!(x.msb_index(), i + 1);
     }
 }
