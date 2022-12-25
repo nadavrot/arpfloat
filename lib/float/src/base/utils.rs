@@ -138,7 +138,7 @@ fn text_next_msb() {
 #[allow(dead_code)]
 fn mul_part(a: u64, b: u64) -> (u64, u64) {
     let half_bits = u64::BITS / 2;
-    let half_mask = (((1 as u64) << half_bits) - 1) as u64;
+    let half_mask = (1 << half_bits) - 1;
 
     let a_lo = a & half_mask;
     let a_hi = a >> half_bits;
@@ -160,7 +160,7 @@ fn mul_part(a: u64, b: u64) -> (u64, u64) {
         .0;
 
     let high = (ab_hi + (ab_mid >> half_bits) + (ba_mid >> half_bits)) + carry;
-    return (low, high);
+    (low, high)
 }
 
 #[test]
