@@ -467,7 +467,7 @@ fn test_mul_random_vals() {
         k.as_f64()
     }
 
-    for _ in 0..50 {
+    for _ in 0..50000 {
         let v0 = lfsr.get64();
         let v1 = lfsr.get64();
 
