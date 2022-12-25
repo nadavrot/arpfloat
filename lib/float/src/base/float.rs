@@ -296,19 +296,6 @@ fn shift_right_fraction() {
     assert!(res.1.is_lt_half());
 }
 
-/// \returns the first digit after the msb. This allows us to support
-/// MSB index of zero.
-fn next_msb(val: u64) -> u64 {
-    64 - val.leading_zeros() as u64
-}
-
-#[test]
-fn text_next_msb() {
-    assert_eq!(next_msb(0x0), 0);
-    assert_eq!(next_msb(0x1), 1);
-    assert_eq!(next_msb(0xff), 8);
-}
-
 impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
     fn overflow(&mut self, rm: RoundingMode) {
         let bounds = Self::get_exp_bounds();
@@ -384,7 +371,7 @@ impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
         let mut loss = loss;
         let bounds = Self::get_exp_bounds();
 
-        let nmsb = next_msb(self.mantissa) as i64;
+        let nmsb = utils::next_msb(self.mantissa) as i64;
 
         // Step I - adjust the exponent.
         if nmsb > 0 {

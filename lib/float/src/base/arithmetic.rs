@@ -1,4 +1,5 @@
 use super::float::{Category, Float, LossFraction, RoundingMode};
+use super::utils;
 
 impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
     pub fn add_or_sub_normals(
@@ -250,22 +251,6 @@ fn add_special_values() {
 }
 
 #[test]
-fn test_simple() {
-    use super::float::FP64;
-
-    let a: f64 = -24.0;
-    let b: f64 = 0.1;
-
-    let af = FP64::from_f64(a);
-    let bf = FP64::from_f64(b);
-    let cf = FP64::add(af, bf);
-
-    let r0 = cf.as_f64();
-    let r1: f64 = a + b;
-    assert_eq!(r0, r1);
-}
-
-#[test]
 fn test_add_random_vals() {
     use crate::base::utils;
     use crate::base::FP64;
@@ -313,5 +298,130 @@ fn test_add_random_vals() {
         let r1_bits = r1.to_bits();
         // Check that the results are bit identical, or are both NaN.
         assert!(r1.is_nan() || r0_bits == r1_bits);
+    }
+}
+
+impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
+    pub fn mul(a: Self, b: Self) -> Self {
+        let sign = a.get_sign() ^ b.get_sign();
+
+        return match (a.get_category(), b.get_category()) {
+            (Category::Zero, Category::NaN)
+            | (Category::Normal, Category::NaN)
+            | (Category::Infinity, Category::NaN) => Self::nan(b.get_sign()),
+            (Category::NaN, Category::Infinity)
+            | (Category::NaN, Category::NaN)
+            | (Category::NaN, Category::Normal)
+            | (Category::NaN, Category::Zero) => Self::nan(a.get_sign()),
+            (Category::Normal, Category::Infinity)
+            | (Category::Infinity, Category::Normal)
+            | (Category::Infinity, Category::Infinity) => Self::inf(sign),
+            (Category::Normal, Category::Zero)
+            | (Category::Zero, Category::Normal)
+            | (Category::Zero, Category::Zero) => Self::zero(sign),
+
+            (Category::Zero, Category::Infinity)
+            | (Category::Infinity, Category::Zero) => Self::nan(sign),
+
+            (Category::Normal, Category::Normal) => {
+                let (mut res, loss) = Self::mul_normals(a, b, sign);
+                res.normalize(RoundingMode::NearestTiesToEven, loss);
+                res
+            }
+        };
+    }
+
+    fn shift_right_with_loss128(val: u128, bits: u64) -> (u128, LossFraction) {
+        // See "get_loss_kind_of_trunc".
+        fn get_loss_kind_of_trunc128(val: u128) -> LossFraction {
+            if val == 0 {
+                return LossFraction::ExactlyZero;
+            } else if val == (1 << 127) {
+                return LossFraction::ExactlyHalf;
+            } else if val > (1 << 127) {
+                return LossFraction::MoreThanHalf;
+            }
+            LossFraction::LessThanHalf
+        }
+
+        if bits == 0 {
+            (val, LossFraction::ExactlyZero)
+        } else if bits < 128 {
+            let loss = get_loss_kind_of_trunc128(val << (128 - bits));
+            (val >> bits, loss)
+        } else {
+            let loss = get_loss_kind_of_trunc128(val);
+            (0, loss)
+        }
+    }
+
+    pub fn mul_normals(a: Self, b: Self, sign: bool) -> (Self, LossFraction) {
+        // We multiply digits in the format 1.xx * 2^(e), or mantissa * 2^(e+1).
+        // When we multiply two 2^(e+1) numbers, we get:
+        // log(2^(e_a+1)*2^(e_b+1)) = e_a + e+b + 2.
+        let mut exp = a.get_exp() + b.get_exp();
+
+        let mut loss = LossFraction::ExactlyZero;
+
+        let a_significand = a.get_mantissa() as u128;
+        let b_significand = b.get_mantissa() as u128;
+        let mut ab_significand = a_significand * b_significand;
+        let first_non_zero = utils::next_msb128(ab_significand);
+
+        // The exponent is correct, but the bits are not in the right place.
+        // Set the right exponent for where the bits are placed, and fix the
+        // exponent below.
+        exp -= MANTISSA as i64;
+
+        let precision = Self::get_precision();
+        if first_non_zero > precision {
+            let bits = first_non_zero - precision;
+
+            (ab_significand, loss) =
+                Self::shift_right_with_loss128(ab_significand, bits);
+            exp += bits as i64;
+        }
+
+        (Self::new(sign, exp, ab_significand as u64), loss)
+    }
+}
+
+#[test]
+fn test_simple() {
+    use super::float::FP64;
+
+    let a: f64 = -24.0;
+    let b: f64 = 0.1;
+
+    let af = FP64::from_f64(a);
+    let bf = FP64::from_f64(b);
+    let cf = FP64::mul(af, bf);
+
+    let r0 = cf.as_f64();
+    let r1: f64 = a * b;
+    assert_eq!(r0, r1);
+}
+
+#[test]
+fn mul_regular_values() {
+    // Test the addition of regular values.
+    let values = [-5.0, 0., -0., 24., 1., 11., 10000., 256., 0.1, 3., 17.5];
+    use super::float::FP64;
+
+    fn mul_f64(a: f64, b: f64) -> f64 {
+        let a = FP64::from_f64(a);
+        let b = FP64::from_f64(b);
+        FP64::mul(a, b).as_f64()
+    }
+
+    for v0 in values {
+        for v1 in values {
+            let r0 = mul_f64(v0, v1);
+            let r1 = v0 * v1;
+            let r0_bits = r0.to_bits();
+            let r1_bits = r1.to_bits();
+            // Check that the results are bit identical, or are both NaN.
+            assert_eq!(r0_bits, r1_bits);
+        }
     }
 }

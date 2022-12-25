@@ -114,3 +114,22 @@ fn test_repetition() {
         assert_ne!(second, lfsr.get());
     }
 }
+
+/// \returns the first digit after the msb. This allows us to support
+/// MSB index of zero.
+pub fn next_msb(val: u64) -> u64 {
+    64 - val.leading_zeros() as u64
+}
+
+/// \returns the first digit after the msb. This allows us to support
+/// MSB index of zero.
+pub fn next_msb128(val: u128) -> u64 {
+    128 - val.leading_zeros() as u64
+}
+
+#[test]
+fn text_next_msb() {
+    assert_eq!(next_msb(0x0), 0);
+    assert_eq!(next_msb(0x1), 1);
+    assert_eq!(next_msb(0xff), 8);
+}
