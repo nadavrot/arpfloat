@@ -60,7 +60,7 @@ impl<const PARTS: usize> BigInt<PARTS> {
     }
 
     pub fn is_even(&self) -> bool {
-        self.parts[0] & 0x1 == 0
+        (self.parts[0] & 0x1) == 0
     }
 
     // Zero out all of the bits above \p bits.
@@ -85,6 +85,12 @@ impl<const PARTS: usize> BigInt<PARTS> {
 
     /// \returns the fractional part that's lost during truncation at \p bit.
     pub fn get_loss_kind_for_bit(&self, bit: usize) -> LossFraction {
+        if self.is_zero() {
+            return LossFraction::ExactlyZero;
+        }
+        if bit > PARTS * 64 {
+            return LossFraction::LessThanHalf;
+        }
         let mut a = self.clone();
         a.mask(bit);
         if a.is_zero() {
