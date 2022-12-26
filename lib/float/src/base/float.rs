@@ -248,6 +248,7 @@ impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
 pub type FP16 = Float<5, 10>;
 pub type FP32 = Float<8, 23>;
 pub type FP64 = Float<11, 52>;
+pub type FP128 = Float<15, 112>;
 
 //// Shift \p val by \p bits, and report the loss.
 pub fn shift_right_with_loss(
