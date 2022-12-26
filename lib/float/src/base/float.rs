@@ -249,20 +249,6 @@ pub type FP16 = Float<5, 10>;
 pub type FP32 = Float<8, 23>;
 pub type FP64 = Float<11, 52>;
 
-/// \returns the fractional part that's lost during truncation of  \p val.
-/// Val needs to be aligned to the left, so the MSB of the number is aligned
-/// to the MSB of the word.
-pub fn get_loss_kind_of_trunc(val: u64) -> LossFraction {
-    if val == 0 {
-        return LossFraction::ExactlyZero;
-    } else if val == (1 << 63) {
-        return LossFraction::ExactlyHalf;
-    } else if val > (1 << 63) {
-        return LossFraction::MoreThanHalf;
-    }
-    LossFraction::LessThanHalf
-}
-
 //// Shift \p val by \p bits, and report the loss.
 pub fn shift_right_with_loss(
     mut val: MantissaTy,
