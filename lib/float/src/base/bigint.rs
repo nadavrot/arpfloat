@@ -1,6 +1,6 @@
 use std::cmp::Ordering;
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct BigInt<const PARTS: usize> {
     parts: [u64; PARTS],
 }
@@ -45,17 +45,6 @@ impl<const PARTS: usize> BigInt<PARTS> {
             n.parts[i] = self.parts[i];
         }
         n
-    }
-
-    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        for i in (0..PARTS).rev() {
-            match self.parts[i].cmp(&other.parts[i]) {
-                std::cmp::Ordering::Less => return Ordering::Less,
-                std::cmp::Ordering::Equal => {}
-                std::cmp::Ordering::Greater => return Ordering::Greater,
-            }
-        }
-        Ordering::Equal
     }
 
     /// \returns the index of the most significant bit (the highest '1'),
@@ -383,5 +372,23 @@ fn test_msb() {
         let mut x = BigInt::<5>::from_u64(0x1);
         x.shift_left(i);
         assert_eq!(x.msb_index(), i + 1);
+    }
+}
+
+impl<const PARTS: usize> PartialOrd for BigInt<PARTS> {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+impl<const PARTS: usize> Ord for BigInt<PARTS> {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        for i in (0..PARTS).rev() {
+            match self.parts[i].cmp(&other.parts[i]) {
+                std::cmp::Ordering::Less => return Ordering::Less,
+                std::cmp::Ordering::Equal => {}
+                std::cmp::Ordering::Greater => return Ordering::Greater,
+            }
+        }
+        Ordering::Equal
     }
 }
