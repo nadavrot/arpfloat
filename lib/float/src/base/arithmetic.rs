@@ -1,3 +1,5 @@
+use std::ops::{Add, Mul, Sub};
+
 use super::float::{Category, Float, LossFraction, RoundingMode};
 use super::utils;
 
@@ -66,11 +68,11 @@ impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
         }
     }
 
-    pub fn add(a: Self, b: Self) -> Self {
+    pub fn add_impl(a: Self, b: Self) -> Self {
         Self::add_sub(a, b, false)
     }
 
-    pub fn sub(a: Self, b: Self) -> Self {
+    pub fn sub_impl(a: Self, b: Self) -> Self {
         Self::add_sub(a, b, true)
     }
 
@@ -297,7 +299,7 @@ fn test_add_random_vals() {
 }
 
 impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
-    pub fn mul(a: Self, b: Self) -> Self {
+    pub fn mul_impl(a: Self, b: Self) -> Self {
         let sign = a.get_sign() ^ b.get_sign();
 
         match (a.get_category(), b.get_category()) {
@@ -478,4 +480,47 @@ fn test_mul_random_vals() {
         // Check that the results are bit identical, or are both NaN.
         assert!(r1.is_nan() || r0_bits == r1_bits);
     }
+}
+
+impl<const EXPONENT: usize, const MANTISSA: usize> Add
+    for Float<EXPONENT, MANTISSA>
+{
+    type Output = Self;
+
+    fn add(self, rhs: Self) -> Self {
+        Self::add_impl(self, rhs)
+    }
+}
+
+impl<const EXPONENT: usize, const MANTISSA: usize> Sub
+    for Float<EXPONENT, MANTISSA>
+{
+    type Output = Self;
+
+    fn sub(self, rhs: Self) -> Self {
+        Self::sub_impl(self, rhs)
+    }
+}
+
+impl<const EXPONENT: usize, const MANTISSA: usize> Mul
+    for Float<EXPONENT, MANTISSA>
+{
+    type Output = Self;
+
+    fn mul(self, rhs: Self) -> Self {
+        Self::mul_impl(self, rhs)
+    }
+}
+
+#[test]
+fn test_operators() {
+    use crate::base::FP64;
+    let a = FP64::from_f32(8.0);
+    let b = FP64::from_f32(2.0);
+    let c = a + b;
+    let d = a - b;
+    let e = a * b;
+    assert_eq!(c.as_f64(), 10.0);
+    assert_eq!(d.as_f64(), 6.0);
+    assert_eq!(e.as_f64(), 16.0);
 }
