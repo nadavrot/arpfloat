@@ -191,6 +191,7 @@ impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
 
     /// \returns True if abs(self) < abs(other).
     pub fn absolute_less_than(&self, other: Self) -> bool {
+        assert!(self.is_normal());
         use std::cmp::Ordering;
         let mc = self.mantissa.cmp(&other.get_mantissa());
         match self.exp.cmp(&other.get_exp()) {
