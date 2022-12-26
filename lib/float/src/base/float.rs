@@ -323,8 +323,7 @@ impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
         let bounds = Self::get_exp_bounds();
         assert!(self.exp >= bounds.0);
         assert!(self.exp <= bounds.1);
-        let mut max_mantissa = MantissaTy::one();
-        max_mantissa.shift_left(Self::get_precision() as usize);
+        let max_mantissa = MantissaTy::one_hot(Self::get_precision() as usize);
         assert!(self.mantissa.lt(&max_mantissa));
     }
 

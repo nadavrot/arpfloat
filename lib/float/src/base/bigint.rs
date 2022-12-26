@@ -18,6 +18,12 @@ impl<const PARTS: usize> BigInt<PARTS> {
         Self::from_u64(1)
     }
 
+    pub fn one_hot(bit: usize) -> Self {
+        let mut x = Self::zero();
+        x.flip_bit(bit);
+        x
+    }
+
     /// \return a mask of all 1's of \p bits.
     pub fn all1s(bits: usize) -> Self {
         if bits == 0 {
@@ -124,8 +130,7 @@ impl<const PARTS: usize> BigInt<PARTS> {
         if a.is_zero() {
             return LossFraction::ExactlyZero;
         }
-        let mut half = Self::from_u64(1);
-        half.shift_left(bit - 1);
+        let half = Self::one_hot(bit - 1);
         match a.cmp(&half) {
             Ordering::Less => LossFraction::LessThanHalf,
             Ordering::Equal => LossFraction::ExactlyHalf,
