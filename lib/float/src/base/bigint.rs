@@ -14,6 +14,22 @@ impl<const PARTS: usize> BigInt<PARTS> {
         BigInt { parts: [0; PARTS] }
     }
 
+    pub fn one() -> Self {
+        Self::from_u64(1)
+    }
+
+    /// \return a mask of all 1's of \p bits.
+    pub fn all1s(bits: usize) -> Self {
+        if bits == 0 {
+            return Self::zero();
+        }
+        let mut x = Self::one();
+        x.shift_left(bits);
+        x.inplace_sub(&Self::one());
+        assert_eq!(x.msb_index(), bits);
+        x
+    }
+
     pub fn from_u64(val: u64) -> Self {
         let mut bi = BigInt { parts: [0; PARTS] };
         bi.parts[0] = val;
@@ -484,7 +500,7 @@ impl<const PARTS: usize> Mul for BigInt<PARTS> {
 
     fn mul(self, rhs: Self) -> Self::Output {
         let mut n = self.clone();
-        n.inplace_mul::<10>(rhs);
+        n.inplace_mul::<20>(rhs);
         n
     }
 }
@@ -498,4 +514,18 @@ fn test_bigint_operators() {
     let c = (x - y) * x;
     assert_eq!(c.to_u64(), 90);
     assert_eq!((y + y).to_u64(), 2);
+}
+
+#[test]
+fn test_all1s() {
+    type BI = BigInt<2>;
+    let v0 = BI::all1s(0);
+    let v1 = BI::all1s(1);
+    let v2 = BI::all1s(5);
+    let v3 = BI::all1s(32);
+
+    assert_eq!(v0.get_part(0), 0b0);
+    assert_eq!(v1.get_part(0), 0b1);
+    assert_eq!(v2.get_part(0), 0b11111);
+    assert_eq!(v3.get_part(0), 0xffffffff);
 }
