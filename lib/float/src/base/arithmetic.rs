@@ -515,3 +515,28 @@ fn test_operators() {
     assert_eq!(d.as_f64(), 6.0);
     assert_eq!(e.as_f64(), 16.0);
 }
+
+#[test]
+fn test_slow_sqrt_2_test() {
+    use crate::base::FP128;
+    use crate::base::FP64;
+
+    // Find sqrt using a binary search.
+    let two = FP128::from_f64(2.0);
+    let half = FP128::from_f64(0.5);
+    let mut high = FP128::from_f64(2.0);
+    let mut low = FP128::from_f64(1.0);
+
+    for _ in 0..25 {
+        let mid = (high + low) * half;
+        if (mid * mid).absolute_less_than(two) {
+            low = mid;
+        } else {
+            high = mid;
+        }
+    }
+
+    let res: FP64 = low.cast();
+    assert!(res.as_f64() < 1.4142137_f64);
+    assert!(res.as_f64() > 1.4142134_f64);
+}
