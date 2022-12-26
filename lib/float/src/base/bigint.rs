@@ -1,13 +1,15 @@
 use std::cmp::Ordering;
 
+use super::float::LossFraction;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct BigInt<const PARTS: usize> {
     parts: [u64; PARTS],
 }
 
 impl<const PARTS: usize> BigInt<PARTS> {
-    /// Create a new normal floating point number.
-    pub fn new() -> Self {
+    /// Create a new zero big int number.
+    pub fn zero() -> Self {
         BigInt { parts: [0; PARTS] }
     }
 
@@ -39,12 +41,62 @@ impl<const PARTS: usize> BigInt<PARTS> {
     }
 
     pub fn trunc<const P: usize>(&self) -> BigInt<P> {
-        let mut n = BigInt::<P>::new();
+        let mut n = BigInt::<P>::zero();
         assert!(P <= PARTS, "Can't truncate to a larger size");
         for i in 0..PARTS {
             n.parts[i] = self.parts[i];
         }
         n
+    }
+
+    /// \return True if the int is equal to zero.
+    pub fn is_zero(&self) -> bool {
+        for elem in self.parts {
+            if elem != 0 {
+                return false;
+            }
+        }
+        true
+    }
+
+    pub fn is_even(&self) -> bool {
+        self.parts[0] & 0x1 == 0
+    }
+
+    // Zero out all of the bits above \p bits.
+    pub fn mask(&mut self, bits: usize) {
+        let mut bits = bits;
+        for i in 0..PARTS {
+            if bits >= 64 {
+                bits -= 64;
+                continue;
+            }
+
+            if bits == 0 {
+                self.parts[i] = 0;
+                continue;
+            }
+
+            let mask = (1u64 << bits) - 1;
+            self.parts[i] &= mask;
+            bits = 0;
+        }
+    }
+
+    /// \returns the fractional part that's lost during truncation at \p bit.
+    pub fn get_loss_kind_for_bit(&self, bit: usize) -> LossFraction {
+        let mut a = self.clone();
+        a.mask(bit);
+        if a.is_zero() {
+            return LossFraction::ExactlyZero;
+        }
+        let mut half = Self::from_u64(1);
+        half.shift_left(bit);
+        match a.cmp(&half) {
+            Ordering::Less => LossFraction::LessThanHalf,
+            Ordering::Equal => LossFraction::ExactlyHalf,
+            Ordering::Greater => LossFraction::MoreThanHalf,
+        }
     }
 
     /// \returns the index of the most significant bit (the highest '1'),
@@ -208,7 +260,7 @@ impl<const PARTS: usize> BigInt<PARTS> {
 
 impl<const PARTS: usize> Default for BigInt<PARTS> {
     fn default() -> Self {
-        Self::new()
+        Self::zero()
     }
 }
 
@@ -291,6 +343,15 @@ fn test_sub_basic() {
     assert!(!c1);
     assert_eq!(x.get_part(0), 0xffffffffffffffff);
     assert_eq!(x.get_part(1), 0);
+}
+
+#[test]
+fn test_mask_basic() {
+    let mut x = BigInt::<3>::from_parts(&[0b11111, 0b10101010101010, 0b111]);
+    x.mask(69);
+    assert_eq!(x.get_part(0), 0b11111); // No change
+    assert_eq!(x.get_part(1), 0b01010); // Keep the bottom 5 bits.
+    assert_eq!(x.get_part(2), 0b0); // Zero.
 }
 
 #[test]
