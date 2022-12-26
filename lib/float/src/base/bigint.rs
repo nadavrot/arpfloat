@@ -84,6 +84,13 @@ impl<const PARTS: usize> BigInt<PARTS> {
         (self.parts[0] & 0x1) == 1
     }
 
+    pub fn flip_bit(&mut self, bit_num: usize) {
+        let which_word = bit_num / u64::BITS as usize;
+        let bit_in_word = bit_num % u64::BITS as usize;
+        assert!(which_word < PARTS, "Bit out of bounds");
+        self.parts[which_word] ^= 1 << bit_in_word;
+    }
+
     // Zero out all of the bits above \p bits.
     pub fn mask(&mut self, bits: usize) {
         let mut bits = bits;
@@ -532,4 +539,31 @@ fn test_all1s() {
     assert_eq!(v1.get_part(0), 0b1);
     assert_eq!(v2.get_part(0), 0b11111);
     assert_eq!(v3.get_part(0), 0xffffffff);
+}
+
+#[test]
+fn test_flip_bit() {
+    type BI = BigInt<2>;
+
+    {
+        let mut v0 = BI::zero();
+        assert_eq!(v0.get_part(0), 0);
+        v0.flip_bit(0);
+        assert_eq!(v0.get_part(0), 1);
+        v0.flip_bit(0);
+        assert_eq!(v0.get_part(0), 0);
+    }
+
+    {
+        let mut v0 = BI::zero();
+        v0.flip_bit(16);
+        assert_eq!(v0.get_part(0), 65536);
+    }
+
+    {
+        let mut v0 = BI::zero();
+        v0.flip_bit(95);
+        v0.shift_right(95);
+        assert_eq!(v0.get_part(0), 1);
+    }
 }
