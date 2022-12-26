@@ -321,13 +321,10 @@ fn test_shr() {
     x.shift_left(128);
     assert_eq!(x.get_part(2), 0xff00ff);
     x.shift_right(17);
-    x.dump();
     assert_eq!(x.get_part(1), 0x807f800000000000);
     x.shift_right(17);
-    x.dump();
     assert_eq!(x.get_part(1), 0x03fc03fc0000000);
     x.shift_right(64);
-    x.dump();
     assert_eq!(x.get_part(0), 0x03fc03fc0000000);
 }
 

@@ -65,8 +65,6 @@ impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
             // Handle the easy case of Add:
             let mut b = b;
             let mut a = a;
-            a.dump();
-            b.dump();
             if bits > 0 {
                 loss = b.shift_significand_right((bits) as u64);
             } else {
