@@ -80,6 +80,10 @@ impl<const PARTS: usize> BigInt<PARTS> {
         (self.parts[0] & 0x1) == 0
     }
 
+    pub fn is_odd(&self) -> bool {
+        (self.parts[0] & 0x1) == 1
+    }
+
     // Zero out all of the bits above \p bits.
     pub fn mask(&mut self, bits: usize) {
         let mut bits = bits;
@@ -108,7 +112,7 @@ impl<const PARTS: usize> BigInt<PARTS> {
         if bit > PARTS * 64 {
             return LossFraction::LessThanHalf;
         }
-        let mut a = self.clone();
+        let mut a = *self;
         a.mask(bit);
         if a.is_zero() {
             return LossFraction::ExactlyZero;
@@ -481,7 +485,7 @@ impl<const PARTS: usize> Add for BigInt<PARTS> {
     type Output = Self;
 
     fn add(self, rhs: Self) -> Self::Output {
-        let mut n = self.clone();
+        let mut n = self;
         n.inplace_add(&rhs);
         n
     }
@@ -490,7 +494,7 @@ impl<const PARTS: usize> Sub for BigInt<PARTS> {
     type Output = Self;
 
     fn sub(self, rhs: Self) -> Self::Output {
-        let mut n = self.clone();
+        let mut n = self;
         n.inplace_sub(&rhs);
         n
     }
@@ -499,7 +503,7 @@ impl<const PARTS: usize> Mul for BigInt<PARTS> {
     type Output = Self;
 
     fn mul(self, rhs: Self) -> Self::Output {
-        let mut n = self.clone();
+        let mut n = self;
         n.inplace_mul::<20>(rhs);
         n
     }

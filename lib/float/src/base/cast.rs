@@ -1,4 +1,4 @@
-use super::float::{Float, RoundingMode, FP32, FP64};
+use super::float::{Float, MantissaTy, RoundingMode, FP32, FP64};
 use super::utils;
 use super::utils::mask;
 use crate::base::float::Category;
@@ -6,6 +6,7 @@ use crate::base::float::LossFraction;
 
 impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
     pub fn from_u64(val: u64) -> Self {
+        let val = MantissaTy::from_u64(val);
         let mut a = Self::new(false, MANTISSA as i64, val);
         a.normalize(RoundingMode::NearestTiesToEven, LossFraction::ExactlyZero);
         a
@@ -49,6 +50,7 @@ impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
             exp += 1;
         }
 
+        let mantissa = MantissaTy::from_u64(mantissa);
         Self::new(sign, exp, mantissa)
     }
 
@@ -84,10 +86,14 @@ impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
             Category::Normal => {
                 exp = (self.get_exp() + Self::get_bias()) as u64;
                 assert!(exp > 0);
-                if (exp == 1) && ((self.get_mantissa() >> MANTISSA) == 0) {
+                let m = self.get_mantissa().to_u64();
+                // Encode denormals. If the exponent is the minimum value and we
+                // don't have a leading integer bit (in the form 1.mmmm) then
+                // this is a denormal value and we need to encode it as such.
+                if (exp == 1) && ((m >> MANTISSA) == 0) {
                     exp = 0;
                 }
-                mantissa = self.get_mantissa() & utils::mask(MANTISSA) as u64;
+                mantissa = m & utils::mask(MANTISSA) as u64;
             }
         }
 

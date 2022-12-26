@@ -115,25 +115,6 @@ fn test_repetition() {
     }
 }
 
-/// \returns the first digit after the msb. This allows us to support
-/// MSB index of zero.
-pub fn next_msb(val: u64) -> u64 {
-    64 - val.leading_zeros() as u64
-}
-
-/// \returns the first digit after the msb. This allows us to support
-/// MSB index of zero.
-pub fn next_msb128(val: u128) -> u64 {
-    128 - val.leading_zeros() as u64
-}
-
-#[test]
-fn text_next_msb() {
-    assert_eq!(next_msb(0x0), 0);
-    assert_eq!(next_msb(0x1), 1);
-    assert_eq!(next_msb(0xff), 8);
-}
-
 // Multiply a and b, and return the (low, high) parts.
 #[allow(dead_code)]
 fn mul_part(a: u64, b: u64) -> (u64, u64) {

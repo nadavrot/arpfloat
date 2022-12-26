@@ -1,7 +1,9 @@
 use std::ops::{Add, Mul, Sub};
 
-use super::float::{Category, Float, LossFraction, RoundingMode};
-use super::utils;
+use super::float::{
+    shift_right_with_loss, Category, Float, LossFraction, MantissaTy,
+    RoundingMode,
+};
 
 impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
     pub fn add_or_sub_normals(
@@ -36,35 +38,43 @@ impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
 
             let a_mantissa = a.get_mantissa();
             let b_mantissa = b.get_mantissa();
-            let ab_mantissa;
+            let mut ab_mantissa;
             let mut sign = a.get_sign();
 
             // Figure out the carry from the shifting operations that dropped
             // bits.
             let c = !loss.is_exactly_zero() as u64;
+            let c = MantissaTy::from_u64(c);
 
             // Figure out which mantissa is larger, to make sure that we don't
             // overflow the subtraction.
             if a.absolute_less_than(b) {
                 // A < B
-                ab_mantissa = b_mantissa - a_mantissa - c;
+                ab_mantissa = b_mantissa;
+                ab_mantissa.inplace_sub(&a_mantissa);
+                ab_mantissa.inplace_sub(&c);
                 sign = !sign;
             } else {
                 // A >= B
-                ab_mantissa = a_mantissa - b_mantissa - c;
+                ab_mantissa = a_mantissa;
+                ab_mantissa.inplace_sub(&b_mantissa);
+                ab_mantissa.inplace_sub(&c);
             }
             (Self::new(sign, a.get_exp(), ab_mantissa), loss.invert())
         } else {
             // Handle the easy case of Add:
             let mut b = b;
             let mut a = a;
+            a.dump();
+            b.dump();
             if bits > 0 {
                 loss = b.shift_significand_right((bits) as u64);
             } else {
                 loss = a.shift_significand_right((-bits) as u64);
             }
             assert!(a.get_exp() == b.get_exp());
-            let ab_mantissa = a.get_mantissa() + b.get_mantissa();
+            let mut ab_mantissa = a.get_mantissa();
+            ab_mantissa.inplace_add(&b.get_mantissa());
             (Self::new(a.get_sign(), a.get_exp(), ab_mantissa), loss)
         }
     }
@@ -329,30 +339,6 @@ impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
         }
     }
 
-    fn shift_right_with_loss128(val: u128, bits: u64) -> (u128, LossFraction) {
-        // See "get_loss_kind_of_trunc".
-        fn get_loss_kind_of_trunc128(val: u128) -> LossFraction {
-            if val == 0 {
-                return LossFraction::ExactlyZero;
-            } else if val == (1 << 127) {
-                return LossFraction::ExactlyHalf;
-            } else if val > (1 << 127) {
-                return LossFraction::MoreThanHalf;
-            }
-            LossFraction::LessThanHalf
-        }
-
-        if bits == 0 {
-            (val, LossFraction::ExactlyZero)
-        } else if bits < 128 {
-            let loss = get_loss_kind_of_trunc128(val << (128 - bits));
-            (val >> bits, loss)
-        } else {
-            let loss = get_loss_kind_of_trunc128(val);
-            (0, loss)
-        }
-    }
-
     pub fn mul_normals(a: Self, b: Self, sign: bool) -> (Self, LossFraction) {
         // We multiply digits in the format 1.xx * 2^(e), or mantissa * 2^(e+1).
         // When we multiply two 2^(e+1) numbers, we get:
@@ -361,10 +347,11 @@ impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
 
         let mut loss = LossFraction::ExactlyZero;
 
-        let a_significand = a.get_mantissa() as u128;
-        let b_significand = b.get_mantissa() as u128;
+        let a_significand = a.get_mantissa();
+        let b_significand = b.get_mantissa();
+
         let mut ab_significand = a_significand * b_significand;
-        let first_non_zero = utils::next_msb128(ab_significand);
+        let first_non_zero = ab_significand.msb_index() as u64;
 
         // The exponent is correct, but the bits are not in the right place.
         // Set the right exponent for where the bits are placed, and fix the
@@ -376,11 +363,11 @@ impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
             let bits = first_non_zero - precision;
 
             (ab_significand, loss) =
-                Self::shift_right_with_loss128(ab_significand, bits);
+                shift_right_with_loss(ab_significand, bits);
             exp += bits as i64;
         }
 
-        (Self::new(sign, exp, ab_significand as u64), loss)
+        (Self::new(sign, exp, ab_significand), loss)
     }
 }
 
@@ -426,6 +413,8 @@ fn mul_regular_values() {
 
 #[test]
 fn test_mul_special_values() {
+    use super::utils;
+
     // Test the multiplication of various irregular values.
     let values = utils::get_special_test_values();
 
@@ -454,6 +443,7 @@ fn test_mul_special_values() {
 
 #[test]
 fn test_mul_random_vals() {
+    use super::utils;
     use crate::base::FP64;
     let mut lfsr = utils::Lfsr::new();
 

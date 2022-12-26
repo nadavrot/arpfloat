@@ -1,4 +1,5 @@
-use super::utils::{self, mask};
+use super::bigint::BigInt;
+use super::utils::{self};
 
 #[derive(Debug, Clone, Copy)]
 pub enum RoundingMode {
@@ -55,6 +56,8 @@ pub enum Category {
     Zero,
 }
 
+pub type MantissaTy = BigInt<6>;
+
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Float<const EXPONENT: usize, const MANTISSA: usize> {
     // The Sign bit.
@@ -63,15 +66,15 @@ pub struct Float<const EXPONENT: usize, const MANTISSA: usize> {
     exp: i64,
     // The significand, including the implicit bit, aligned to the right.
     // Format [00000001xxxxxxx].
-    mantissa: u64,
+    mantissa: MantissaTy,
     // The kind of number this float represents.
     category: Category,
 }
 
 impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
     /// Create a new normal floating point number.
-    pub fn new(sign: bool, exp: i64, mantissa: u64) -> Self {
-        if mantissa == 0 {
+    pub fn new(sign: bool, exp: i64, mantissa: MantissaTy) -> Self {
+        if mantissa.is_zero() {
             return Float::zero(sign);
         }
         Float {
@@ -86,7 +89,7 @@ impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
     pub fn raw(
         sign: bool,
         exp: i64,
-        mantissa: u64,
+        mantissa: MantissaTy,
         category: Category,
     ) -> Self {
         Float {
@@ -102,7 +105,7 @@ impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
         Float {
             sign,
             exp: 0,
-            mantissa: 0,
+            mantissa: MantissaTy::zero(),
             category: Category::Zero,
         }
     }
@@ -112,7 +115,7 @@ impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
         Float {
             sign,
             exp: 0,
-            mantissa: 0,
+            mantissa: MantissaTy::zero(),
             category: Category::Infinity,
         }
     }
@@ -122,7 +125,7 @@ impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
         Float {
             sign,
             exp: 0,
-            mantissa: 0,
+            mantissa: MantissaTy::zero(),
             category: Category::NaN,
         }
     }
@@ -170,7 +173,7 @@ impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
         self.sign
     }
 
-    pub fn get_mantissa(&self) -> u64 {
+    pub fn get_mantissa(&self) -> MantissaTy {
         self.mantissa
     }
 
@@ -188,10 +191,12 @@ impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
 
     /// \returns True if abs(self) < abs(other).
     pub fn absolute_less_than(&self, other: Self) -> bool {
+        use std::cmp::Ordering;
+        let mc = self.mantissa.cmp(&other.get_mantissa());
         match self.exp.cmp(&other.get_exp()) {
-            std::cmp::Ordering::Less => true,
-            std::cmp::Ordering::Equal => self.mantissa < other.get_mantissa(),
-            std::cmp::Ordering::Greater => false,
+            Ordering::Less => true,
+            Ordering::Equal => mc.is_lt(),
+            Ordering::Greater => false,
         }
     }
 
@@ -209,7 +214,12 @@ impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
             }
             Category::Normal => {
                 let m = self.mantissa;
-                println!("FP[{} E={:4} M = 0x{:64b}]", sign, self.exp, m);
+                println!(
+                    "FP[{} E={:4} M = 0x{:64b}]",
+                    sign,
+                    self.exp,
+                    m.to_u128()
+                );
             }
         }
     }
@@ -254,16 +264,13 @@ pub fn get_loss_kind_of_trunc(val: u64) -> LossFraction {
 }
 
 //// Shift \p val by \p bits, and report the loss.
-fn shift_right_with_loss(val: u64, bits: u64) -> (u64, LossFraction) {
-    if bits == 0 {
-        (val, LossFraction::ExactlyZero)
-    } else if bits < 64 {
-        let loss = get_loss_kind_of_trunc(val << (64 - bits));
-        (val >> bits, loss)
-    } else {
-        let loss = get_loss_kind_of_trunc(val);
-        (0, loss)
-    }
+pub fn shift_right_with_loss(
+    mut val: MantissaTy,
+    bits: u64,
+) -> (MantissaTy, LossFraction) {
+    let loss = val.get_loss_kind_for_bit(bits as usize);
+    val.shift_right(bits as usize);
+    (val, loss)
 }
 
 /// Combine the loss of accuracy with \p msb more significant and \p lsb
@@ -281,16 +288,20 @@ fn combine_loss_fraction(msb: LossFraction, lsb: LossFraction) -> LossFraction {
 
 #[test]
 fn shift_right_fraction() {
-    let res = shift_right_with_loss(0b10000000, 3);
+    let x = MantissaTy::from_u64(0b10000000);
+    let res = shift_right_with_loss(x, 3);
     assert!(res.1.is_exactly_zero());
 
-    let res = shift_right_with_loss(0b10000111, 3);
+    let x = MantissaTy::from_u64(0b10000111);
+    let res = shift_right_with_loss(x, 3);
     assert!(res.1.is_mt_half());
 
-    let res = shift_right_with_loss(0b10000100, 3);
+    let x = MantissaTy::from_u64(0b10000100);
+    let res = shift_right_with_loss(x, 3);
     assert!(res.1.is_exactly_half());
 
-    let res = shift_right_with_loss(0b10000001, 3);
+    let x = MantissaTy::from_u64(0b10000001);
+    let res = shift_right_with_loss(x, 3);
     assert!(res.1.is_lt_half());
 }
 
@@ -298,7 +309,7 @@ impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
     fn overflow(&mut self, rm: RoundingMode) {
         let bounds = Self::get_exp_bounds();
         let inf = Self::inf(self.sign);
-        let max = Self::new(self.sign, bounds.1, mask(MANTISSA) as u64);
+        let max = Self::new(self.sign, bounds.1, MantissaTy::all1s(MANTISSA));
 
         *self = match rm {
             RoundingMode::NearestTiesToEven => inf,
@@ -325,12 +336,14 @@ impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
         let bounds = Self::get_exp_bounds();
         assert!(self.exp >= bounds.0);
         assert!(self.exp <= bounds.1);
-        assert!(self.mantissa <= 1 << Self::get_precision());
+        let mut max_mantissa = MantissaTy::one();
+        max_mantissa.shift_left(Self::get_precision() as usize);
+        assert!(self.mantissa.lt(&max_mantissa));
     }
 
     pub fn shift_significand_left(&mut self, amt: u64) {
         self.exp -= amt as i64;
-        self.mantissa <<= amt;
+        self.mantissa.shift_left(amt as usize);
     }
 
     pub fn shift_significand_right(&mut self, amt: u64) -> LossFraction {
@@ -357,7 +370,7 @@ impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
                     return true;
                 }
 
-                loss.is_exactly_half() && self.mantissa & 0x1 == 1
+                loss.is_exactly_half() && self.mantissa.is_odd()
             }
         }
     }
@@ -369,7 +382,7 @@ impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
         let mut loss = loss;
         let bounds = Self::get_exp_bounds();
 
-        let nmsb = utils::next_msb(self.mantissa) as i64;
+        let nmsb = self.mantissa.msb_index() as i64;
 
         // Step I - adjust the exponent.
         if nmsb > 0 {
@@ -408,7 +421,7 @@ impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
         // If nothing moved or the shift didn't mess things up then we're done.
         if loss.is_exactly_zero() {
             // Canonicalize to zero.
-            if self.mantissa == 0 {
+            if self.mantissa.is_zero() {
                 *self = Self::zero(self.sign);
                 return;
             }
@@ -417,13 +430,16 @@ impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
 
         // Check if we need to round away from zero.
         if self.need_round_away_from_zero(rm, loss) {
-            if self.mantissa == 0 {
+            if self.mantissa.is_zero() {
                 self.exp = bounds.0
             }
 
-            self.mantissa += 1;
+            let one = MantissaTy::one();
+            self.mantissa = self.mantissa + one;
             // Did the mantissa overflow?
-            if (self.mantissa >> Self::get_precision()) > 0 {
+            let mut m = self.mantissa;
+            m.shift_right(Self::get_precision() as usize);
+            if !m.is_zero() {
                 // Can we fix the exponent?
                 if self.exp < bounds.1 {
                     self.shift_significand_right(1);
@@ -435,7 +451,7 @@ impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
         }
 
         // Canonicalize.
-        if self.mantissa == 0 {
+        if self.mantissa.is_zero() {
             *self = Self::zero(self.sign);
         }
     } // round.
