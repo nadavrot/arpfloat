@@ -5,8 +5,8 @@ use super::utils;
 
 impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
     pub fn add_or_sub_normals(
-        a: Self,
-        b: Self,
+        mut a: Self,
+        mut b: Self,
         subtract: bool,
     ) -> (Self, LossFraction) {
         let loss;
@@ -18,19 +18,20 @@ impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
         // subtraction needs to happen.
         let subtract = subtract ^ (a.get_sign() ^ b.get_sign());
         if subtract {
-            let mut b = b;
-            let mut a = a;
-
             // Align the input numbers. We shift LHS one bit to the left to
             // allow carry/borrow in case of underflow as result of subtraction.
-            if bits == 0 {
-                loss = LossFraction::ExactlyZero;
-            } else if bits > 0 {
-                loss = b.shift_significand_right((bits - 1) as u64);
-                a.shift_significand_left(1);
-            } else {
-                loss = a.shift_significand_right((-bits - 1) as u64);
-                b.shift_significand_left(1);
+            match bits.cmp(&0) {
+                std::cmp::Ordering::Equal => {
+                    loss = LossFraction::ExactlyZero;
+                }
+                std::cmp::Ordering::Greater => {
+                    loss = b.shift_significand_right((bits - 1) as u64);
+                    a.shift_significand_left(1);
+                }
+                std::cmp::Ordering::Less => {
+                    loss = a.shift_significand_right((-bits - 1) as u64);
+                    b.shift_significand_left(1);
+                }
             }
 
             let a_mantissa = a.get_mantissa();
