@@ -1,4 +1,5 @@
 use std::cmp::Ordering;
+use std::ops::{Add, Mul, Sub};
 
 use super::float::LossFraction;
 
@@ -124,7 +125,7 @@ impl<const PARTS: usize> BigInt<PARTS> {
     }
 
     // Add \p rhs to self, and return true if the operation overflowed.
-    pub fn add(&mut self, rhs: &Self) -> bool {
+    pub fn inplace_add(&mut self, rhs: &Self) -> bool {
         let mut carry: bool = false;
         for i in 0..PARTS {
             let first = self.parts[i].overflowing_add(rhs.parts[i]);
@@ -136,7 +137,7 @@ impl<const PARTS: usize> BigInt<PARTS> {
     }
 
     // Add \p rhs to self, and return true if the operation overflowed (borrow).
-    pub fn sub(&mut self, rhs: &Self) -> bool {
+    pub fn inplace_sub(&mut self, rhs: &Self) -> bool {
         let mut borrow: bool = false;
         for i in 0..PARTS {
             let first = self.parts[i].overflowing_sub(rhs.parts[i]);
@@ -148,10 +149,10 @@ impl<const PARTS: usize> BigInt<PARTS> {
     }
 
     // multiply \p rhs to self, and return true if the operation overflowed.
-    // The generic parameter \p P2 is here to work around a limitation in the
-    // rust generic system. P2 needs to be set to PARTS*2.
-    pub fn mul<const P2: usize>(&mut self, rhs: Self) -> bool {
-        assert_eq!(P2, PARTS * 2);
+    // The generic parameter \p PR is here to work around a limitation in the
+    // rust generic system. PR needs to be greater or equal to PARTS*2.
+    pub fn inplace_mul<const P2: usize>(&mut self, rhs: Self) -> bool {
+        assert!(P2 >= PARTS * 2);
         let mut parts: [u64; P2] = [0; P2];
         let mut carries: [u64; P2] = [0; P2];
 
@@ -305,11 +306,11 @@ fn test_add_basic() {
     let z = BigInt::<2>::from_u64(0xf);
     x.dump();
     y.dump();
-    let c1 = x.add(&y);
+    let c1 = x.inplace_add(&y);
     assert!(!c1);
     assert_eq!(x.get_part(0), 0xffffffffffffffff);
     x.dump();
-    let c2 = x.add(&z);
+    let c2 = x.inplace_add(&z);
     assert!(!c2);
     assert_eq!(x.get_part(0), 0xe);
     assert_eq!(x.get_part(1), 0x1);
@@ -345,7 +346,7 @@ fn test_with_random_values(
 fn test_sub_basic() {
     let mut x = BigInt::<2>::from_parts(&[0x0, 0x1]);
     let y = BigInt::<2>::from_u64(0x1);
-    let c1 = x.sub(&y);
+    let c1 = x.inplace_sub(&y);
     assert!(!c1);
     assert_eq!(x.get_part(0), 0xffffffffffffffff);
     assert_eq!(x.get_part(1), 0);
@@ -374,19 +375,19 @@ fn test_basic_operations() {
     fn test_sub(a: u128, b: u128) -> (u128, bool) {
         let mut a = BigInt::<2>::from_u128(a);
         let b = BigInt::<2>::from_u128(b);
-        let c = a.sub(&b);
+        let c = a.inplace_sub(&b);
         (a.to_u128(), c)
     }
     fn test_add(a: u128, b: u128) -> (u128, bool) {
         let mut a = BigInt::<2>::from_u128(a);
         let b = BigInt::<2>::from_u128(b);
-        let c = a.add(&b);
+        let c = a.inplace_add(&b);
         (a.to_u128(), c)
     }
     fn test_mul(a: u128, b: u128) -> (u128, bool) {
         let mut a = BigInt::<2>::from_u128(a);
         let b = BigInt::<2>::from_u128(b);
-        let c = a.mul::<4>(b);
+        let c = a.inplace_mul::<4>(b);
         (a.to_u128(), c)
     }
 
@@ -458,4 +459,43 @@ impl<const PARTS: usize> Ord for BigInt<PARTS> {
         }
         Ordering::Equal
     }
+}
+
+impl<const PARTS: usize> Add for BigInt<PARTS> {
+    type Output = Self;
+
+    fn add(self, rhs: Self) -> Self::Output {
+        let mut n = self.clone();
+        n.inplace_add(&rhs);
+        n
+    }
+}
+impl<const PARTS: usize> Sub for BigInt<PARTS> {
+    type Output = Self;
+
+    fn sub(self, rhs: Self) -> Self::Output {
+        let mut n = self.clone();
+        n.inplace_sub(&rhs);
+        n
+    }
+}
+impl<const PARTS: usize> Mul for BigInt<PARTS> {
+    type Output = Self;
+
+    fn mul(self, rhs: Self) -> Self::Output {
+        let mut n = self.clone();
+        n.inplace_mul::<10>(rhs);
+        n
+    }
+}
+
+#[test]
+fn test_bigint_operators() {
+    type BI = BigInt<2>;
+    let x = BI::from_u64(10);
+    let y = BI::from_u64(1);
+
+    let c = (x - y) * x;
+    assert_eq!(c.to_u64(), 90);
+    assert_eq!((y + y).to_u64(), 2);
 }
