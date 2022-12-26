@@ -91,7 +91,7 @@ impl<const PARTS: usize> BigInt<PARTS> {
             return LossFraction::ExactlyZero;
         }
         let mut half = Self::from_u64(1);
-        half.shift_left(bit);
+        half.shift_left(bit - 1);
         match a.cmp(&half) {
             Ordering::Less => LossFraction::LessThanHalf,
             Ordering::Equal => LossFraction::ExactlyHalf,
