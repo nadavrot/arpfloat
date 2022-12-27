@@ -62,7 +62,10 @@ impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
             self.get_mantissa(),
             self.get_category(),
         );
-        x.normalize(RoundingMode::NearestTiesToEven, LossFraction::ExactlyZero);
+        // Don't normalize if this is a nop conversion.
+        if E != EXPONENT && M != MANTISSA {
+            x.normalize(RoundingMode::NearestTiesToEven, LossFraction::ExactlyZero);
+        }
         x
     }
 
