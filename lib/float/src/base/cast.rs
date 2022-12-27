@@ -92,7 +92,7 @@ impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
             Category::Normal => {
                 exp = (self.get_exp() + Self::get_bias()) as u64;
                 assert!(exp > 0);
-                let m = self.get_mantissa().to_u64();
+                let m = self.get_mantissa().as_u64();
                 // Encode denormals. If the exponent is the minimum value and we
                 // don't have a leading integer bit (in the form 1.mmmm) then
                 // this is a denormal value and we need to encode it as such.

@@ -91,7 +91,7 @@ impl<const PARTS: usize> BigInt<PARTS> {
     }
 
     /// \returns the lowest 64 bits.
-    pub fn to_u64(&self) -> u64 {
+    pub fn as_u64(&self) -> u64 {
         for i in 1..PARTS {
             assert_eq!(self.parts[i], 0);
         }
@@ -99,7 +99,7 @@ impl<const PARTS: usize> BigInt<PARTS> {
     }
 
     /// \returns the lowest 64 bits.
-    pub fn to_u128(&self) -> u128 {
+    pub fn as_u128(&self) -> u128 {
         assert!(PARTS >= 2);
         for i in 2..PARTS {
             assert_eq!(self.parts[i], 0);
@@ -458,19 +458,19 @@ fn test_basic_operations() {
         let mut a = BigInt::<2>::from_u128(a);
         let b = BigInt::<2>::from_u128(b);
         let c = a.inplace_sub(&b);
-        (a.to_u128(), c)
+        (a.as_u128(), c)
     }
     fn test_add(a: u128, b: u128) -> (u128, bool) {
         let mut a = BigInt::<2>::from_u128(a);
         let b = BigInt::<2>::from_u128(b);
         let c = a.inplace_add(&b);
-        (a.to_u128(), c)
+        (a.as_u128(), c)
     }
     fn test_mul(a: u128, b: u128) -> (u128, bool) {
         let mut a = BigInt::<2>::from_u128(a);
         let b = BigInt::<2>::from_u128(b);
         let c = a.inplace_mul::<4>(b);
-        (a.to_u128(), c)
+        (a.as_u128(), c)
     }
 
     fn correct_cmp(a: u128, b: u128) -> (u128, bool) {
@@ -579,8 +579,8 @@ fn test_bigint_operators() {
     let y = BI::from_u64(1);
 
     let c = (x - y) * x;
-    assert_eq!(c.to_u64(), 90);
-    assert_eq!((y + y).to_u64(), 2);
+    assert_eq!(c.as_u64(), 90);
+    assert_eq!((y + y).as_u64(), 2);
 }
 
 #[test]

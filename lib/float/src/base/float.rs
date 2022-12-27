@@ -180,7 +180,7 @@ impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
                     "FP[{} E={:4} M = 0x{:64b}]",
                     sign,
                     self.exp,
-                    m.to_u128()
+                    m.as_u128()
                 );
             }
         }
