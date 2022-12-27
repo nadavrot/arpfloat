@@ -1,5 +1,5 @@
 use super::bigint::LossFraction;
-use std::ops::{Add, Mul, Sub};
+use std::ops::{Add, Div, Mul, Sub};
 
 use super::float::{
     shift_right_with_loss, Category, Float, MantissaTy, RoundingMode,
@@ -627,6 +627,16 @@ impl<const EXPONENT: usize, const MANTISSA: usize> Mul
     }
 }
 
+impl<const EXPONENT: usize, const MANTISSA: usize> Div
+    for Float<EXPONENT, MANTISSA>
+{
+    type Output = Self;
+
+    fn div(self, rhs: Self) -> Self {
+        Self::div_impl(self, rhs)
+    }
+}
+
 #[test]
 fn test_operators() {
     use crate::base::FP64;
@@ -635,9 +645,11 @@ fn test_operators() {
     let c = a + b;
     let d = a - b;
     let e = a * b;
+    let f = a / b;
     assert_eq!(c.as_f64(), 10.0);
     assert_eq!(d.as_f64(), 6.0);
     assert_eq!(e.as_f64(), 16.0);
+    assert_eq!(f.as_f64(), 4.0);
 }
 
 #[test]
