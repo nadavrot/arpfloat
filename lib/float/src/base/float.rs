@@ -58,7 +58,7 @@ pub enum Category {
 
 pub type MantissaTy = BigInt<6>;
 
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy)]
 pub struct Float<const EXPONENT: usize, const MANTISSA: usize> {
     // The Sign bit.
     sign: bool,
@@ -192,7 +192,6 @@ impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
     /// \returns True if abs(self) < abs(other).
     pub fn absolute_less_than(&self, other: Self) -> bool {
         assert!(self.is_normal());
-        use std::cmp::Ordering;
         let mc = self.mantissa.cmp(&other.get_mantissa());
         match self.exp.cmp(&other.get_exp()) {
             Ordering::Less => true,
@@ -442,4 +441,89 @@ impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
             *self = Self::zero(self.sign);
         }
     } // round.
+}
+
+use std::cmp::Ordering;
+
+/// Implement IEEE 754-2019 section 5.10 - totalOrder.
+impl<const EXPONENT: usize, const MANTISSA: usize> PartialEq
+    for Float<EXPONENT, MANTISSA>
+{
+    fn eq(&self, other: &Self) -> bool {
+        let bitwise = self.sign == other.sign
+            && self.exp == other.exp
+            && self.mantissa == other.mantissa
+            && self.category == other.category;
+
+        match self.category {
+            Category::Infinity | Category::Normal => bitwise,
+            Category::Zero => other.is_zero(),
+            Category::NaN => false,
+        }
+    }
+}
+
+/// Implement IEEE 754-2019 section 5.10 - totalOrder.
+impl<const EXPONENT: usize, const MANTISSA: usize> PartialOrd
+    for Float<EXPONENT, MANTISSA>
+{
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        let bool_to_ord = |ord: bool| -> Option<Ordering> {
+            if ord {
+                Some(Ordering::Less)
+            } else {
+                Some(Ordering::Greater)
+            }
+        };
+
+        match (self.category, other.category) {
+            (Category::NaN, _) | (_, Category::NaN) => None,
+            (Category::Zero, Category::Zero) => Some(Ordering::Equal),
+            (Category::Infinity, Category::Infinity) => {
+                if self.sign == other.sign {
+                    Some(Ordering::Equal)
+                } else {
+                    bool_to_ord(self.sign)
+                }
+            }
+            (Category::Infinity, Category::Normal)
+            | (Category::Infinity, Category::Zero)
+            | (Category::Normal, Category::Zero) => bool_to_ord(self.sign),
+
+            (Category::Normal, Category::Infinity)
+            | (Category::Zero, Category::Infinity)
+            | (Category::Zero, Category::Normal) => bool_to_ord(!other.sign),
+
+            (Category::Normal, Category::Normal) => {
+                if self.sign != other.sign {
+                    bool_to_ord(self.sign)
+                } else if self.exp < other.exp {
+                    bool_to_ord(!other.sign)
+                } else if self.exp > other.exp {
+                    bool_to_ord(self.sign)
+                } else {
+                    Some(self.mantissa.cmp(&other.mantissa))
+                }
+            }
+        }
+    }
+}
+
+#[test]
+fn test_comparisons() {
+    // Compare a bunch of special values, using the <,>,== operators and check
+    // that they match the comparison on doubles.
+    for first in utils::get_special_test_values() {
+        for second in utils::get_special_test_values() {
+            println!("{}  {}", first, second);
+            let is_less = first < second;
+            let is_eq = first == second;
+            let is_gt = first > second;
+            let first = FP64::from_f64(first);
+            let second = FP64::from_f64(second);
+            assert_eq!(is_less, first < second, "<");
+            assert_eq!(is_eq, first == second, "==");
+            assert_eq!(is_gt, first > second, ">");
+        }
+    }
 }
