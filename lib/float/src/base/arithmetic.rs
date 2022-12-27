@@ -367,7 +367,7 @@ impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
 }
 
 #[test]
-fn test_simple() {
+fn test_mul_simple() {
     use super::float::FP64;
 
     let a: f64 = -24.0;
@@ -465,6 +465,135 @@ fn test_mul_random_vals() {
         let r1_bits = r1.to_bits();
         // Check that the results are bit identical, or are both NaN.
         assert!(r1.is_nan() || r0_bits == r1_bits);
+    }
+}
+
+impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
+    fn div_impl(a: Self, b: Self) -> Self {
+        let sign = a.get_sign() ^ b.get_sign();
+
+        // 8.6. Floating-Point Division
+        match (a.get_category(), b.get_category()) {
+            (Category::NaN, _)
+            | (_, Category::NaN)
+            | (Category::Zero, Category::Zero)
+            | (Category::Infinity, Category::Infinity) => Self::nan(sign),
+
+            (_, Category::Infinity) => Self::zero(sign),
+            (Category::Zero, _) => Self::zero(sign),
+            (_, Category::Zero) => Self::inf(sign),
+            (Category::Infinity, _) => Self::inf(sign),
+            (Category::Normal, Category::Normal) => {
+                let (mut res, loss) = Self::div_normals(a, b);
+                res.normalize(RoundingMode::NearestTiesToEven, loss);
+                res
+            }
+        }
+    }
+
+    /// Compute a/b, where both \p a and \p b are normals.
+    fn div_normals(a: Self, b: Self) -> (Self, LossFraction) {
+        let mut exp = a.get_exp() - b.get_exp();
+        let sign = a.get_sign() ^ b.get_sign();
+
+        // Start by normalizing the dividend and divisor to the same exponent,
+        // aligning the numbers to the MSB of the mantissa.
+        let mut a_mantissa = a.get_mantissa(); // Dividend.
+        let mut b_mantissa = b.get_mantissa(); // Divisor.
+
+        // Normalize the dividend.
+        let bits = Self::get_precision() as i64 - a_mantissa.msb_index() as i64;
+        if bits > 0 {
+            exp += bits;
+            a_mantissa.shift_left(bits as usize);
+        }
+
+        // Normalize the divisor.
+        let bits = Self::get_precision() as i64 - b_mantissa.msb_index() as i64;
+        if bits > 0 {
+            exp -= bits;
+            b_mantissa.shift_left(bits as usize);
+        }
+
+        // Make sure that A is greater than B, to allow the subtraction.
+        if a_mantissa < b_mantissa {
+            exp -= 1;
+            a_mantissa.shift_left(1);
+        }
+
+        let mut result = MantissaTy::zero();
+
+        // Perform the long division.
+        for i in (0..Self::get_precision()).rev() {
+            if a_mantissa >= b_mantissa {
+                a_mantissa = a_mantissa - b_mantissa;
+                result.flip_bit(i as usize);
+            }
+            a_mantissa.shift_left(1);
+        }
+
+        let reminder = a_mantissa.cmp(&b_mantissa);
+        let is_zero = a_mantissa.is_zero();
+        let loss = match reminder {
+            std::cmp::Ordering::Less => {
+                if is_zero {
+                    LossFraction::ExactlyZero
+                } else {
+                    LossFraction::LessThanHalf
+                }
+            }
+            std::cmp::Ordering::Equal => LossFraction::ExactlyHalf,
+            std::cmp::Ordering::Greater => LossFraction::MoreThanHalf,
+        };
+
+        let x = Self::new(sign, exp, result);
+        (x, loss)
+    }
+}
+
+#[test]
+fn test_div_simple() {
+    use super::float::FP64;
+
+    let a: f64 = 1.0;
+    let b: f64 = 7.0;
+
+    let af = FP64::from_f64(a);
+    let bf = FP64::from_f64(b);
+    let cf = FP64::div_impl(af, bf);
+
+    let r0 = cf.as_f64();
+    let r1: f64 = a / b;
+    assert_eq!(r0, r1);
+}
+
+#[test]
+fn test_div_special_values() {
+    use super::utils;
+
+    // Test the multiplication of various irregular values.
+    let values = utils::get_special_test_values();
+
+    use super::float::FP64;
+
+    fn div_f64(a: f64, b: f64) -> f64 {
+        let a = FP64::from_f64(a);
+        let b = FP64::from_f64(b);
+        FP64::div_impl(a, b).as_f64()
+    }
+
+    for v0 in values {
+        for v1 in values {
+            let r0 = div_f64(v0, v1);
+            let r1 = v0 / v1;
+            assert_eq!(r0.is_finite(), r1.is_finite());
+            assert_eq!(r0.is_nan(), r1.is_nan());
+            assert_eq!(r0.is_infinite(), r1.is_infinite());
+            let r0_bits = r0.to_bits();
+            let r1_bits = r1.to_bits();
+            // Check that the results are bit identical, or are both NaN.
+            assert!(r1.is_nan() || r0_bits == r1_bits);
+        }
     }
 }
 
