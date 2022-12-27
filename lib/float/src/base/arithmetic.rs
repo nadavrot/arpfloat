@@ -6,6 +6,8 @@ use super::float::{
 };
 
 impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
+    /// An inner function that performs the addition and subtraction of normal
+    /// numbers (no NaN, Inf, Zeros).
     fn add_or_sub_normals(
         mut a: Self,
         mut b: Self,

@@ -1,6 +1,7 @@
 use std::cmp::Ordering;
 use std::ops::{Add, Mul, Sub};
 
+/// Reports the kind of values that are lost when we shift right bits.
 #[derive(Debug, Clone, Copy)]
 pub enum LossFraction {
     ExactlyZero,  //0000000
@@ -215,7 +216,7 @@ impl<const PARTS: usize> BigInt<PARTS> {
         carry
     }
 
-    // Add \p rhs to self, and return true if the operation overflowed (borrow).
+    /// Add \p rhs to self, and return true if the operation overflowed (borrow).
     pub fn inplace_sub(&mut self, rhs: &Self) -> bool {
         let mut borrow: bool = false;
         for i in 0..PARTS {
@@ -227,9 +228,9 @@ impl<const PARTS: usize> BigInt<PARTS> {
         borrow
     }
 
-    // multiply \p rhs to self, and return true if the operation overflowed.
-    // The generic parameter \p PR is here to work around a limitation in the
-    // rust generic system. PR needs to be greater or equal to PARTS*2.
+    /// Multiply \p rhs to self, and return true if the operation overflowed.
+    /// The generic parameter \p PR is here to work around a limitation in the
+    /// rust generic system. PR needs to be greater or equal to PARTS*2.
     pub fn inplace_mul<const P2: usize>(&mut self, rhs: Self) -> bool {
         assert!(P2 >= PARTS * 2);
         let mut parts: [u64; P2] = [0; P2];
@@ -262,7 +263,7 @@ impl<const PARTS: usize> BigInt<PARTS> {
         carry > 0
     }
 
-    // Shift the bits in the numbers \p bits to the left.
+    /// Shift the bits in the numbers \p bits to the left.
     pub fn shift_left(&mut self, bits: usize) {
         let words_to_shift = bits / u64::BITS as usize;
         let bits_in_word = bits % u64::BITS as usize;
@@ -296,7 +297,7 @@ impl<const PARTS: usize> BigInt<PARTS> {
         }
     }
 
-    // Shift the bits in the numbers \p bits to the right.
+    /// Shift the bits in the numbers \p bits to the right.
     pub fn shift_right(&mut self, bits: usize) {
         let words_to_shift = bits / u64::BITS as usize;
         let bits_in_word = bits % u64::BITS as usize;
@@ -330,6 +331,7 @@ impl<const PARTS: usize> BigInt<PARTS> {
         }
     }
 
+    /// \return the word at idx \p idx.
     pub fn get_part(&self, idx: usize) -> u64 {
         self.parts[idx]
     }
@@ -338,7 +340,7 @@ impl<const PARTS: usize> BigInt<PARTS> {
         print!("[");
         for i in (0..PARTS).rev() {
             let width = u64::BITS as usize;
-            print!("|{:0width$x}", self.parts[i]);
+            print!("|{:0width$b}", self.parts[i]);
         }
         println!("]");
     }
@@ -400,6 +402,7 @@ fn test_with_random_values(
 ) {
     use super::utils::Lfsr;
 
+    // Test addition, multiplication, subtraction with random values.
     let mut lfsr = Lfsr::new();
 
     for _ in 0..500 {
@@ -420,6 +423,7 @@ fn test_with_random_values(
 
 #[test]
 fn test_sub_basic() {
+    // Check a single overflowing sub operation.
     let mut x = BigInt::<2>::from_parts(&[0x0, 0x1]);
     let y = BigInt::<2>::from_u64(0x1);
     let c1 = x.inplace_sub(&y);
@@ -439,6 +443,8 @@ fn test_mask_basic() {
 
 #[test]
 fn test_basic_operations() {
+    // Check Add, Mul, Sub, in comparison to the double implementation.
+
     fn correct_sub(a: u128, b: u128) -> (u128, bool) {
         a.overflowing_sub(b)
     }
@@ -526,6 +532,7 @@ impl<const PARTS: usize> PartialOrd for BigInt<PARTS> {
 }
 impl<const PARTS: usize> Ord for BigInt<PARTS> {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        // Compare all of the digits, from MSB to LSB.
         for i in (0..PARTS).rev() {
             match self.parts[i].cmp(&other.parts[i]) {
                 std::cmp::Ordering::Less => return Ordering::Less,
@@ -577,7 +584,7 @@ fn test_bigint_operators() {
 }
 
 #[test]
-fn test_all1s() {
+fn test_all1s_ctor() {
     type BI = BigInt<2>;
     let v0 = BI::all1s(0);
     let v1 = BI::all1s(1);
