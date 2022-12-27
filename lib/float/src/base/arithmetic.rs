@@ -659,12 +659,11 @@ fn test_slow_sqrt_2_test() {
 
     // Find sqrt using a binary search.
     let two = FP128::from_f64(2.0);
-    let half = FP128::from_f64(0.5);
     let mut high = FP128::from_f64(2.0);
     let mut low = FP128::from_f64(1.0);
 
     for _ in 0..25 {
-        let mid = (high + low) * half;
+        let mid = (high + low) / two;
         if (mid * mid) < two {
             low = mid;
         } else {
