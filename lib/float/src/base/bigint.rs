@@ -14,17 +14,19 @@ impl<const PARTS: usize> BigInt<PARTS> {
         BigInt { parts: [0; PARTS] }
     }
 
+    /// Create a new number with the value 1.
     pub fn one() -> Self {
         Self::from_u64(1)
     }
 
+    /// Create a new number with a single '1' set at bit \p bit.
     pub fn one_hot(bit: usize) -> Self {
         let mut x = Self::zero();
         x.flip_bit(bit);
         x
     }
 
-    /// \return a mask of all 1's of \p bits.
+    /// Create a new number, where the first \p bits bits are set to 1.
     pub fn all1s(bits: usize) -> Self {
         if bits == 0 {
             return Self::zero();
@@ -36,12 +38,14 @@ impl<const PARTS: usize> BigInt<PARTS> {
         x
     }
 
+    /// Create a number and set the lowest 64 bits to \p val.
     pub fn from_u64(val: u64) -> Self {
         let mut bi = BigInt { parts: [0; PARTS] };
         bi.parts[0] = val;
         bi
     }
 
+    /// Create a number and set the lowest 128 bits to \p val.
     pub fn from_u128(val: u128) -> Self {
         let mut bi = BigInt { parts: [0; PARTS] };
         bi.parts[0] = val as u64;
@@ -49,6 +53,7 @@ impl<const PARTS: usize> BigInt<PARTS> {
         bi
     }
 
+    /// \returns the lowest 64 bits.
     pub fn to_u64(&self) -> u64 {
         for i in 1..PARTS {
             assert_eq!(self.parts[i], 0);
@@ -56,13 +61,16 @@ impl<const PARTS: usize> BigInt<PARTS> {
         self.parts[0]
     }
 
+    /// \returns the lowest 64 bits.
     pub fn to_u128(&self) -> u128 {
+        assert!(PARTS >= 2);
         for i in 2..PARTS {
             assert_eq!(self.parts[i], 0);
         }
         (self.parts[0] as u128) + ((self.parts[1] as u128) << 64)
     }
 
+    /// Convert this instance to a smaller number.
     pub fn trunc<const P: usize>(&self) -> BigInt<P> {
         let mut n = BigInt::<P>::zero();
         assert!(P <= PARTS, "Can't truncate to a larger size");
@@ -82,14 +90,17 @@ impl<const PARTS: usize> BigInt<PARTS> {
         true
     }
 
+    /// \returns True if this number is even.
     pub fn is_even(&self) -> bool {
         (self.parts[0] & 0x1) == 0
     }
 
+    /// \returns True if this number is odd.
     pub fn is_odd(&self) -> bool {
         (self.parts[0] & 0x1) == 1
     }
 
+    /// Flip the \p bit_num bit. 
     pub fn flip_bit(&mut self, bit_num: usize) {
         let which_word = bit_num / u64::BITS as usize;
         let bit_in_word = bit_num % u64::BITS as usize;
