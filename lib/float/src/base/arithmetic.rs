@@ -527,7 +527,7 @@ fn test_slow_sqrt_2_test() {
 
     for _ in 0..25 {
         let mid = (high + low) * half;
-        if (mid * mid).absolute_less_than(two) {
+        if (mid * mid) < two {
             low = mid;
         } else {
             high = mid;
