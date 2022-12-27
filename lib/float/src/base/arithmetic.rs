@@ -81,7 +81,7 @@ impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
         Self::add_sub(a, b, false)
     }
 
-     fn sub_impl(a: Self, b: Self) -> Self {
+    fn sub_impl(a: Self, b: Self) -> Self {
         Self::add_sub(a, b, true)
     }
 
@@ -308,7 +308,7 @@ fn test_add_random_vals() {
 }
 
 impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
-     fn mul_impl(a: Self, b: Self) -> Self {
+    fn mul_impl(a: Self, b: Self) -> Self {
         let sign = a.get_sign() ^ b.get_sign();
 
         match (a.get_category(), b.get_category()) {
@@ -337,7 +337,7 @@ impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
         }
     }
 
-     fn mul_normals(a: Self, b: Self, sign: bool) -> (Self, LossFraction) {
+    fn mul_normals(a: Self, b: Self, sign: bool) -> (Self, LossFraction) {
         // We multiply digits in the format 1.xx * 2^(e), or mantissa * 2^(e+1).
         // When we multiply two 2^(e+1) numbers, we get:
         // log(2^(e_a+1)*2^(e_b+1)) = e_a + e+b + 2.

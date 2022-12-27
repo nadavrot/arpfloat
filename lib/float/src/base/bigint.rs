@@ -100,7 +100,7 @@ impl<const PARTS: usize> BigInt<PARTS> {
         (self.parts[0] & 0x1) == 1
     }
 
-    /// Flip the \p bit_num bit. 
+    /// Flip the \p bit_num bit.
     pub fn flip_bit(&mut self, bit_num: usize) {
         let which_word = bit_num / u64::BITS as usize;
         let bit_in_word = bit_num % u64::BITS as usize;
