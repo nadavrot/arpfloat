@@ -8,6 +8,7 @@ use super::float::{
 impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
     /// An inner function that performs the addition and subtraction of normal
     /// numbers (no NaN, Inf, Zeros).
+    /// See Pg 247.  Chapter 8. Algorithms for the Five Basic Operations
     fn add_or_sub_normals(
         mut a: Self,
         mut b: Self,
@@ -74,10 +75,11 @@ impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
         }
     }
 
+    /// Compute a+b.
     fn add_impl(a: Self, b: Self) -> Self {
         Self::add_sub(a, b, false)
     }
-
+    /// Compute a-b.
     fn sub_impl(a: Self, b: Self) -> Self {
         Self::add_sub(a, b, true)
     }
@@ -305,6 +307,7 @@ fn test_add_random_vals() {
 }
 
 impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
+    /// Compute a*b.
     fn mul_impl(a: Self, b: Self) -> Self {
         let sign = a.get_sign() ^ b.get_sign();
 
@@ -334,6 +337,7 @@ impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
         }
     }
 
+    /// See Pg 251. 8.4 Floating-Point Multiplication
     fn mul_normals(a: Self, b: Self, sign: bool) -> (Self, LossFraction) {
         // We multiply digits in the format 1.xx * 2^(e), or mantissa * 2^(e+1).
         // When we multiply two 2^(e+1) numbers, we get:
@@ -469,10 +473,9 @@ fn test_mul_random_vals() {
 }
 
 impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
+    /// Compute a/b.
     fn div_impl(a: Self, b: Self) -> Self {
         let sign = a.get_sign() ^ b.get_sign();
-
-        // 8.6. Floating-Point Division
         match (a.get_category(), b.get_category()) {
             (Category::NaN, _)
             | (_, Category::NaN)
@@ -492,6 +495,7 @@ impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
     }
 
     /// Compute a/b, where both \p a and \p b are normals.
+    /// Page 262 8.6. Floating-Point Division
     fn div_normals(a: Self, b: Self) -> (Self, LossFraction) {
         let mut exp = a.get_exp() - b.get_exp();
         let sign = a.get_sign() ^ b.get_sign();
