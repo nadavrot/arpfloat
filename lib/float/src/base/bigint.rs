@@ -1,7 +1,43 @@
 use std::cmp::Ordering;
 use std::ops::{Add, Mul, Sub};
 
-use super::float::LossFraction;
+#[derive(Debug, Clone, Copy)]
+pub enum LossFraction {
+    ExactlyZero,  //0000000
+    LessThanHalf, //0xxxxxx
+    ExactlyHalf,  //1000000
+    MoreThanHalf, //1xxxxxx
+}
+
+impl LossFraction {
+    pub fn is_exactly_zero(&self) -> bool {
+        matches!(self, Self::ExactlyZero)
+    }
+    pub fn is_lt_half(&self) -> bool {
+        matches!(self, Self::LessThanHalf)
+    }
+    pub fn is_exactly_half(&self) -> bool {
+        matches!(self, Self::ExactlyHalf)
+    }
+    pub fn is_mt_half(&self) -> bool {
+        matches!(self, Self::MoreThanHalf)
+    }
+    pub fn is_lte_half(&self) -> bool {
+        self.is_lt_half() || self.is_exactly_half()
+    }
+    pub fn is_gte_half(&self) -> bool {
+        self.is_mt_half() || self.is_exactly_half()
+    }
+
+    // Return the inverted loss fraction.
+    pub fn invert(&self) -> LossFraction {
+        match self {
+            LossFraction::LessThanHalf => LossFraction::MoreThanHalf,
+            LossFraction::MoreThanHalf => LossFraction::LessThanHalf,
+            _ => *self,
+        }
+    }
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct BigInt<const PARTS: usize> {

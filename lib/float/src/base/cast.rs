@@ -1,8 +1,8 @@
+use super::bigint::LossFraction;
+use super::float::Category;
 use super::float::{Float, MantissaTy, RoundingMode, FP32, FP64};
 use super::utils;
 use super::utils::mask;
-use crate::base::float::Category;
-use crate::base::float::LossFraction;
 
 impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
     pub fn from_u64(val: u64) -> Self {
@@ -40,7 +40,7 @@ impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
             return Self::nan(sign);
         }
 
-        let mut exp = biased_exp - utils::compute_ieee745_bias(EXPONENT) as i64;
+        let mut exp = biased_exp - Self::compute_ieee745_bias(EXPONENT) as i64;
 
         // Add the implicit bit for normal numbers.
         if biased_exp != 0 {

@@ -10,11 +10,6 @@ fn test_masking() {
     assert_eq!(mask(8), 255);
 }
 
-// \returns the bias for this Float type.
-pub fn compute_ieee745_bias(exponent_bits: usize) -> usize {
-    (1 << (exponent_bits - 1)) - 1
-}
-
 /// \returns list of interesting values that various tests use to catch edge cases.
 pub fn get_special_test_values() -> [f64; 20] {
     [

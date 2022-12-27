@@ -1,5 +1,5 @@
 use super::bigint::BigInt;
-use super::utils::{self};
+use super::bigint::LossFraction;
 
 #[derive(Debug, Clone, Copy)]
 pub enum RoundingMode {
@@ -8,44 +8,6 @@ pub enum RoundingMode {
     Zero,
     Positive,
     Negative,
-}
-
-#[derive(Debug, Clone, Copy)]
-pub enum LossFraction {
-    ExactlyZero,  //0000000
-    LessThanHalf, //0xxxxxx
-    ExactlyHalf,  //1000000
-    MoreThanHalf, //1xxxxxx
-}
-
-impl LossFraction {
-    pub fn is_exactly_zero(&self) -> bool {
-        matches!(self, Self::ExactlyZero)
-    }
-    pub fn is_lt_half(&self) -> bool {
-        matches!(self, Self::LessThanHalf)
-    }
-    pub fn is_exactly_half(&self) -> bool {
-        matches!(self, Self::ExactlyHalf)
-    }
-    pub fn is_mt_half(&self) -> bool {
-        matches!(self, Self::MoreThanHalf)
-    }
-    pub fn is_lte_half(&self) -> bool {
-        self.is_lt_half() || self.is_exactly_half()
-    }
-    pub fn is_gte_half(&self) -> bool {
-        self.is_mt_half() || self.is_exactly_half()
-    }
-
-    // Return the inverted loss fraction.
-    pub fn invert(&self) -> LossFraction {
-        match self {
-            LossFraction::LessThanHalf => LossFraction::MoreThanHalf,
-            LossFraction::MoreThanHalf => LossFraction::LessThanHalf,
-            _ => *self,
-        }
-    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -224,10 +186,15 @@ impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
         }
     }
 
+    // \returns the bias for this Float type.
+    pub fn compute_ieee745_bias(exponent_bits: usize) -> usize {
+        (1 << (exponent_bits - 1)) - 1
+    }
+
     /// Returns the exponent bias for the number, as a positive number.
     /// https://en.wikipedia.org/wiki/IEEE_754#Basic_and_interchange_formats
     pub fn get_bias() -> i64 {
-        utils::compute_ieee745_bias(EXPONENT) as i64
+        Self::compute_ieee745_bias(EXPONENT) as i64
     }
 
     /// \returns the upper and lower bounds of the exponent.
@@ -511,6 +478,8 @@ impl<const EXPONENT: usize, const MANTISSA: usize> PartialOrd
 
 #[test]
 fn test_comparisons() {
+    use super::utils;
+
     // Compare a bunch of special values, using the <,>,== operators and check
     // that they match the comparison on doubles.
     for first in utils::get_special_test_values() {

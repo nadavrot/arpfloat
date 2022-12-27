@@ -1,8 +1,8 @@
+use super::bigint::LossFraction;
 use std::ops::{Add, Mul, Sub};
 
 use super::float::{
-    shift_right_with_loss, Category, Float, LossFraction, MantissaTy,
-    RoundingMode,
+    shift_right_with_loss, Category, Float, MantissaTy, RoundingMode,
 };
 
 impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
