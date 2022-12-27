@@ -18,7 +18,7 @@ pub enum Category {
     Zero,
 }
 
-pub type MantissaTy = BigInt<6>;
+pub type MantissaTy = BigInt<4>;
 
 #[derive(Debug, Clone, Copy)]
 pub struct Float<const EXPONENT: usize, const MANTISSA: usize> {

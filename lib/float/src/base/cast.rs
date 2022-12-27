@@ -64,7 +64,10 @@ impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
         );
         // Don't normalize if this is a nop conversion.
         if E != EXPONENT && M != MANTISSA {
-            x.normalize(RoundingMode::NearestTiesToEven, LossFraction::ExactlyZero);
+            x.normalize(
+                RoundingMode::NearestTiesToEven,
+                LossFraction::ExactlyZero,
+            );
         }
         x
     }
