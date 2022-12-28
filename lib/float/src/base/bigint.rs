@@ -264,10 +264,9 @@ impl<const PARTS: usize> BigInt<PARTS> {
     }
 
     /// Divide self by \p divisor , and return the reminder.
-    pub fn inplace_div<const P2: usize>(&mut self, divisor: Self) -> Self {
-        assert!(P2 >= PARTS * 2);
-        let mut dividend: BigInt<P2> = self.cast();
-        let mut divisor: BigInt<P2> = divisor.cast();
+    pub fn inplace_div(&mut self, divisor: Self) -> Self {
+        let mut dividend = *self;
+        let mut divisor = divisor;
         let mut quotient = Self::zero();
 
         let dividend_msb = dividend.msb_index();
@@ -290,11 +289,8 @@ impl<const PARTS: usize> BigInt<PARTS> {
                 dividend = dividend - divisor;
                 quotient.flip_bit(i);
             }
-            dividend.shift_left(1);
+            divisor.shift_right(1);
         }
-
-        // Shift the dividend back in place to compute the reminder.
-        dividend.shift_right(bits + 1);
 
         *self = quotient;
         dividend.cast() // this is the reminder.
@@ -441,11 +437,11 @@ fn test_div_basic() {
     x1.dump();
     x2.dump();
     y.dump();
-    let rem = x1.inplace_div::<4>(y);
+    let rem = x1.inplace_div(y);
     assert_eq!(x1.as_u64(), 7);
     assert_eq!(rem.as_u64(), 0);
 
-    let rem = x2.inplace_div::<4>(y);
+    let rem = x2.inplace_div(y);
     rem.dump();
     assert_eq!(x2.as_u64(), 100);
     assert_eq!(rem.as_u64(), 3);
@@ -535,7 +531,7 @@ fn test_basic_operations() {
     fn test_div(a: u128, b: u128) -> (u128, bool) {
         let mut a = BigInt::<2>::from_u128(a);
         let b = BigInt::<2>::from_u128(b);
-        a.inplace_div::<4>(b);
+        a.inplace_div(b);
         (a.as_u128(), false)
     }
 
@@ -643,7 +639,7 @@ impl<const PARTS: usize> Div for BigInt<PARTS> {
 
     fn div(self, rhs: Self) -> Self::Output {
         let mut n = self;
-        n.inplace_div::<20>(rhs);
+        n.inplace_div(rhs);
         n
     }
 }
