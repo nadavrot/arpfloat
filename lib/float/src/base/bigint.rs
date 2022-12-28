@@ -1,5 +1,5 @@
 use std::cmp::Ordering;
-use std::ops::{Add, Mul, Sub};
+use std::ops::{Add, Div, Mul, Sub};
 
 /// Reports the kind of values that are lost when we shift right bits.
 #[derive(Debug, Clone, Copy)]
@@ -638,15 +638,25 @@ impl<const PARTS: usize> Mul for BigInt<PARTS> {
         n
     }
 }
+impl<const PARTS: usize> Div for BigInt<PARTS> {
+    type Output = Self;
+
+    fn div(self, rhs: Self) -> Self::Output {
+        let mut n = self;
+        n.inplace_div::<20>(rhs);
+        n
+    }
+}
 
 #[test]
 fn test_bigint_operators() {
     type BI = BigInt<2>;
     let x = BI::from_u64(10);
     let y = BI::from_u64(1);
+    let two = BI::from_u64(2);
 
-    let c = (x - y) * x;
-    assert_eq!(c.as_u64(), 90);
+    let c = ((x - y) * x) / two;
+    assert_eq!(c.as_u64(), 45);
     assert_eq!((y + y).as_u64(), 2);
 }
 
