@@ -107,11 +107,11 @@ impl<const PARTS: usize> BigInt<PARTS> {
         (self.parts[0] as u128) + ((self.parts[1] as u128) << 64)
     }
 
-    /// Convert this instance to a smaller number.
-    pub fn trunc<const P: usize>(&self) -> BigInt<P> {
+    /// Convert this instance to a smaller number. Notice that this may truncate
+    /// the bignum.
+    pub fn cast<const P: usize>(&self) -> BigInt<P> {
         let mut n = BigInt::<P>::zero();
-        assert!(P <= PARTS, "Can't truncate to a larger size");
-        for i in 0..PARTS {
+        for i in 0..PARTS.min(P) {
             n.parts[i] = self.parts[i];
         }
         n
@@ -263,6 +263,43 @@ impl<const PARTS: usize> BigInt<PARTS> {
         carry > 0
     }
 
+    /// Divide self by \p divisor , and return the reminder.
+    pub fn inplace_div<const P2: usize>(&mut self, divisor: Self) -> Self {
+        assert!(P2 >= PARTS * 2);
+        let mut dividend: BigInt<P2> = self.cast();
+        let mut divisor: BigInt<P2> = divisor.cast();
+        let mut quotient = Self::zero();
+
+        let dividend_msb = dividend.msb_index();
+        let divisor_msb = divisor.msb_index();
+
+        if divisor_msb > dividend_msb {
+            let ret = *self;
+            *self = Self::zero();
+            return ret;
+        }
+
+        // Align the first bit of the divisor with the first bit of the
+        // dividend.
+        let bits = dividend_msb - divisor_msb;
+        divisor.shift_left(bits);
+
+        // Perform the long division.
+        for i in (0..bits + 1).rev() {
+            if dividend >= divisor {
+                dividend = dividend - divisor;
+                quotient.flip_bit(i);
+            }
+            dividend.shift_left(1);
+        }
+
+        // Shift the dividend back in place to compute the reminder.
+        dividend.shift_right(bits + 1);
+
+        *self = quotient;
+        dividend.cast() // this is the reminder.
+    }
+
     /// Shift the bits in the numbers \p bits to the left.
     pub fn shift_left(&mut self, bits: usize) {
         let words_to_shift = bits / u64::BITS as usize;
@@ -395,6 +432,25 @@ fn test_add_basic() {
     x.dump();
 }
 
+#[test]
+fn test_div_basic() {
+    let mut x1 = BigInt::<2>::from_u64(49);
+    let mut x2 = BigInt::<2>::from_u64(703);
+    let y = BigInt::<2>::from_u64(7);
+
+    x1.dump();
+    x2.dump();
+    y.dump();
+    let rem = x1.inplace_div::<4>(y);
+    assert_eq!(x1.as_u64(), 7);
+    assert_eq!(rem.as_u64(), 0);
+
+    let rem = x2.inplace_div::<4>(y);
+    rem.dump();
+    assert_eq!(x2.as_u64(), 100);
+    assert_eq!(rem.as_u64(), 3);
+}
+
 #[allow(dead_code)]
 fn test_with_random_values(
     correct: fn(u128, u128) -> (u128, bool),
@@ -405,7 +461,7 @@ fn test_with_random_values(
     // Test addition, multiplication, subtraction with random values.
     let mut lfsr = Lfsr::new();
 
-    for _ in 0..500 {
+    for _ in 0..5000 {
         let v0 = lfsr.get64();
         let v1 = lfsr.get64();
         let v2 = lfsr.get64();
@@ -454,6 +510,10 @@ fn test_basic_operations() {
     fn correct_mul(a: u128, b: u128) -> (u128, bool) {
         a.overflowing_mul(b)
     }
+    fn correct_div(a: u128, b: u128) -> (u128, bool) {
+        a.overflowing_div(b)
+    }
+
     fn test_sub(a: u128, b: u128) -> (u128, bool) {
         let mut a = BigInt::<2>::from_u128(a);
         let b = BigInt::<2>::from_u128(b);
@@ -471,6 +531,12 @@ fn test_basic_operations() {
         let b = BigInt::<2>::from_u128(b);
         let c = a.inplace_mul::<4>(b);
         (a.as_u128(), c)
+    }
+    fn test_div(a: u128, b: u128) -> (u128, bool) {
+        let mut a = BigInt::<2>::from_u128(a);
+        let b = BigInt::<2>::from_u128(b);
+        a.inplace_div::<4>(b);
+        (a.as_u128(), false)
     }
 
     fn correct_cmp(a: u128, b: u128) -> (u128, bool) {
@@ -498,6 +564,7 @@ fn test_basic_operations() {
     }
 
     test_with_random_values(correct_mul, test_mul);
+    test_with_random_values(correct_div, test_div);
     test_with_random_values(correct_add, test_add);
     test_with_random_values(correct_sub, test_sub);
     test_with_random_values(correct_cmp, test_cmp);
