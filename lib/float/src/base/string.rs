@@ -1,4 +1,5 @@
 use super::bigint::BigInt;
+use super::float::shift_right_with_loss;
 use super::float::Float;
 use std::fmt::Display;
 
@@ -37,7 +38,7 @@ impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
 
         match exp.cmp(&0) {
             std::cmp::Ordering::Less => {
-                // The number is not yet an integer, we need to conver it using
+                // The number is not yet an integer, we need to convert it using
                 // the method:
                 // mmmmm * 5^(e) * 10 ^(-e) == mmmmm * 10 ^ (-e);
                 // where (5^e) * (10^-e) == (2^-e)
@@ -56,6 +57,7 @@ impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
                 exp = 0;
             }
         }
+
         (mantissa, exp)
     }
 

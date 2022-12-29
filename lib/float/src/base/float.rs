@@ -219,10 +219,10 @@ pub type FP64 = Float<11, 52>;
 pub type FP128 = Float<15, 112>;
 
 //// Shift \p val by \p bits, and report the loss.
-pub(crate) fn shift_right_with_loss(
-    mut val: MantissaTy,
+pub(crate) fn shift_right_with_loss<const P: usize>(
+    mut val: BigInt<P>,
     bits: u64,
-) -> (MantissaTy, LossFraction) {
+) -> (BigInt<P>, LossFraction) {
     let loss = val.get_loss_kind_for_bit(bits as usize);
     val.shift_right(bits as usize);
     (val, loss)

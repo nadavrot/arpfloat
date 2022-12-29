@@ -78,15 +78,15 @@ impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
     }
 
     /// Compute a+b.
-    fn add_with_rm(a: Self, b: Self, rm : RoundingMode) -> Self {
+    fn add_with_rm(a: Self, b: Self, rm: RoundingMode) -> Self {
         Self::add_sub(a, b, false, rm)
     }
     /// Compute a-b.
-    fn sub_with_rm(a: Self, b: Self, rm : RoundingMode) -> Self {
+    fn sub_with_rm(a: Self, b: Self, rm: RoundingMode) -> Self {
         Self::add_sub(a, b, true, rm)
     }
 
-    fn add_sub(a: Self, b: Self, subtract: bool, rm : RoundingMode) -> Self {
+    fn add_sub(a: Self, b: Self, subtract: bool, rm: RoundingMode) -> Self {
         // Table 8.2: Specification of addition for positive floating-point
         // data. Pg 247.
         match (a.get_category(), b.get_category()) {
@@ -312,7 +312,7 @@ fn test_add_random_vals() {
 
 impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
     /// Compute a*b.
-    pub fn mul_with_rm(a: Self, b: Self, rm : RoundingMode) -> Self {
+    pub fn mul_with_rm(a: Self, b: Self, rm: RoundingMode) -> Self {
         let sign = a.get_sign() ^ b.get_sign();
 
         // Table 8.4: Specification of multiplication for floating-point data of
@@ -480,7 +480,7 @@ fn test_mul_random_vals() {
 
 impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
     /// Compute a/b.
-    fn div_impl(a: Self, b: Self, rm : RoundingMode) -> Self {
+    fn div_impl(a: Self, b: Self, rm: RoundingMode) -> Self {
         let sign = a.get_sign() ^ b.get_sign();
         // Table 8.5: Special values for x/y - Page 263.
         match (a.get_category(), b.get_category()) {
