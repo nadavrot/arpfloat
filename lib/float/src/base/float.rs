@@ -216,6 +216,8 @@ impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
     }
 }
 
+// IEEE 754-2019
+// Table 3.5 — Binary interchange format parameters.
 pub type FP16 = Float<5, 10>;
 pub type FP32 = Float<8, 23>;
 pub type FP64 = Float<11, 52>;
