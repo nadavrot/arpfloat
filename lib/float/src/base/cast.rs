@@ -96,8 +96,10 @@ impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
         Self::new(sign, exp, mantissa)
     }
 
-    /// Convert from one float format to another.
-    pub fn cast<const E: usize, const M: usize>(&self) -> Float<E, M> {
+    pub fn cast_with_rm<const E: usize, const M: usize>(
+        &self,
+        rm: RoundingMode,
+    ) -> Float<E, M> {
         let exp_delta = MANTISSA as i64 - M as i64;
         let mut x = Float::<E, M>::raw(
             self.get_sign(),
@@ -107,12 +109,13 @@ impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
         );
         // Don't normalize if this is a nop conversion.
         if E != EXPONENT && M != MANTISSA {
-            x.normalize(
-                RoundingMode::NearestTiesToEven,
-                LossFraction::ExactlyZero,
-            );
+            x.normalize(rm, LossFraction::ExactlyZero);
         }
         x
+    }
+    /// Convert from one float format to another.
+    pub fn cast<const E: usize, const M: usize>(&self) -> Float<E, M> {
+        self.cast_with_rm(RoundingMode::NearestTiesToEven)
     }
 
     fn as_native_float(&self) -> u64 {
