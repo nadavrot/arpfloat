@@ -496,48 +496,39 @@ impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
 
     /// Compute a/b, where both \p a and \p b are normals.
     /// Page 262 8.6. Floating-Point Division
-    fn div_normals(a: Self, b: Self) -> (Self, LossFraction) {
+    fn div_normals(mut a: Self, mut b: Self) -> (Self, LossFraction) {
+        // Start by normalizing the dividend and divisor to the MSB.
+        a.align_mantissa(); // Normalize the dividend.
+        b.align_mantissa(); // Normalize the divisor.
+
+        let mut a_mantissa = a.get_mantissa(); // Dividend.
+        let b_mantissa = b.get_mantissa(); // Divisor.
+
+        // Calculate the sign and exponent.
         let mut exp = a.get_exp() - b.get_exp();
         let sign = a.get_sign() ^ b.get_sign();
 
-        // Start by normalizing the dividend and divisor to the same exponent,
-        // aligning the numbers to the MSB of the mantissa.
-        let mut a_mantissa = a.get_mantissa(); // Dividend.
-        let mut b_mantissa = b.get_mantissa(); // Divisor.
-
-        // Normalize the dividend.
-        let bits = Self::get_precision() as i64 - a_mantissa.msb_index() as i64;
-        if bits > 0 {
-            exp += bits;
-            a_mantissa.shift_left(bits as usize);
-        }
-
-        // Normalize the divisor.
-        let bits = Self::get_precision() as i64 - b_mantissa.msb_index() as i64;
-        if bits > 0 {
-            exp -= bits;
-            b_mantissa.shift_left(bits as usize);
-        }
-
-        // Make sure that A is greater than B, to allow the subtraction.
+        // Make sure that A >= B, to allow the integer division to generate all 
+        // of the bits of the result.
         if a_mantissa < b_mantissa {
+            a_mantissa.shift_left(1);
             exp -= 1;
-            a_mantissa.shift_left(1);
         }
 
-        let mut result = MantissaTy::zero();
+        // The bits are now aligned to the MSB of the mantissa. The
+        // semantics need to be 1.xxxxx, but we perform integer division.
+        // Shift the dividend to make sure that we generate the bits after
+        // the period.
+        a_mantissa.shift_left(MANTISSA);
+        let reminder = a_mantissa.inplace_div(b_mantissa);
 
-        // Perform the long division.
-        for i in (0..Self::get_precision()).rev() {
-            if a_mantissa >= b_mantissa {
-                a_mantissa = a_mantissa - b_mantissa;
-                result.flip_bit(i as usize);
-            }
-            a_mantissa.shift_left(1);
-        }
+        // Find 2 x reminder, to be able to compare to the reminder and figure
+        // out the kind of loss that we have.
+        let mut reminder_2x = reminder;
+        reminder_2x.shift_left(1);
 
-        let reminder = a_mantissa.cmp(&b_mantissa);
-        let is_zero = a_mantissa.is_zero();
+        let reminder = reminder_2x.cmp(&b_mantissa);
+        let is_zero = reminder_2x.is_zero();
         let loss = match reminder {
             std::cmp::Ordering::Less => {
                 if is_zero {
@@ -550,7 +541,7 @@ impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
             std::cmp::Ordering::Greater => LossFraction::MoreThanHalf,
         };
 
-        let x = Self::new(sign, exp, result);
+        let x = Self::new(sign, exp, a_mantissa);
         (x, loss)
     }
 }

@@ -151,6 +151,18 @@ impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
         Self::raw(!self.sign, self.exp, self.mantissa, self.category)
     }
 
+    /// Shift the mantissa to the left to ensure that the MSB if the mantissa
+    /// is set to the precision. The method updates the exponent to keep the
+    /// number correct.
+    pub(super) fn align_mantissa(&mut self) {
+        let bits =
+            Self::get_precision() as i64 - self.mantissa.msb_index() as i64;
+        if bits > 0 {
+            self.exp += bits;
+            self.mantissa.shift_left(bits as usize);
+        }
+    }
+
     /// \returns True if abs(self) < abs(other).
     pub(super) fn absolute_less_than(&self, other: Self) -> bool {
         assert!(self.is_normal());
