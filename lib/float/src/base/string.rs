@@ -1,12 +1,16 @@
-use super::float::{Float, MantissaTy};
+use super::bigint::BigInt;
+use super::float::Float;
 use std::fmt::Display;
 
+// Use a bigint for the decimal conversions.
+type BigNum = BigInt<6>;
+
 /// \return 5 to the power of \p x: $5^x$.
-fn pow5(x: u64) -> MantissaTy {
-    let five = MantissaTy::from_u64(5);
-    let mut v = MantissaTy::from_u64(1);
+fn pow5(x: u64) -> BigNum {
+    let five = BigNum::from_u64(5);
+    let mut v = BigNum::from_u64(1);
     for _ in 0..x {
-        v = v * five;
+        v.inplace_mul::<12>(five);
     }
     v
 }
@@ -21,7 +25,7 @@ fn test_pow5() {
 
 impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
     /// Convert the number into a large integer, and a base-10 exponent.
-    fn convert_to_integer(&self) -> (MantissaTy, i64) {
+    fn convert_to_integer(&self) -> (BigNum, i64) {
         // The natural representation of numbers is 1.mmmmmmm, where the
         // mantissa is aligned to the MSB. In this method we convert the numbers
         // into integers, that start at bit zero, so we use exponent that refers
@@ -29,7 +33,7 @@ impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
         // See Ryu: Fast Float-to-String Conversion -- Ulf Adams.
         // https://youtu.be/kw-U6smcLzk?t=681
         let mut exp = self.get_exp() - MANTISSA as i64;
-        let mut mantissa = self.get_mantissa();
+        let mut mantissa: BigNum = self.get_mantissa().cast();
 
         match exp.cmp(&0) {
             std::cmp::Ordering::Less => {
@@ -41,7 +45,7 @@ impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
                 // 1.mmmm * 2^-e, and the right-hand-side is how we represent
                 // our decimal number: nnnnnnn * 10^-e.
                 let e5 = pow5((-exp) as u64);
-                mantissa = mantissa * e5;
+                mantissa.inplace_mul::<12>(e5);
                 exp = -exp;
             }
             std::cmp::Ordering::Equal | std::cmp::Ordering::Greater => {
@@ -63,7 +67,7 @@ impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
     fn convert_normal_to_string(&self) -> String {
         let (mut integer, exp) = self.convert_to_integer();
         let mut buff = Vec::new();
-        let ten = MantissaTy::from_u64(10);
+        let ten = BigNum::from_u64(10);
 
         let chars = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'];
         while !integer.is_zero() {
@@ -134,4 +138,19 @@ fn test_convert_to_string() {
         to_str_w_fp64(0.3)
     );
     assert_eq!("2251799813685248.", to_str_w_fp64((1u64 << 51) as f64));
+}
+
+#[test]
+fn test_print_sqrt() {
+    type FP = crate::base::FP128;
+
+    // Use Newton-Raphson to find the square root of some number.
+    let n = FP::from_f64(5.);
+    let half = FP::from_f64(0.5);
+    let mut x = n;
+
+    for _ in 0..100 {
+        x = half * (x + (n / x));
+    }
+    println!("{}", x);
 }
