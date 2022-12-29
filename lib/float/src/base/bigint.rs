@@ -439,6 +439,17 @@ fn test_div_basic() {
     assert_eq!(rem.as_u64(), 3);
 }
 
+#[test]
+fn test_div_10() {
+    let mut x1 = BigInt::<2>::from_u64(19940521);
+    let ten = BigInt::<2>::from_u64(10);
+    assert_eq!(x1.inplace_div(ten).as_u64(), 1);
+    assert_eq!(x1.inplace_div(ten).as_u64(), 2);
+    assert_eq!(x1.inplace_div(ten).as_u64(), 5);
+    assert_eq!(x1.inplace_div(ten).as_u64(), 0);
+    assert_eq!(x1.inplace_div(ten).as_u64(), 4);
+}
+
 #[allow(dead_code)]
 fn test_with_random_values(
     correct: fn(u128, u128) -> (u128, bool),
