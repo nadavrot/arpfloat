@@ -308,7 +308,7 @@ impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
     }
 
     /// \returns True if we need to round away from zero (increment the mantissa).
-    fn need_round_away_from_zero(
+    pub(crate) fn need_round_away_from_zero(
         &self,
         rm: RoundingMode,
         loss: LossFraction,

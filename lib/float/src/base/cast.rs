@@ -1,5 +1,5 @@
 use super::bigint::LossFraction;
-use super::float::Category;
+use super::float::{self, Category};
 use super::float::{Float, MantissaTy, RoundingMode, FP32, FP64};
 use super::utils;
 use super::utils::mask;
@@ -20,6 +20,48 @@ impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
         }
 
         Self::from_u64(val as u64)
+    }
+
+    pub fn to_i64(&self, rm: RoundingMode) -> i64 {
+        if self.is_nan() || self.is_zero() {
+            return 0;
+        }
+
+        if self.is_inf() {
+            if self.get_sign() {
+                return i64::MIN;
+            } else {
+                return i64::MAX;
+            }
+        }
+
+        let val = self.convert_normal_to_integer(rm);
+        if self.get_sign() {
+            -(val.as_u64() as i64)
+        } else {
+            val.as_u64() as i64
+        }
+    }
+
+    fn convert_normal_to_integer(&self, rm: RoundingMode) -> MantissaTy {
+        // We are converting to integer, so set the center point of the exponent
+        // to the lsb instead of the msb.
+        let i_exp = self.get_exp() - MANTISSA as i64;
+        if i_exp < 0 {
+            let (mut m, loss) = float::shift_right_with_loss(
+                self.get_mantissa(),
+                -i_exp as u64,
+            );
+
+            if self.need_round_away_from_zero(rm, loss) {
+                m.inplace_add(&MantissaTy::one());
+            }
+            m
+        } else {
+            let mut m = self.get_mantissa();
+            m.shift_left(i_exp as usize);
+            m
+        }
     }
 
     fn from_bits(float: u64) -> Self {
@@ -130,6 +172,51 @@ impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
     pub fn from_f64(float: f64) -> Self {
         FP64::from_bits(float.to_bits()).cast()
     }
+}
+
+#[test]
+fn test_rounding_to_integer() {
+    // Test the low integers with round-to-zero.
+    for i in 0..100 {
+        let r = FP64::from_f64(i as f64 + 0.1).to_i64(RoundingMode::Zero);
+        assert_eq!(i, r);
+    }
+
+    // Test the high integers with round_to_zero.
+    for i in 0..100 {
+        let val = (i as i64) << 54;
+        let r = FP64::from_i64(val).to_i64(RoundingMode::Zero);
+        assert_eq!(val, r);
+    }
+
+    use RoundingMode::NearestTiesToAway;
+    assert_eq!(1, FP64::from_f64(0.5).to_i64(NearestTiesToAway));
+    assert_eq!(0, FP64::from_f64(0.49).to_i64(NearestTiesToAway));
+    assert_eq!(199999, FP64::from_f64(199999.49).to_i64(NearestTiesToAway));
+    assert_eq!(0, FP64::from_f64(-0.49).to_i64(NearestTiesToAway));
+    assert_eq!(-1, FP64::from_f64(-0.5).to_i64(NearestTiesToAway));
+
+    use RoundingMode::Zero;
+    assert_eq!(0, FP64::from_f64(0.9).to_i64(Zero));
+    assert_eq!(1, FP64::from_f64(1.1).to_i64(Zero));
+    assert_eq!(99, FP64::from_f64(99.999).to_i64(Zero));
+    assert_eq!(0, FP64::from_f64(-0.99).to_i64(Zero));
+    assert_eq!(0, FP64::from_f64(-0.5).to_i64(Zero));
+
+    use RoundingMode::Positive;
+    assert_eq!(1, FP64::from_f64(0.9).to_i64(Positive));
+    assert_eq!(2, FP64::from_f64(1.1).to_i64(Positive));
+    assert_eq!(100, FP64::from_f64(99.999).to_i64(Positive));
+    assert_eq!(0, FP64::from_f64(-0.99).to_i64(Positive));
+    assert_eq!(0, FP64::from_f64(-0.5).to_i64(Positive));
+
+    // Special values
+    use RoundingMode::NearestTiesToEven;
+    let n_inf = f64::NEG_INFINITY;
+    let inf = f64::INFINITY;
+    assert_eq!(0, FP64::from_f64(f64::NAN).to_i64(NearestTiesToEven));
+    assert_eq!(i64::MIN, FP64::from_f64(n_inf).to_i64(NearestTiesToEven));
+    assert_eq!(i64::MAX, FP64::from_f64(inf).to_i64(NearestTiesToEven));
 }
 
 #[test]
