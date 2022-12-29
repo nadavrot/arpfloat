@@ -415,17 +415,13 @@ fn test_add_basic() {
     let mut x = BigInt::<2>::from_u64(0xffffffff00000000);
     let y = BigInt::<2>::from_u64(0xffffffff);
     let z = BigInt::<2>::from_u64(0xf);
-    x.dump();
-    y.dump();
     let c1 = x.inplace_add(&y);
     assert!(!c1);
     assert_eq!(x.get_part(0), 0xffffffffffffffff);
-    x.dump();
     let c2 = x.inplace_add(&z);
     assert!(!c2);
     assert_eq!(x.get_part(0), 0xe);
     assert_eq!(x.get_part(1), 0x1);
-    x.dump();
 }
 
 #[test]
@@ -434,15 +430,11 @@ fn test_div_basic() {
     let mut x2 = BigInt::<2>::from_u64(703);
     let y = BigInt::<2>::from_u64(7);
 
-    x1.dump();
-    x2.dump();
-    y.dump();
     let rem = x1.inplace_div(y);
     assert_eq!(x1.as_u64(), 7);
     assert_eq!(rem.as_u64(), 0);
 
     let rem = x2.inplace_div(y);
-    rem.dump();
     assert_eq!(x2.as_u64(), 100);
     assert_eq!(rem.as_u64(), 3);
 }

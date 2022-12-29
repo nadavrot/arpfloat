@@ -508,7 +508,7 @@ impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
         let mut exp = a.get_exp() - b.get_exp();
         let sign = a.get_sign() ^ b.get_sign();
 
-        // Make sure that A >= B, to allow the integer division to generate all 
+        // Make sure that A >= B, to allow the integer division to generate all
         // of the bits of the result.
         if a_mantissa < b_mantissa {
             a_mantissa.shift_left(1);
