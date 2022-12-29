@@ -54,6 +54,7 @@ impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
         Self::new(sign, exp, mantissa)
     }
 
+    /// Convert from one float format to another.
     pub fn cast<const E: usize, const M: usize>(&self) -> Float<E, M> {
         let exp_delta = MANTISSA as i64 - M as i64;
         let mut x = Float::<E, M>::raw(
