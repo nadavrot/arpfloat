@@ -75,7 +75,7 @@ impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
             buff.insert(0, '0');
         }
         buff.insert(buff.len() - exp as usize, '.');
-        while buff.len() > 0 && buff[buff.len() - 1] == '0' {
+        while !buff.is_empty() && buff[buff.len() - 1] == '0' {
             buff.pop();
         }
         String::from_iter(buff)
