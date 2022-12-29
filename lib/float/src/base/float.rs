@@ -190,19 +190,14 @@ impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
         }
     }
 
-    // \returns the bias for this Float type.
-    pub fn compute_bias(exponent_bits: usize) -> usize {
-        (1 << (exponent_bits - 1)) - 1
-    }
-
     /// Returns the exponent bias for the number, as a positive number.
     /// https://en.wikipedia.org/wiki/IEEE_754#Basic_and_interchange_formats
-    pub fn get_bias() -> i64 {
-        Self::compute_bias(EXPONENT) as i64
+    pub(crate) fn get_bias() -> i64 {
+        ((1 << (EXPONENT - 1)) - 1) as i64
     }
 
     /// \returns the upper and lower bounds of the exponent.
-    pub fn get_exp_bounds() -> (i64, i64) {
+    pub(crate) fn get_exp_bounds() -> (i64, i64) {
         let exp_min: i64 = -Self::get_bias() + 1;
         // The highest value is 0xFFFE, because 0xFFFF is used for signaling.
         let exp_max: i64 = (1 << EXPONENT) - Self::get_bias() - 2;
@@ -211,7 +206,7 @@ impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
 
     /// \returns the number of bits in the significand, including the integer
     /// part.
-    pub fn get_precision() -> u64 {
+    pub(crate) fn get_precision() -> u64 {
         (MANTISSA + 1) as u64
     }
 }
@@ -224,7 +219,7 @@ pub type FP64 = Float<11, 52>;
 pub type FP128 = Float<15, 112>;
 
 //// Shift \p val by \p bits, and report the loss.
-pub fn shift_right_with_loss(
+pub(crate) fn shift_right_with_loss(
     mut val: MantissaTy,
     bits: u64,
 ) -> (MantissaTy, LossFraction) {
@@ -337,7 +332,7 @@ impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
     /// Normalize the number by adjusting the exponent to the legal range, shift
     /// the mantissa to the msb, and round the number if bits are lost. This is
     /// based on Neil Booth' implementation in APFloat.
-    pub fn normalize(&mut self, rm: RoundingMode, loss: LossFraction) {
+    pub(crate) fn normalize(&mut self, rm: RoundingMode, loss: LossFraction) {
         if !self.is_normal() {
             return;
         }
