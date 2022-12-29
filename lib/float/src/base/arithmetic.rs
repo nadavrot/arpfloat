@@ -71,7 +71,7 @@ impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
             } else {
                 loss = a.shift_significand_right(-bits as u64);
             }
-            assert!(a.get_exp() == b.get_exp());
+            debug_assert!(a.get_exp() == b.get_exp());
             let ab_mantissa = a.get_mantissa() + b.get_mantissa();
             (Self::new(a.get_sign(), a.get_exp(), ab_mantissa), loss)
         }

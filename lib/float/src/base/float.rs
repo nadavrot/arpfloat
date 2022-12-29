@@ -290,12 +290,12 @@ impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
         }
     }
 
-    pub fn check_bounds(&self) {
+    pub(crate) fn check_bounds(&self) {
         let bounds = Self::get_exp_bounds();
-        assert!(self.exp >= bounds.0);
-        assert!(self.exp <= bounds.1);
+        debug_assert!(self.exp >= bounds.0);
+        debug_assert!(self.exp <= bounds.1);
         let max_mantissa = MantissaTy::one_hot(Self::get_precision() as usize);
-        assert!(self.mantissa.lt(&max_mantissa));
+        debug_assert!(self.mantissa.lt(&max_mantissa));
     }
 
     pub fn shift_significand_left(&mut self, amt: u64) {
@@ -316,7 +316,7 @@ impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
         rm: RoundingMode,
         loss: LossFraction,
     ) -> bool {
-        assert!(self.is_normal() || self.is_zero());
+        debug_assert!(self.is_normal() || self.is_zero());
         match rm {
             RoundingMode::Positive => !self.sign,
             RoundingMode::Negative => self.sign,
@@ -364,7 +364,7 @@ impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
 
             if exp_change < 0 {
                 // Handle reducing the exponent.
-                assert!(loss.is_exactly_zero(), "losing information");
+                debug_assert!(loss.is_exactly_zero(), "losing information");
                 self.shift_significand_left(-exp_change as u64);
                 return;
             }

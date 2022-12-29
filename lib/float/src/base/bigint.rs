@@ -72,7 +72,7 @@ impl<const PARTS: usize> BigInt<PARTS> {
         let mut x = Self::one();
         x.shift_left(bits);
         x.inplace_sub(&Self::one());
-        assert_eq!(x.msb_index(), bits);
+        debug_assert_eq!(x.msb_index(), bits);
         x
     }
 
@@ -94,16 +94,16 @@ impl<const PARTS: usize> BigInt<PARTS> {
     /// \returns the lowest 64 bits.
     pub fn as_u64(&self) -> u64 {
         for i in 1..PARTS {
-            assert_eq!(self.parts[i], 0);
+            debug_assert_eq!(self.parts[i], 0);
         }
         self.parts[0]
     }
 
     /// \returns the lowest 64 bits.
     pub fn as_u128(&self) -> u128 {
-        assert!(PARTS >= 2);
+        debug_assert!(PARTS >= 2);
         for i in 2..PARTS {
-            assert_eq!(self.parts[i], 0);
+            debug_assert_eq!(self.parts[i], 0);
         }
         (self.parts[0] as u128) + ((self.parts[1] as u128) << 64)
     }
@@ -142,7 +142,7 @@ impl<const PARTS: usize> BigInt<PARTS> {
     pub fn flip_bit(&mut self, bit_num: usize) {
         let which_word = bit_num / u64::BITS as usize;
         let bit_in_word = bit_num % u64::BITS as usize;
-        assert!(which_word < PARTS, "Bit out of bounds");
+        debug_assert!(which_word < PARTS, "Bit out of bounds");
         self.parts[which_word] ^= 1 << bit_in_word;
     }
 
@@ -233,7 +233,7 @@ impl<const PARTS: usize> BigInt<PARTS> {
     /// The generic parameter \p PR is here to work around a limitation in the
     /// rust generic system. PR needs to be greater or equal to PARTS*2.
     pub fn inplace_mul<const P2: usize>(&mut self, rhs: Self) -> bool {
-        assert!(P2 >= PARTS * 2);
+        debug_assert!(P2 >= PARTS * 2);
         let mut parts: [u64; P2] = [0; P2];
         let mut carries: [u64; P2] = [0; P2];
 
