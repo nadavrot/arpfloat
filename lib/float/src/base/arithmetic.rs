@@ -8,7 +8,9 @@ use super::float::{
 impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
     /// An inner function that performs the addition and subtraction of normal
     /// numbers (no NaN, Inf, Zeros).
-    /// See Pg 247.  Chapter 8. Algorithms for the Five Basic Operations
+    /// See Pg 247.  Chapter 8. Algorithms for the Five Basic Operations.
+    /// This implementation follows the APFloat implementation, that does not
+    /// swap the operands.
     fn add_or_sub_normals(
         mut a: Self,
         mut b: Self,
@@ -51,7 +53,7 @@ impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
 
             // Figure out which mantissa is larger, to make sure that we don't
             // overflow the subtraction.
-            if a.absolute_less_than(b) {
+            if a_mantissa < b_mantissa {
                 // A < B
                 ab_mantissa = b_mantissa - a_mantissa - c;
                 sign = !sign;
@@ -85,6 +87,8 @@ impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
     }
 
     fn add_sub(a: Self, b: Self, subtract: bool) -> Self {
+        // Table 8.2: Specification of addition for positive floating-point
+        // data. Pg 247.
         match (a.get_category(), b.get_category()) {
             (Category::NaN, Category::Infinity)
             | (Category::NaN, Category::NaN)
@@ -311,6 +315,8 @@ impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
     fn mul_impl(a: Self, b: Self) -> Self {
         let sign = a.get_sign() ^ b.get_sign();
 
+        // Table 8.4: Specification of multiplication for floating-point data of
+        // positive sign. Page 251.
         match (a.get_category(), b.get_category()) {
             (Category::Zero, Category::NaN)
             | (Category::Normal, Category::NaN)
@@ -341,7 +347,7 @@ impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
     fn mul_normals(a: Self, b: Self, sign: bool) -> (Self, LossFraction) {
         // We multiply digits in the format 1.xx * 2^(e), or mantissa * 2^(e+1).
         // When we multiply two 2^(e+1) numbers, we get:
-        // log(2^(e_a+1)*2^(e_b+1)) = e_a + e+b + 2.
+        // log(2^(e_a+1)*2^(e_b+1)) = e_a + e_b + 2.
         let mut exp = a.get_exp() + b.get_exp();
 
         let mut loss = LossFraction::ExactlyZero;
@@ -476,6 +482,7 @@ impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
     /// Compute a/b.
     fn div_impl(a: Self, b: Self) -> Self {
         let sign = a.get_sign() ^ b.get_sign();
+        // Table 8.5: Special values for x/y - Page 263.
         match (a.get_category(), b.get_category()) {
             (Category::NaN, _)
             | (_, Category::NaN)
@@ -495,14 +502,15 @@ impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
     }
 
     /// Compute a/b, where both \p a and \p b are normals.
-    /// Page 262 8.6. Floating-Point Division
+    /// Page 262 8.6. Floating-Point Division.
+    /// This implementation uses a regular integer division for the mantissa.
     fn div_normals(mut a: Self, mut b: Self) -> (Self, LossFraction) {
         // Start by normalizing the dividend and divisor to the MSB.
         a.align_mantissa(); // Normalize the dividend.
         b.align_mantissa(); // Normalize the divisor.
 
-        let mut a_mantissa = a.get_mantissa(); // Dividend.
-        let b_mantissa = b.get_mantissa(); // Divisor.
+        let mut a_mantissa = a.get_mantissa();
+        let b_mantissa = b.get_mantissa();
 
         // Calculate the sign and exponent.
         let mut exp = a.get_exp() - b.get_exp();

@@ -1,7 +1,8 @@
 use std::cmp::Ordering;
 use std::ops::{Add, Div, Mul, Sub};
 
-/// Reports the kind of values that are lost when we shift right bits.
+/// Reports the kind of values that are lost when we shift right bits. In some
+/// context this used as the two guard bits.
 #[derive(Debug, Clone, Copy)]
 pub enum LossFraction {
     ExactlyZero,  //0000000
@@ -108,7 +109,7 @@ impl<const PARTS: usize> BigInt<PARTS> {
     }
 
     /// Convert this instance to a smaller number. Notice that this may truncate
-    /// the bignum.
+    /// the number.
     pub fn cast<const P: usize>(&self) -> BigInt<P> {
         let mut n = BigInt::<P>::zero();
         for i in 0..PARTS.min(P) {
@@ -117,7 +118,7 @@ impl<const PARTS: usize> BigInt<PARTS> {
         n
     }
 
-    /// \return True if the int is equal to zero.
+    /// \return True if the number is equal to zero.
     pub fn is_zero(&self) -> bool {
         for elem in self.parts {
             if elem != 0 {
@@ -263,7 +264,7 @@ impl<const PARTS: usize> BigInt<PARTS> {
         carry > 0
     }
 
-    /// Divide self by \p divisor , and return the reminder.
+    /// Divide self by \p divisor, and return the reminder.
     pub fn inplace_div(&mut self, divisor: Self) -> Self {
         let mut dividend = *self;
         let mut divisor = divisor;

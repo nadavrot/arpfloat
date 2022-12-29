@@ -39,7 +39,7 @@ impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
                 // where (5^e) * (10^-e) == (2^-e)
                 // And the left hand side is how we represent our binary number
                 // 1.mmmm * 2^-e, and the right-hand-side is how we represent
-                // our decimal number 100000 * 10^-e.
+                // our decimal number: nnnnnnn * 10^-e.
                 let e5 = pow5((-exp) as u64);
                 mantissa = mantissa * e5;
                 exp = -exp;
@@ -55,10 +55,10 @@ impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
         (mantissa, exp)
     }
 
-    /// This method converts floats to strings. It implements the simple
-    /// algorithm that does not take into account rounding during the round-trip
-    ///  of parsing-printing of the value, or scientific notation, and the
-    /// minimal representation of numbers.  For that check out the paper:
+    /// This method converts floats to strings. This is a simple implementation
+    /// that does not take into account rounding during the round-trip of
+    /// parsing-printing of the value, or scientific notation, and the minimal
+    /// representation of numbers. For all of that that check out the paper:
     /// "How to Print Floating-Point Numbers Accurately" by Steele and White.
     fn convert_normal_to_string(&self) -> String {
         let (mut integer, exp) = self.convert_to_integer();

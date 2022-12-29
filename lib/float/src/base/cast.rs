@@ -40,7 +40,7 @@ impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
             return Self::nan(sign);
         }
 
-        let mut exp = biased_exp - Self::compute_ieee745_bias(EXPONENT) as i64;
+        let mut exp = biased_exp - Self::compute_bias(EXPONENT) as i64;
 
         // Add the implicit bit for normal numbers.
         if biased_exp != 0 {

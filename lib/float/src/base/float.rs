@@ -1,6 +1,7 @@
 use super::bigint::BigInt;
 use super::bigint::LossFraction;
 
+/// IEEE754-2019 Section 4.3 Rounding-direction attributes
 #[derive(Debug, Clone, Copy)]
 pub enum RoundingMode {
     NearestTiesToEven,
@@ -163,17 +164,7 @@ impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
         }
     }
 
-    /// \returns True if abs(self) < abs(other).
-    pub(super) fn absolute_less_than(&self, other: Self) -> bool {
-        assert!(self.is_normal());
-        let mc = self.mantissa.cmp(&other.get_mantissa());
-        match self.exp.cmp(&other.get_exp()) {
-            Ordering::Less => true,
-            Ordering::Equal => mc.is_lt(),
-            Ordering::Greater => false,
-        }
-    }
-
+    /// Prints the number using the internal representation.
     pub fn dump(&self) {
         let sign = if self.sign { "-" } else { "+" };
         match self.category {
@@ -200,14 +191,14 @@ impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
     }
 
     // \returns the bias for this Float type.
-    pub fn compute_ieee745_bias(exponent_bits: usize) -> usize {
+    pub fn compute_bias(exponent_bits: usize) -> usize {
         (1 << (exponent_bits - 1)) - 1
     }
 
     /// Returns the exponent bias for the number, as a positive number.
     /// https://en.wikipedia.org/wiki/IEEE_754#Basic_and_interchange_formats
     pub fn get_bias() -> i64 {
-        Self::compute_ieee745_bias(EXPONENT) as i64
+        Self::compute_bias(EXPONENT) as i64
     }
 
     /// \returns the upper and lower bounds of the exponent.
@@ -341,6 +332,9 @@ impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
         }
     }
 
+    /// Normalize the number by adjusting the exponent to the legal range, shift
+    /// the mantissa to the msb, and round the number if bits are lost. This is
+    /// based on Neil Booth' implementation in APFloat.
     pub fn normalize(&mut self, rm: RoundingMode, loss: LossFraction) {
         if !self.is_normal() {
             return;
@@ -425,7 +419,6 @@ impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
 
 use std::cmp::Ordering;
 
-/// Implement IEEE 754-2019 section 5.10 - totalOrder.
 impl<const EXPONENT: usize, const MANTISSA: usize> PartialEq
     for Float<EXPONENT, MANTISSA>
 {
@@ -443,7 +436,10 @@ impl<const EXPONENT: usize, const MANTISSA: usize> PartialEq
     }
 }
 
-/// Implement IEEE 754-2019 section 5.10 - totalOrder.
+/// Page 66. Chapter 3. Floating-Point Formats and Environment
+/// Table 3.8: Comparison predicates and the four relations.
+///   and
+/// IEEE 754-2019 section 5.10 - totalOrder.
 impl<const EXPONENT: usize, const MANTISSA: usize> PartialOrd
     for Float<EXPONENT, MANTISSA>
 {
