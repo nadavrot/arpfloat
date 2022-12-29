@@ -110,9 +110,28 @@ fn test_convert_to_string() {
     use crate::base::FP16;
     use crate::base::FP64;
 
-    for i in [1.2, 4.5] {
-        let n = FP16::from_f64(i as f64);
-        let n64: FP64 = n.cast();
-        println!("{} vs {} V", n, n64.as_f64());
+    fn to_str_w_fp16(val: f64) -> String {
+        format!("{}", FP16::from_f64(val))
     }
+
+    fn to_str_w_fp64(val: f64) -> String {
+        format!("{}", FP64::from_f64(val))
+    }
+
+    assert_eq!("-0.0", to_str_w_fp16(-0.));
+    assert_eq!(".300048828125", to_str_w_fp16(0.3));
+    assert_eq!("4.5", to_str_w_fp16(4.5));
+    assert_eq!("256.", to_str_w_fp16(256.));
+    assert_eq!("Inf", to_str_w_fp16(65534.));
+    assert_eq!("-Inf", to_str_w_fp16(-65534.));
+    assert_eq!(".0999755859375", to_str_w_fp16(0.1));
+    assert_eq!(
+        ".1000000000000000055511151231257827021181583404541015625",
+        to_str_w_fp64(0.1)
+    );
+    assert_eq!(
+        ".299999999999999988897769753748434595763683319091796875",
+        to_str_w_fp64(0.3)
+    );
+    assert_eq!("2251799813685248.", to_str_w_fp64((1u64 << 51) as f64));
 }
