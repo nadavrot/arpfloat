@@ -4,25 +4,7 @@ use super::float::Float;
 use std::fmt::Display;
 
 // Use a bigint for the decimal conversions.
-type BigNum = BigInt<6>;
-
-/// \return 5 to the power of \p x: $5^x$.
-fn pow5(x: u64) -> BigNum {
-    let five = BigNum::from_u64(5);
-    let mut v = BigNum::from_u64(1);
-    for _ in 0..x {
-        v.inplace_mul::<12>(five);
-    }
-    v
-}
-
-#[test]
-fn test_pow5() {
-    let lookup = [1, 5, 25, 125, 625, 3125, 15625, 78125];
-    for (i, val) in lookup.iter().enumerate() {
-        assert_eq!(pow5(i as u64).as_u64(), *val);
-    }
-}
+type BigNum = BigInt<4>;
 
 impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
     /// Convert the number into a large integer, and a base-10 exponent.
@@ -45,7 +27,8 @@ impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
                 // And the left hand side is how we represent our binary number
                 // 1.mmmm * 2^-e, and the right-hand-side is how we represent
                 // our decimal number: nnnnnnn * 10^-e.
-                let e5 = pow5((-exp) as u64);
+                let five = BigInt::from_u64(5);
+                let e5 = five.powi((-exp) as u64);
                 mantissa.inplace_mul::<12>(e5);
                 exp = -exp;
             }
@@ -61,6 +44,30 @@ impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
         (mantissa, exp)
     }
 
+    /// Reduce a number in the representation mmmmm * e^10, to fewer bits in
+    /// 'm', based on the max possible digits in the mantissa.
+    fn reduce_printed_integer_length(integer: &mut BigNum, exp: &mut i64) {
+        // Matula, David W. “A Formalization of Floating-Point Numeric Base
+        // N = 2 + floor(n / log_b(B)) = 2 + floor(n / log(10, 2))
+        // We convert from bits to base-10 digits: log(2)/log(10) ==> 59/196.
+        // A continuous fraction of 5 iteration gives the ratio.
+        let bits = integer.msb_index();
+        if bits <= MANTISSA {
+            return;
+        };
+        let needed_bits = bits - MANTISSA;
+        let mut digits_to_remove = ((needed_bits * 59) / 196) as i64;
+
+        // Only remove digits after the decimal points.
+        if digits_to_remove > *exp {
+            digits_to_remove = *exp;
+        }
+        *exp -= digits_to_remove;
+        let ten = BigInt::from_u64(10);
+        let divisor = ten.powi(digits_to_remove as u64);
+        integer.inplace_div(divisor);
+    }
+
     /// This method converts floats to strings. This is a simple implementation
     /// that does not take into account rounding during the round-trip of
     /// parsing-printing of the value, or scientific notation, and the minimal
@@ -71,12 +78,7 @@ impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
         let mut buff = Vec::new();
         let ten = BigNum::from_u64(10);
 
-        // Matula, David W. “A Formalization of Floating-Point Numeric Base
-        // N = 2 + floor(n / log_b(B)) = 2 + floor(n / log(10, 2))
-        // A continuous fraction of 5 iteration gives the ratio:
-        // log(10)/log(2) ==> 196/59
-
-        let max_digits = 2 + (MANTISSA as f64 / (196. / 59.)) as usize;
+        Self::reduce_printed_integer_length(&mut integer, &mut exp);
 
         let chars = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'];
         while !integer.is_zero() {
@@ -84,13 +86,10 @@ impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
             let ch = chars[rem.as_u64() as usize];
             buff.insert(0, ch);
         }
+
+        debug_assert!(exp >= 0);
         while buff.len() < exp as usize {
             buff.insert(0, '0');
-        }
-
-        while buff.len() > max_digits {
-            buff.pop();
-            exp -= 1;
         }
 
         buff.insert(buff.len() - exp as usize, '.');
@@ -138,15 +137,31 @@ fn test_convert_to_string() {
     }
 
     assert_eq!("-0.0", to_str_w_fp16(-0.));
-    assert_eq!(".30004", to_str_w_fp16(0.3));
+    assert_eq!(".3", to_str_w_fp16(0.3));
     assert_eq!("4.5", to_str_w_fp16(4.5));
     assert_eq!("256.", to_str_w_fp16(256.));
     assert_eq!("Inf", to_str_w_fp16(65534.));
     assert_eq!("-Inf", to_str_w_fp16(-65534.));
-    assert_eq!(".09997", to_str_w_fp16(0.1));
+    assert_eq!(".0999", to_str_w_fp16(0.1));
     assert_eq!(".1", to_str_w_fp64(0.1));
     assert_eq!(".29999999999999998", to_str_w_fp64(0.3));
     assert_eq!("2251799813685248.", to_str_w_fp64((1u64 << 51) as f64));
+    assert_eq!("1995.1994999999999", to_str_w_fp64(1995.1995));
+}
+
+#[test]
+fn test_fuzz_printing() {
+    use crate::base::utils;
+    use crate::base::FP64;
+
+    let mut lfsr = utils::Lfsr::new();
+
+    for _ in 0..500 {
+        let v0 = lfsr.get64();
+        let f0 = f64::from_bits(v0);
+        let fp0 = FP64::from_f64(f0);
+        fp0.to_string();
+    }
 }
 
 #[test]
