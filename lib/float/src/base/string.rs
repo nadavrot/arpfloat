@@ -156,7 +156,7 @@ fn test_fuzz_printing() {
 
     let mut lfsr = utils::Lfsr::new();
 
-    for _ in 0..500 {
+    for _ in 0..5000 {
         let v0 = lfsr.get64();
         let f0 = f64::from_bits(v0);
         let fp0 = FP64::from_f64(f0);

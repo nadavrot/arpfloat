@@ -512,7 +512,7 @@ fn test_with_random_values(
     // Test addition, multiplication, subtraction with random values.
     let mut lfsr = Lfsr::new();
 
-    for _ in 0..5000 {
+    for _ in 0..50000 {
         let v0 = lfsr.get64();
         let v1 = lfsr.get64();
         let v2 = lfsr.get64();
