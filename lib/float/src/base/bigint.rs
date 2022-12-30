@@ -380,12 +380,20 @@ impl<const PARTS: usize> BigInt<PARTS> {
     }
 
     /// \return raise this number to the power of \p exp.
-    pub fn powi(&self, exp: u64) -> Self {
-        let mut v = Self::from_u64(1);
-        for _ in 0..exp {
-            v.inplace_mul::<12>(*self);
+    pub fn powi(&self, mut exp: u64) -> Self {
+        let mut v = Self::one();
+        let mut base = *self;
+        loop {
+            if exp & 0x1 == 1 {
+                v.inplace_mul::<12>(base);
+            }
+            exp >>= 1;
+            if exp == 0 {
+                break;
+            }
+            base.inplace_mul::<12>(base);
         }
-        v
+        return v;
     }
 
     /// \return the word at idx \p idx.
