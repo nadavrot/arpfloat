@@ -201,6 +201,20 @@ impl<const PARTS: usize> BigInt<PARTS> {
         0
     }
 
+    /// \returns the index of the first '1' in the number. The number must not
+    ///  be a zero.
+    pub fn trailing_zeros(&self) -> usize {
+        debug_assert!(!self.is_zero());
+        for i in 0..PARTS {
+            let part = self.parts[i];
+            if part != 0 {
+                let idx = part.trailing_zeros() as usize;
+                return i * 64 + idx;
+            }
+        }
+        panic!("Expected a non-zero number");
+    }
+
     pub fn from_parts(parts: &[u64; PARTS]) -> Self {
         BigInt { parts: *parts }
     }
@@ -589,6 +603,28 @@ fn test_msb() {
         let mut x = BigInt::<5>::from_u64(0x1);
         x.shift_left(i);
         assert_eq!(x.msb_index(), i + 1);
+    }
+}
+
+#[test]
+fn test_trailing_zero() {
+    let x = BigInt::<5>::from_u64(0xffffffff00000000);
+    assert_eq!(x.trailing_zeros(), 32);
+
+    let x = BigInt::<5>::from_u64(0x1);
+    assert_eq!(x.trailing_zeros(), 0);
+
+    let x = BigInt::<5>::from_u64(0x8);
+    assert_eq!(x.trailing_zeros(), 3);
+
+    let mut x = BigInt::<5>::from_u64(0x1);
+    x.shift_left(189);
+    assert_eq!(x.trailing_zeros(), 189);
+
+    for i in 0..256 {
+        let mut x = BigInt::<5>::from_u64(0x1);
+        x.shift_left(i);
+        assert_eq!(x.trailing_zeros(), i);
     }
 }
 

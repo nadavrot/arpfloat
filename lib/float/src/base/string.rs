@@ -1,5 +1,5 @@
 use super::bigint::BigInt;
-use super::float::shift_right_with_loss;
+
 use super::float::Float;
 use std::fmt::Display;
 
