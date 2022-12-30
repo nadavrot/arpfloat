@@ -286,11 +286,22 @@ impl<const PARTS: usize> BigInt<PARTS> {
 
         let dividend_msb = dividend.msb_index();
         let divisor_msb = divisor.msb_index();
+        assert_ne!(divisor_msb, 0, "division by zero");
 
         if divisor_msb > dividend_msb {
             let ret = *self;
             *self = Self::zero();
             return ret;
+        }
+
+        // Single word division.
+        if divisor_msb < 65 && dividend_msb < 65 {
+            let a = dividend.get_part(0);
+            let b = divisor.get_part(0);
+            let res = a / b;
+            let rem = a % b;
+            self.parts[0] = res;
+            return Self::from_u64(rem);
         }
 
         // Align the first bit of the divisor with the first bit of the
@@ -308,7 +319,7 @@ impl<const PARTS: usize> BigInt<PARTS> {
         }
 
         *self = quotient;
-        dividend.cast() // this is the reminder.
+        dividend
     }
 
     /// Shift the bits in the numbers \p bits to the left.
