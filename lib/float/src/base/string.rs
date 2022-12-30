@@ -67,9 +67,16 @@ impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
     /// representation of numbers. For all of that that check out the paper:
     /// "How to Print Floating-Point Numbers Accurately" by Steele and White.
     fn convert_normal_to_string(&self) -> String {
-        let (mut integer, exp) = self.convert_to_integer();
+        let (mut integer, mut exp) = self.convert_to_integer();
         let mut buff = Vec::new();
         let ten = BigNum::from_u64(10);
+
+        // Matula, David W. “A Formalization of Floating-Point Numeric Base
+        // N = 2 + floor(n / log_b(B)) = 2 + floor(n / log(10, 2))
+        // A continuous fraction of 5 iteration gives the ratio:
+        // log(10)/log(2) ==> 196/59
+
+        let max_digits = 2 + (MANTISSA as f64 / (196. / 59.)) as usize;
 
         let chars = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'];
         while !integer.is_zero() {
@@ -80,6 +87,12 @@ impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
         while buff.len() < exp as usize {
             buff.insert(0, '0');
         }
+
+        while buff.len() > max_digits {
+            buff.pop();
+            exp -= 1;
+        }
+
         buff.insert(buff.len() - exp as usize, '.');
         while !buff.is_empty() && buff[buff.len() - 1] == '0' {
             buff.pop();
@@ -125,20 +138,14 @@ fn test_convert_to_string() {
     }
 
     assert_eq!("-0.0", to_str_w_fp16(-0.));
-    assert_eq!(".300048828125", to_str_w_fp16(0.3));
+    assert_eq!(".30004", to_str_w_fp16(0.3));
     assert_eq!("4.5", to_str_w_fp16(4.5));
     assert_eq!("256.", to_str_w_fp16(256.));
     assert_eq!("Inf", to_str_w_fp16(65534.));
     assert_eq!("-Inf", to_str_w_fp16(-65534.));
-    assert_eq!(".0999755859375", to_str_w_fp16(0.1));
-    assert_eq!(
-        ".1000000000000000055511151231257827021181583404541015625",
-        to_str_w_fp64(0.1)
-    );
-    assert_eq!(
-        ".299999999999999988897769753748434595763683319091796875",
-        to_str_w_fp64(0.3)
-    );
+    assert_eq!(".09997", to_str_w_fp16(0.1));
+    assert_eq!(".1", to_str_w_fp64(0.1));
+    assert_eq!(".29999999999999998", to_str_w_fp64(0.3));
     assert_eq!("2251799813685248.", to_str_w_fp64((1u64 << 51) as f64));
 }
 
