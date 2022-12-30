@@ -379,6 +379,15 @@ impl<const PARTS: usize> BigInt<PARTS> {
         }
     }
 
+    /// \return raise this number to the power of \p exp.
+    pub fn powi(&self, exp: u64) -> Self {
+        let mut v = Self::from_u64(1);
+        for _ in 0..exp {
+            v.inplace_mul::<12>(*self);
+        }
+        v
+    }
+
     /// \return the word at idx \p idx.
     pub fn get_part(&self, idx: usize) -> u64 {
         self.parts[idx]
@@ -397,6 +406,15 @@ impl<const PARTS: usize> BigInt<PARTS> {
 impl<const PARTS: usize> Default for BigInt<PARTS> {
     fn default() -> Self {
         Self::zero()
+    }
+}
+
+#[test]
+fn test_powi5() {
+    let lookup = [1, 5, 25, 125, 625, 3125, 15625, 78125];
+    for (i, val) in lookup.iter().enumerate() {
+        let five = BigInt::<4>::from_u64(5);
+        assert_eq!(five.powi(i as u64).as_u64(), *val);
     }
 }
 
