@@ -404,7 +404,7 @@ impl<const PARTS: usize> BigInt<PARTS> {
             }
             base.inplace_mul::<12>(base);
         }
-        return v;
+        v
     }
 
     /// \return the word at idx \p idx.
