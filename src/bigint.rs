@@ -245,9 +245,10 @@ impl<const PARTS: usize> BigInt<PARTS> {
     }
 
     /// Multiply `rhs` to self, and return true if the operation overflowed.
-    /// The generic parameter `P2` is here to work around a limitation in the
-    /// rust generic system. P2 needs to be greater or equal to PARTS*2.
-    pub fn inplace_mul<const P2: usize>(&mut self, rhs: Self) -> bool {
+    pub fn inplace_mul(&mut self, rhs: Self) -> bool {
+        /// The parameter `P2` is here to work around a limitation in the
+        /// rust generic system. P2 needs to be greater or equal to PARTS*2.
+        const P2: usize = 100;
         debug_assert!(P2 >= PARTS * 2);
         let mut parts: [u64; P2] = [0; P2];
         let mut carries: [u64; P2] = [0; P2];
@@ -397,13 +398,13 @@ impl<const PARTS: usize> BigInt<PARTS> {
         let mut base = *self;
         loop {
             if exp & 0x1 == 1 {
-                v.inplace_mul::<12>(base);
+                v.inplace_mul(base);
             }
             exp >>= 1;
             if exp == 0 {
                 break;
             }
-            base.inplace_mul::<12>(base);
+            base.inplace_mul(base);
         }
         v
     }
@@ -581,7 +582,7 @@ fn test_basic_operations() {
     fn test_mul(a: u128, b: u128) -> (u128, bool) {
         let mut a = BigInt::<2>::from_u128(a);
         let b = BigInt::<2>::from_u128(b);
-        let c = a.inplace_mul::<4>(b);
+        let c = a.inplace_mul(b);
         (a.as_u128(), c)
     }
     fn test_div(a: u128, b: u128) -> (u128, bool) {
@@ -708,7 +709,7 @@ impl<const PARTS: usize> Mul for BigInt<PARTS> {
 
     fn mul(self, rhs: Self) -> Self::Output {
         let mut n = self;
-        n.inplace_mul::<20>(rhs);
+        n.inplace_mul(rhs);
         n
     }
 }

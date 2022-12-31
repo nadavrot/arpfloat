@@ -3,7 +3,7 @@ use super::float::Float;
 use std::fmt::Display;
 
 // Use a bigint for the decimal conversions.
-type BigNum = BigInt<6>;
+type BigNum = BigInt<16>;
 
 impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
     /// Convert the number into a large integer, and a base-10 exponent.
@@ -28,7 +28,7 @@ impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
                 // our decimal number: nnnnnnn * 10^-e.
                 let five = BigInt::from_u64(5);
                 let e5 = five.powi((-exp) as u64);
-                mantissa.inplace_mul::<12>(e5);
+                mantissa.inplace_mul(e5);
                 exp = -exp;
             }
             std::cmp::Ordering::Equal | std::cmp::Ordering::Greater => {
