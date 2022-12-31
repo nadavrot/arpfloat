@@ -307,6 +307,32 @@ impl<const PARTS: usize> BigInt<PARTS> {
             return Self::from_u64(rem);
         }
 
+        // This is a fast path for the case where we know that the active bits
+        // in the word are smaller than the current size. In this case we call
+        // the implementation that uses fewer parts.
+        macro_rules! delegate_small_div {
+            ($num_parts:expr) => {
+                let bigint_size_in_bits = $num_parts * 64;
+                if PARTS > $num_parts
+                    && dividend_msb < bigint_size_in_bits
+                    && divisor_msb < bigint_size_in_bits
+                {
+                    let mut a4: BigInt<$num_parts> = dividend.cast();
+                    let b4: BigInt<$num_parts> = divisor.cast();
+                    let rem = a4.inplace_div(b4);
+                    *self = a4.cast();
+                    return rem.cast();
+                }
+            };
+        }
+
+        delegate_small_div!(64);
+        delegate_small_div!(32);
+        delegate_small_div!(16);
+        delegate_small_div!(8);
+        delegate_small_div!(4);
+        delegate_small_div!(2);
+
         // Align the first bit of the divisor with the first bit of the
         // dividend.
         let bits = dividend_msb - divisor_msb;
