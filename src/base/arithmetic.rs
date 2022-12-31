@@ -77,11 +77,11 @@ impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
         }
     }
 
-    /// Compute a+b.
+    /// Computes a+b using the rounding mode \p rm.
     pub fn add_with_rm(a: Self, b: Self, rm: RoundingMode) -> Self {
         Self::add_sub(a, b, false, rm)
     }
-    /// Compute a-b.
+    /// Computes a-b using the rounding mode \p rm.
     pub fn sub_with_rm(a: Self, b: Self, rm: RoundingMode) -> Self {
         Self::add_sub(a, b, true, rm)
     }
@@ -312,7 +312,7 @@ fn test_add_random_vals() {
 }
 
 impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
-    /// Compute a*b.
+    /// Compute a*b using the rounding mode \p rm.
     pub fn mul_with_rm(a: Self, b: Self, rm: RoundingMode) -> Self {
         let sign = a.get_sign() ^ b.get_sign();
 
@@ -480,8 +480,8 @@ fn test_mul_random_vals() {
 }
 
 impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
-    /// Compute a/b.
-    fn div_impl(a: Self, b: Self, rm: RoundingMode) -> Self {
+    /// Compute a/b, with the rounding mode \p rm.
+    pub fn div_with_rm(a: Self, b: Self, rm: RoundingMode) -> Self {
         let sign = a.get_sign() ^ b.get_sign();
         // Table 8.5: Special values for x/y - Page 263.
         match (a.get_category(), b.get_category()) {
@@ -564,7 +564,7 @@ fn test_div_simple() {
 
     let af = FP64::from_f64(a);
     let bf = FP64::from_f64(b);
-    let cf = FP64::div_impl(af, bf, RoundingMode::NearestTiesToEven);
+    let cf = FP64::div_with_rm(af, bf, RoundingMode::NearestTiesToEven);
 
     let r0 = cf.as_f64();
     let r1: f64 = a / b;
@@ -583,7 +583,7 @@ fn test_div_special_values() {
     fn div_f64(a: f64, b: f64) -> f64 {
         let a = FP64::from_f64(a);
         let b = FP64::from_f64(b);
-        FP64::div_impl(a, b, RoundingMode::NearestTiesToEven).as_f64()
+        FP64::div_with_rm(a, b, RoundingMode::NearestTiesToEven).as_f64()
     }
 
     for v0 in values {
@@ -637,7 +637,7 @@ impl<const EXPONENT: usize, const MANTISSA: usize> Div
     type Output = Self;
 
     fn div(self, rhs: Self) -> Self {
-        Self::div_impl(self, rhs, RoundingMode::NearestTiesToEven)
+        Self::div_with_rm(self, rhs, RoundingMode::NearestTiesToEven)
     }
 }
 
