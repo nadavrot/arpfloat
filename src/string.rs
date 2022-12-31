@@ -1,5 +1,3 @@
-use crate::FP16;
-
 use super::bigint::BigInt;
 use super::float::Float;
 use std::fmt::Display;
@@ -126,8 +124,8 @@ impl<const EXPONENT: usize, const MANTISSA: usize> Display
 
 #[test]
 fn test_convert_to_string() {
-    use crate::base::FP16;
-    use crate::base::FP64;
+    use crate::FP16;
+    use crate::FP64;
 
     fn to_str_w_fp16(val: f64) -> String {
         format!("{}", FP16::from_f64(val))
@@ -152,8 +150,8 @@ fn test_convert_to_string() {
 
 #[test]
 fn test_fuzz_printing() {
-    use crate::base::utils;
-    use crate::base::FP64;
+    use crate::utils;
+    use crate::FP64;
 
     let mut lfsr = utils::Lfsr::new();
 
@@ -167,7 +165,7 @@ fn test_fuzz_printing() {
 
 #[test]
 fn test_print_sqrt() {
-    type FP = crate::base::FP128;
+    type FP = crate::FP128;
 
     // Use Newton-Raphson to find the square root of 5.
     let n = FP::from_u64(5);
@@ -198,6 +196,7 @@ fn test_readme_example() {
     println!("fp128: {}", x);
     println!("fp64:  {}", x.as_f64());
 
+    use crate::FP16;
     let fp = FP16::from_i64(15);
     fp.dump();
 }

@@ -450,7 +450,7 @@ fn test_mul_special_values() {
 #[test]
 fn test_mul_random_vals() {
     use super::utils;
-    use crate::base::FP64;
+    use crate::FP64;
     let mut lfsr = utils::Lfsr::new();
 
     fn mul_f64(a: f64, b: f64) -> f64 {
@@ -643,7 +643,7 @@ impl<const EXPONENT: usize, const MANTISSA: usize> Div
 
 #[test]
 fn test_operators() {
-    use crate::base::FP64;
+    use crate::FP64;
     let a = FP64::from_f32(8.0);
     let b = FP64::from_f32(2.0);
     let c = a + b;
@@ -658,8 +658,8 @@ fn test_operators() {
 
 #[test]
 fn test_slow_sqrt_2_test() {
-    use crate::base::FP128;
-    use crate::base::FP64;
+    use crate::FP128;
+    use crate::FP64;
 
     // Find sqrt using a binary search.
     let two = FP128::from_f64(2.0);
