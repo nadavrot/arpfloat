@@ -8,23 +8,21 @@ operation, in software, or create new floating point data types.
 ### Example
 
 ```rust
-  fn test_readme_example() {
-    // Create a new type: 15 bits exponent, 112 significand.
-    type FP128 = Float<15, 112>;
+  // Create a new type: 15 bits exponent, 112 significand.
+  type FP128 = Float<15, 112>;
 
-    // Use Newton-Raphson to find the square root of 5.
-    let n = FP128::from_u64(5);
+  // Use Newton-Raphson to find the square root of 5.
+  let n = FP128::from_u64(5);
 
-    let two = FP128::from_u64(2);
-    let mut x = n;
+  let two = FP128::from_u64(2);
+  let mut x = n;
 
-    for _ in 0..1000 {
-        x = (x + (n / x))/two;
-    }
-
-    println!("fp128: {}", x);
-    println!("fp64:  {}", x.as_f64());
+  for _ in 0..1000 {
+      x = (x + (n / x))/two;
   }
+
+  println!("fp128: {}", x);
+  println!("fp64:  {}", x.as_f64());
 ```
 
 The program above will print this output:
@@ -53,7 +51,7 @@ Control the rounding-mode for type conversion:
 ```rust
    use arpfloat::{FP16, FP32, RoundingMode};
    let x = FP32::from_u64(2649);
-   
+
    // Convert from FP64 to FP16.
    let b : FP16 = x.cast_with_rm(RoundingMode::Zero);
    println!("{}", b); // Prints 2648!
