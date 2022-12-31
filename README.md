@@ -6,22 +6,36 @@ operation, in software, or create new floating point data types.
 
 ### Example
 ```
-#[test]
 fn test_readme_example() {
     // Create a new type: 15 bits exponent, 112 significand.
     type FP128 = Float<15, 112>;
 
-    // Create new instances.
-    let x = FP128::from_f64(18.3);
-    let y = FP128::from_f64(97.32);
+    // Use Newton-Raphson to find the square root of 5.
+    let n = FP128::from_u64(5);
 
-    // Do some calculations.
-    let z = x+y;
-    let val = FP128::mul_with_rm(y, z, RoundingMode::NearestTiesToEven);
+    let two = FP128::from_u64(2);
+    let mut x = n;
 
-    println!("val = {}", val);
-}
+    for _ in 0..1000 {
+        x = (x + (n / x))/two;
+    }
+
+    println!("fp128: {}", x);
+    println!("fp64:  {}", x.as_f64());
+}```
+
+The program above will print this output:
 ```
+fp128: 2.2360679774997896964091736687312763
+fp64:  2.23606797749979
+```
+
+
+```
+    // Explicit control over rounding modes:.
+    let val = FP128::mul_with_rm(y, z, RoundingMode::NearestTiesToEven);
+```
+
 
 #### License
 
