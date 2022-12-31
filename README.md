@@ -1,6 +1,7 @@
 # Arbitrary-Precision Floating-Point Library
 
-ARPFloat is an implementation of arbitrary precision floating point data
+ARPFloat is an implementation of arbitrary precision 
+[floating point](https://en.wikipedia.org/wiki/IEEE_754) data
 structures and utilities. The library can be used to emulate floating point
 operation, in software, or create new floating point data types.
 
@@ -44,7 +45,17 @@ operations.
     fp.dump();
 ```
 
+### Resources
 
-#### License
+There are excellent resources out there, some of which are referenced in the code:
+
+* Books: 
+    * Handbook of Floating-Point Arithmetic 2010th by Jean-Michel Muller et al.
+    * Elementary Functions: Algorithms and Implementation by Jean-Michel Muller.
+* Papers:
+    * How to print floating-point numbers accurately
+* Other excellent software implementations: APFloat by Neil Booth, RYU, newlib, musl, etc.
+
+### License
 
 Licensed under Apache-2.0
