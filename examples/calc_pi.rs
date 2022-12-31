@@ -6,7 +6,7 @@ fn main() {
     // Calculate the value of PI.
     //https://en.wikipedia.org/wiki/Chudnovsky_algorithm
     type FP = FP256;
-    let iterations = 700;
+    let iterations = 70;
 
     // Constants:
     let c1 = FP::from_f64(10005f64.sqrt());
@@ -23,8 +23,9 @@ fn main() {
     let mut s = FP::from_u64(13591409);
 
     for q in 1..iterations + 1 {
-        let k3 = FP::from_u64(q * q * q);
-        m = (k3 - (k * c16)) * m / k3;
+        let q3 = FP::from_u64(q * q * q);
+        let k3 = k * k * k;
+        m = (k3 - (k * c16)) * m / q3;
         l = l + c2;
         x = x * c3;
         s = s + (m * l / x);
@@ -32,5 +33,6 @@ fn main() {
     }
 
     let pi = FP::from_u64(426880) * (c1 / s);
-    println!("pi = {}", pi.as_f64());
+    println!("pi = {}", pi);
+    assert_eq!(pi.as_f64(), std::f64::consts::PI);
 }
