@@ -67,7 +67,6 @@ impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
         integer.inplace_div(divisor);
     }
 
-
     fn convert_normal_to_string(&self) -> String {
         let (mut integer, mut exp) = self.convert_to_integer();
         let mut buff = Vec::new();
