@@ -253,8 +253,9 @@ fn add_special_values() {
             assert_eq!(r0.is_finite(), r1.is_finite());
             assert_eq!(r0.is_nan(), r1.is_nan());
             assert_eq!(r0.is_infinite(), r1.is_infinite());
+            assert_eq!(r0.is_normal(), r1.is_normal());
             // Check that the results are bit identical, or are both NaN.
-            assert!(!r0.is_nan() || r0_bits == r1_bits);
+            assert!(!r0.is_normal() || r0_bits == r1_bits);
         }
     }
 }
