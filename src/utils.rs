@@ -1,4 +1,4 @@
-/// \returns a mask full of 1s, of \p b bits.
+/// Returns a mask full of 1s, of `b` bits.
 pub fn mask(b: usize) -> usize {
     (1 << (b)) - 1
 }
@@ -11,7 +11,7 @@ fn test_masking() {
 }
 
 #[allow(dead_code)]
-/// \returns list of interesting values that various tests use to catch edge cases.
+/// Returns list of interesting values that various tests use to catch edge cases.
 pub fn get_special_test_values() -> [f64; 20] {
     [
         -f64::NAN,

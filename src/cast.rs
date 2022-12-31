@@ -5,7 +5,7 @@ use super::utils;
 use super::utils::mask;
 
 impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
-    /// Load the integer \p val into the float. Notice that the number may
+    /// Load the integer `val` into the float. Notice that the number may
     /// overflow, or rounded to the nearest even integer.
     pub fn from_u64(val: u64) -> Self {
         let val = MantissaTy::from_u64(val);
@@ -14,7 +14,7 @@ impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
         a
     }
 
-    /// Load the integer \p val into the float. Notice that the number may
+    /// Load the integer `val` into the float. Notice that the number may
     /// overflow, or rounded to the nearest even integer.
     pub fn from_i64(val: i64) -> Self {
         if val < 0 {
@@ -130,7 +130,7 @@ impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
         Self::new(sign, exp, mantissa)
     }
 
-    /// Cast to another float using the rounding mode \p rm.
+    /// Cast to another float using the rounding mode `rm`.
     pub fn cast_with_rm<const E: usize, const M: usize>(
         &self,
         rm: RoundingMode,

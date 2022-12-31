@@ -77,11 +77,11 @@ impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
         }
     }
 
-    /// Computes a+b using the rounding mode \p rm.
+    /// Computes a+b using the rounding mode `rm`.
     pub fn add_with_rm(a: Self, b: Self, rm: RoundingMode) -> Self {
         Self::add_sub(a, b, false, rm)
     }
-    /// Computes a-b using the rounding mode \p rm.
+    /// Computes a-b using the rounding mode `rm`.
     pub fn sub_with_rm(a: Self, b: Self, rm: RoundingMode) -> Self {
         Self::add_sub(a, b, true, rm)
     }
@@ -312,7 +312,7 @@ fn test_add_random_vals() {
 }
 
 impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
-    /// Compute a*b using the rounding mode \p rm.
+    /// Compute a*b using the rounding mode `rm`.
     pub fn mul_with_rm(a: Self, b: Self, rm: RoundingMode) -> Self {
         let sign = a.get_sign() ^ b.get_sign();
 
@@ -480,7 +480,7 @@ fn test_mul_random_vals() {
 }
 
 impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
-    /// Compute a/b, with the rounding mode \p rm.
+    /// Compute a/b, with the rounding mode `rm`.
     pub fn div_with_rm(a: Self, b: Self, rm: RoundingMode) -> Self {
         let sign = a.get_sign() ^ b.get_sign();
         // Table 8.5: Special values for x/y - Page 263.
@@ -502,7 +502,7 @@ impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
         }
     }
 
-    /// Compute a/b, where both \p a and \p b are normals.
+    /// Compute a/b, where both `a` and `b` are normals.
     /// Page 262 8.6. Floating-Point Division.
     /// This implementation uses a regular integer division for the mantissa.
     fn div_normals(mut a: Self, mut b: Self) -> (Self, LossFraction) {

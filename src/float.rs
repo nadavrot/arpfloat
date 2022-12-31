@@ -72,7 +72,7 @@ impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
         }
     }
 
-    /// \returns a new zero float.
+    /// Returns a new zero float.
     pub fn zero(sign: bool) -> Self {
         Float {
             sign,
@@ -82,7 +82,7 @@ impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
         }
     }
 
-    /// \returns a new infinity float.
+    /// Returns a new infinity float.
     pub fn inf(sign: bool) -> Self {
         Float {
             sign,
@@ -92,7 +92,7 @@ impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
         }
     }
 
-    /// \returns a new NaN float.
+    /// Returns a new NaN float.
     pub fn nan(sign: bool) -> Self {
         Float {
             sign,
@@ -101,12 +101,12 @@ impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
             category: Category::NaN,
         }
     }
-    /// \returns True if the Float is negative
+    /// Returns true if the Float is negative
     pub fn is_negative(&self) -> bool {
         self.sign
     }
 
-    /// \returns True if the Float is +-inf.
+    /// Returns true if the Float is +-inf.
     pub fn is_inf(&self) -> bool {
         if let Category::Infinity = self.category {
             return true;
@@ -114,7 +114,7 @@ impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
         false
     }
 
-    /// \returns True if the Float is a +- NaN.
+    /// Returns true if the Float is a +- NaN.
     pub fn is_nan(&self) -> bool {
         if let Category::NaN = self.category {
             return true;
@@ -122,7 +122,7 @@ impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
         false
     }
 
-    /// \returns True if the Float is a +- NaN.
+    /// Returns true if the Float is a +- NaN.
     pub fn is_zero(&self) -> bool {
         if let Category::Zero = self.category {
             return true;
@@ -130,7 +130,7 @@ impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
         false
     }
 
-    /// \returns true if this number is normal (not Zero, Nan, Inf).
+    /// Returns true if this number is normal (not Zero, Nan, Inf).
     pub fn is_normal(&self) -> bool {
         if let Category::Normal = self.category {
             return true;
@@ -138,27 +138,27 @@ impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
         false
     }
 
-    /// Update the sign of the float to \p sign. True means negative.
+    /// Update the sign of the float to `sign`. True means negative.
     pub fn set_sign(&mut self, sign: bool) {
         self.sign = sign
     }
 
-    /// \returns the sign of the float. True means negative.
+    /// Returns the sign of the float. True means negative.
     pub fn get_sign(&self) -> bool {
         self.sign
     }
 
-    /// \returns the mantissa of the float.
+    /// Returns the mantissa of the float.
     pub fn get_mantissa(&self) -> MantissaTy {
         self.mantissa
     }
 
-    /// \returns the exponent of the float.
+    /// Returns the exponent of the float.
     pub fn get_exp(&self) -> i64 {
         self.exp
     }
 
-    /// \returns the category of the float.
+    /// Returns the category of the float.
     pub fn get_category(&self) -> Category {
         self.category
     }
@@ -212,7 +212,7 @@ impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
         ((1 << (EXPONENT - 1)) - 1) as i64
     }
 
-    /// \returns the upper and lower bounds of the exponent.
+    /// Returns the upper and lower bounds of the exponent.
     pub fn get_exp_bounds() -> (i64, i64) {
         let exp_min: i64 = -Self::get_bias() + 1;
         // The highest value is 0xFFFE, because 0xFFFF is used for signaling.
@@ -220,7 +220,7 @@ impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
         (exp_min, exp_max)
     }
 
-    /// \returns the number of bits in the significand, including the integer
+    /// Returns the number of bits in the significand, including the integer
     /// part.
     pub(crate) fn get_precision() -> u64 {
         (MANTISSA + 1) as u64
@@ -239,7 +239,7 @@ pub type FP64 = Float<11, 52>;
 /// Predefined FP128 float with 15 exponent bits, and 112 mantissa bits.
 pub type FP128 = Float<15, 112>;
 
-//// Shift \p val by \p bits, and report the loss.
+//// Shift `val` by `bits`, and report the loss.
 pub(crate) fn shift_right_with_loss<const P: usize>(
     mut val: BigInt<P>,
     bits: u64,
@@ -249,7 +249,7 @@ pub(crate) fn shift_right_with_loss<const P: usize>(
     (val, loss)
 }
 
-/// Combine the loss of accuracy with \p msb more significant and \p lsb
+/// Combine the loss of accuracy with `msb` more significant and `lsb`
 /// less significant.
 fn combine_loss_fraction(msb: LossFraction, lsb: LossFraction) -> LossFraction {
     if !lsb.is_exactly_zero() {
@@ -331,7 +331,7 @@ impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
         res.1
     }
 
-    /// \returns True if we need to round away from zero (increment the mantissa).
+    /// Returns true if we need to round away from zero (increment the mantissa).
     pub(crate) fn need_round_away_from_zero(
         &self,
         rm: RoundingMode,

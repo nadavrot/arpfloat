@@ -58,14 +58,14 @@ impl<const PARTS: usize> BigInt<PARTS> {
         Self::from_u64(1)
     }
 
-    /// Create a new number with a single '1' set at bit \p bit.
+    /// Create a new number with a single '1' set at bit `bit`.
     pub fn one_hot(bit: usize) -> Self {
         let mut x = Self::zero();
         x.flip_bit(bit);
         x
     }
 
-    /// Create a new number, where the first \p bits bits are set to 1.
+    /// Create a new number, where the first `bits` bits are set to 1.
     pub fn all1s(bits: usize) -> Self {
         if bits == 0 {
             return Self::zero();
@@ -77,14 +77,14 @@ impl<const PARTS: usize> BigInt<PARTS> {
         x
     }
 
-    /// Create a number and set the lowest 64 bits to \p val.
+    /// Create a number and set the lowest 64 bits to `val`.
     pub fn from_u64(val: u64) -> Self {
         let mut bi = BigInt { parts: [0; PARTS] };
         bi.parts[0] = val;
         bi
     }
 
-    /// Create a number and set the lowest 128 bits to \p val.
+    /// Create a number and set the lowest 128 bits to `val`.
     pub fn from_u128(val: u128) -> Self {
         let mut bi = BigInt { parts: [0; PARTS] };
         bi.parts[0] = val as u64;
@@ -92,7 +92,7 @@ impl<const PARTS: usize> BigInt<PARTS> {
         bi
     }
 
-    /// \returns the lowest 64 bits.
+    /// Returns the lowest 64 bits.
     pub fn as_u64(&self) -> u64 {
         for i in 1..PARTS {
             debug_assert_eq!(self.parts[i], 0);
@@ -100,7 +100,7 @@ impl<const PARTS: usize> BigInt<PARTS> {
         self.parts[0]
     }
 
-    /// \returns the lowest 64 bits.
+    /// Returns the lowest 64 bits.
     pub fn as_u128(&self) -> u128 {
         debug_assert!(PARTS >= 2);
         for i in 2..PARTS {
@@ -119,7 +119,7 @@ impl<const PARTS: usize> BigInt<PARTS> {
         n
     }
 
-    /// \return True if the number is equal to zero.
+    /// \return true if the number is equal to zero.
     pub fn is_zero(&self) -> bool {
         for elem in self.parts {
             if elem != 0 {
@@ -129,17 +129,17 @@ impl<const PARTS: usize> BigInt<PARTS> {
         true
     }
 
-    /// \returns True if this number is even.
+    /// Returns true if this number is even.
     pub fn is_even(&self) -> bool {
         (self.parts[0] & 0x1) == 0
     }
 
-    /// \returns True if this number is odd.
+    /// Returns true if this number is odd.
     pub fn is_odd(&self) -> bool {
         (self.parts[0] & 0x1) == 1
     }
 
-    /// Flip the \p bit_num bit.
+    /// Flip the `bit_num` bit.
     pub fn flip_bit(&mut self, bit_num: usize) {
         let which_word = bit_num / u64::BITS as usize;
         let bit_in_word = bit_num % u64::BITS as usize;
@@ -147,7 +147,7 @@ impl<const PARTS: usize> BigInt<PARTS> {
         self.parts[which_word] ^= 1 << bit_in_word;
     }
 
-    /// Zero out all of the bits above \p bits.
+    /// Zero out all of the bits above `bits`.
     pub fn mask(&mut self, bits: usize) {
         let mut bits = bits;
         for i in 0..PARTS {
@@ -167,7 +167,7 @@ impl<const PARTS: usize> BigInt<PARTS> {
         }
     }
 
-    /// \returns the fractional part that's lost during truncation at \p bit.
+    /// Returns the fractional part that's lost during truncation at `bit`.
     pub fn get_loss_kind_for_bit(&self, bit: usize) -> LossFraction {
         if self.is_zero() {
             return LossFraction::ExactlyZero;
@@ -188,7 +188,7 @@ impl<const PARTS: usize> BigInt<PARTS> {
         }
     }
 
-    /// \returns the index of the most significant bit (the highest '1'),
+    /// Returns the index of the most significant bit (the highest '1'),
     /// using 1-based counting (the first bit is 1, and zero means no bits are
     /// set).
     pub fn msb_index(&self) -> usize {
@@ -202,7 +202,7 @@ impl<const PARTS: usize> BigInt<PARTS> {
         0
     }
 
-    /// \returns the index of the first '1' in the number. The number must not
+    /// Returns the index of the first '1' in the number. The number must not
     ///  be a zero.
     pub fn trailing_zeros(&self) -> usize {
         debug_assert!(!self.is_zero());
@@ -220,7 +220,7 @@ impl<const PARTS: usize> BigInt<PARTS> {
         BigInt { parts: *parts }
     }
 
-    /// Add \p rhs to self, and return true if the operation overflowed.
+    /// Add `rhs` to self, and return true if the operation overflowed.
     pub fn inplace_add(&mut self, rhs: &Self) -> bool {
         let mut carry: bool = false;
         for i in 0..PARTS {
@@ -232,7 +232,7 @@ impl<const PARTS: usize> BigInt<PARTS> {
         carry
     }
 
-    /// Add \p rhs to self, and return true if the operation overflowed (borrow).
+    /// Add `rhs` to self, and return true if the operation overflowed (borrow).
     pub fn inplace_sub(&mut self, rhs: &Self) -> bool {
         let mut borrow: bool = false;
         for i in 0..PARTS {
@@ -244,9 +244,9 @@ impl<const PARTS: usize> BigInt<PARTS> {
         borrow
     }
 
-    /// Multiply \p rhs to self, and return true if the operation overflowed.
-    /// The generic parameter \p PR is here to work around a limitation in the
-    /// rust generic system. PR needs to be greater or equal to PARTS*2.
+    /// Multiply `rhs` to self, and return true if the operation overflowed.
+    /// The generic parameter `P2` is here to work around a limitation in the
+    /// rust generic system. P2 needs to be greater or equal to PARTS*2.
     pub fn inplace_mul<const P2: usize>(&mut self, rhs: Self) -> bool {
         debug_assert!(P2 >= PARTS * 2);
         let mut parts: [u64; P2] = [0; P2];
@@ -279,7 +279,7 @@ impl<const PARTS: usize> BigInt<PARTS> {
         carry > 0
     }
 
-    /// Divide self by \p divisor, and return the reminder.
+    /// Divide self by `divisor`, and return the reminder.
     pub fn inplace_div(&mut self, divisor: Self) -> Self {
         let mut dividend = *self;
         let mut divisor = divisor;
@@ -323,7 +323,7 @@ impl<const PARTS: usize> BigInt<PARTS> {
         dividend
     }
 
-    /// Shift the bits in the numbers \p bits to the left.
+    /// Shift the bits in the numbers `bits` to the left.
     pub fn shift_left(&mut self, bits: usize) {
         let words_to_shift = bits / u64::BITS as usize;
         let bits_in_word = bits % u64::BITS as usize;
@@ -357,7 +357,7 @@ impl<const PARTS: usize> BigInt<PARTS> {
         }
     }
 
-    /// Shift the bits in the numbers \p bits to the right.
+    /// Shift the bits in the numbers `bits` to the right.
     pub fn shift_right(&mut self, bits: usize) {
         let words_to_shift = bits / u64::BITS as usize;
         let bits_in_word = bits % u64::BITS as usize;
@@ -391,7 +391,7 @@ impl<const PARTS: usize> BigInt<PARTS> {
         }
     }
 
-    /// \return raise this number to the power of \p exp.
+    /// \return raise this number to the power of `exp`.
     pub fn powi(&self, mut exp: u64) -> Self {
         let mut v = Self::one();
         let mut base = *self;
@@ -408,7 +408,7 @@ impl<const PARTS: usize> BigInt<PARTS> {
         v
     }
 
-    /// \return the word at idx \p idx.
+    /// \return the word at idx `idx`.
     pub fn get_part(&self, idx: usize) -> u64 {
         self.parts[idx]
     }
