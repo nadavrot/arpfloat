@@ -24,7 +24,7 @@ pub enum Category {
 }
 
 /// Defines the type of the mantissa. The current maximum size is 4 words.
-pub type MantissaTy = BigInt<4>;
+pub type MantissaTy = BigInt<8>;
 
 /// This is the main data structure of this library. It represents an
 /// arbitrary-precision floating-point number. The data structure is generic
@@ -238,6 +238,8 @@ pub type FP32 = Float<8, 23>;
 pub type FP64 = Float<11, 52>;
 /// Predefined FP128 float with 15 exponent bits, and 112 mantissa bits.
 pub type FP128 = Float<15, 112>;
+/// Predefined FP256 float with 19 exponent bits, and 236 mantissa bits.
+pub type FP256 = Float<19, 236>;
 
 //// Shift `val` by `bits`, and report the loss.
 pub(crate) fn shift_right_with_loss<const P: usize>(
