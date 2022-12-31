@@ -245,6 +245,7 @@ impl<const PARTS: usize> BigInt<PARTS> {
     }
 
     /// Multiply `rhs` to self, and return true if the operation overflowed.
+    #[must_use]
     pub fn inplace_mul(&mut self, rhs: Self) -> bool {
         /// The parameter `P2` is here to work around a limitation in the
         /// rust generic system. P2 needs to be greater or equal to PARTS*2.
@@ -398,13 +399,15 @@ impl<const PARTS: usize> BigInt<PARTS> {
         let mut base = *self;
         loop {
             if exp & 0x1 == 1 {
-                v.inplace_mul(base);
+                let overflow = v.inplace_mul(base);
+                debug_assert!(!overflow)
             }
             exp >>= 1;
             if exp == 0 {
                 break;
             }
-            base.inplace_mul(base);
+            let overflow = base.inplace_mul(base);
+            debug_assert!(!overflow)
         }
         v
     }
@@ -709,7 +712,8 @@ impl<const PARTS: usize> Mul for BigInt<PARTS> {
 
     fn mul(self, rhs: Self) -> Self::Output {
         let mut n = self;
-        n.inplace_mul(rhs);
+        let overflow = n.inplace_mul(rhs);
+        debug_assert!(!overflow);
         n
     }
 }
