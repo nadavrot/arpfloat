@@ -231,7 +231,7 @@ fn add_denormals() {
 
 #[test]
 fn add_special_values() {
-    use crate::base::utils;
+    use crate::utils;
 
     // Test the addition of various irregular values.
     let values = utils::get_special_test_values();
@@ -262,8 +262,8 @@ fn add_special_values() {
 
 #[test]
 fn test_add_random_vals() {
-    use crate::base::utils;
-    use crate::base::FP64;
+    use crate::utils;
+    use crate::FP64;
 
     let mut lfsr = utils::Lfsr::new();
 

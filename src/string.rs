@@ -1,4 +1,4 @@
-use crate::base::FP16;
+use crate::FP16;
 
 use super::bigint::BigInt;
 use super::float::Float;
@@ -200,5 +200,4 @@ fn test_readme_example() {
 
     let fp = FP16::from_i64(15);
     fp.dump();
-
 }
