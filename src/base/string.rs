@@ -1,3 +1,5 @@
+use crate::base::FP16;
+
 use super::bigint::BigInt;
 use super::float::Float;
 use std::fmt::Display;
@@ -195,4 +197,8 @@ fn test_readme_example() {
     }
     println!("fp128: {}", x);
     println!("fp64:  {}", x.as_f64());
+
+    let fp = FP16::from_i64(15);
+    fp.dump();
+
 }

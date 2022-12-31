@@ -30,10 +30,18 @@ fp128: 2.2360679774997896964091736687312763
 fp64:  2.23606797749979
 ```
 
-
-```
-    // Explicit control over rounding modes:.
+The library also provides API that exposes rounding modes, and low-level
+operations.
+```rust
+    // Explicit control over rounding modes:
     let val = FP128::mul_with_rm(y, z, RoundingMode::NearestTiesToEven);
+
+    // View the internals of the float:
+    let fp = FP16::from_i64(15);
+    let m = fp.get_mantissa();
+
+    // Prints FP[+ E=+3 M=11110000000]
+    fp.dump();
 ```
 
 
