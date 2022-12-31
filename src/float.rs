@@ -26,6 +26,10 @@ pub enum Category {
 /// Defines the type of the mantissa. The current maximum size is 4 words.
 pub type MantissaTy = BigInt<4>;
 
+/// This is the main data structure of this library. It represents an
+/// arbitrary-precision floating-point number. The data structure is generic
+/// and accepts the EXPONENT and MANTISSA constants, that represent the encoding
+/// number of bits that are dedicated to storing these values.
 #[derive(Debug, Clone, Copy)]
 pub struct Float<const EXPONENT: usize, const MANTISSA: usize> {
     // The Sign bit.
@@ -225,9 +229,14 @@ impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
 
 // IEEE 754-2019
 // Table 3.5 — Binary interchange format parameters.
+
+/// Predefined FP16 float with 5 exponent bits, and 10 mantissa bits.
 pub type FP16 = Float<5, 10>;
+/// Predefined FP32 float with 8 exponent bits, and 23 mantissa bits.
 pub type FP32 = Float<8, 23>;
+/// Predefined FP64 float with 11 exponent bits, and 52 mantissa bits.
 pub type FP64 = Float<11, 52>;
+/// Predefined FP128 float with 15 exponent bits, and 112 mantissa bits.
 pub type FP128 = Float<15, 112>;
 
 //// Shift \p val by \p bits, and report the loss.
