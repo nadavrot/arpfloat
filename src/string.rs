@@ -43,18 +43,26 @@ impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
         (mantissa, exp)
     }
 
-    /// Reduce a number in the representation mmmmm * e^10, to fewer bits in
-    /// 'm', based on the max possible digits in the mantissa.
-    fn reduce_printed_integer_length(integer: &mut BigNum, exp: &mut i64) {
+    /// Returns the highest number of decimal digits that are needed for
+    /// representing this type accurately.
+    pub fn get_decimal_accuracy() -> usize {
         // Matula, David W. “A Formalization of Floating-Point Numeric Base
         // N = 2 + floor(n / log_b(B)) = 2 + floor(n / log(10, 2))
         // We convert from bits to base-10 digits: log(2)/log(10) ==> 59/196.
         // A continuous fraction of 5 iteration gives the ratio.
+        2 + (MANTISSA * 59) / 196
+    }
+
+    /// Reduce a number in the representation mmmmm * e^10, to fewer bits in
+    /// 'm', based on the max possible digits in the mantissa.
+    fn reduce_printed_integer_length(integer: &mut BigNum, exp: &mut i64) {
         let bits = integer.msb_index();
         if bits <= MANTISSA {
             return;
         };
         let needed_bits = bits - MANTISSA;
+        // We convert from bits to base-10 digits: log(2)/log(10) ==> 59/196.
+        // A continuous fraction of 5 iteration gives the ratio.
         let mut digits_to_remove = ((needed_bits * 59) / 196) as i64;
 
         // Only remove digits after the decimal points.
@@ -198,4 +206,15 @@ fn test_readme_example() {
     use crate::FP16;
     let fp = FP16::from_i64(15);
     fp.dump();
+}
+
+#[test]
+fn test_decimal_accuracy_for_type() {
+    use crate::{FP128, FP16, FP256, FP32, FP64};
+
+    assert_eq!(FP16::get_decimal_accuracy(), 5);
+    assert_eq!(FP32::get_decimal_accuracy(), 8);
+    assert_eq!(FP64::get_decimal_accuracy(), 17);
+    assert_eq!(FP128::get_decimal_accuracy(), 35);
+    assert_eq!(FP256::get_decimal_accuracy(), 73);
 }
