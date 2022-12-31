@@ -1,7 +1,8 @@
 use super::bigint::BigInt;
 use super::bigint::LossFraction;
 
-/// IEEE754-2019 Section 4.3 Rounding-direction attributes
+/// Defines the supported rounding modes.
+/// See IEEE754-2019 Section 4.3 Rounding-direction attributes
 #[derive(Debug, Clone, Copy)]
 pub enum RoundingMode {
     NearestTiesToEven,
@@ -11,6 +12,9 @@ pub enum RoundingMode {
     Negative,
 }
 
+/// Declare the different categories of the floating point number. These
+/// categories are internal to the float, and can be access by the acessors:
+/// is_inf, is_zero, is_nan, is_normal.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Category {
     Infinity,
@@ -19,6 +23,7 @@ pub enum Category {
     Zero,
 }
 
+/// Defines the type of the mantissa. The current maximum size is 4 words.
 pub type MantissaTy = BigInt<4>;
 
 #[derive(Debug, Clone, Copy)]
@@ -121,6 +126,7 @@ impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
         false
     }
 
+    /// \returns true if this number is normal (not Zero, Nan, Inf).
     pub fn is_normal(&self) -> bool {
         if let Category::Normal = self.category {
             return true;
@@ -128,26 +134,32 @@ impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
         false
     }
 
+    /// Update the sign of the float to \p sign. True means negative.
     pub fn set_sign(&mut self, sign: bool) {
         self.sign = sign
     }
 
+    /// \returns the sign of the float. True means negative.
     pub fn get_sign(&self) -> bool {
         self.sign
     }
 
+    /// \returns the mantissa of the float.
     pub fn get_mantissa(&self) -> MantissaTy {
         self.mantissa
     }
 
+    /// \returns the exponent of the float.
     pub fn get_exp(&self) -> i64 {
         self.exp
     }
 
+    /// \returns the category of the float.
     pub fn get_category(&self) -> Category {
         self.category
     }
 
+    /// Returns a new float which has a flipped sign (negated value). 
     pub fn neg(&self) -> Self {
         Self::raw(!self.sign, self.exp, self.mantissa, self.category)
     }
@@ -197,7 +209,7 @@ impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
     }
 
     /// \returns the upper and lower bounds of the exponent.
-    pub(crate) fn get_exp_bounds() -> (i64, i64) {
+    pub fn get_exp_bounds() -> (i64, i64) {
         let exp_min: i64 = -Self::get_bias() + 1;
         // The highest value is 0xFFFE, because 0xFFFF is used for signaling.
         let exp_max: i64 = (1 << EXPONENT) - Self::get_bias() - 2;
@@ -261,6 +273,8 @@ fn shift_right_fraction() {
 }
 
 impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
+    /// The number overflowed, set the right value based on the rounding mode
+    /// and sign. 
     fn overflow(&mut self, rm: RoundingMode) {
         let bounds = Self::get_exp_bounds();
         let inf = Self::inf(self.sign);
@@ -287,6 +301,7 @@ impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
         }
     }
 
+    /// Verify that the exponent is legal.
     pub(crate) fn check_bounds(&self) {
         let bounds = Self::get_exp_bounds();
         debug_assert!(self.exp >= bounds.0);
