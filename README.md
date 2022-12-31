@@ -57,7 +57,7 @@ Control the rounding-mode for type conversion:
    println!("{}", b); // Prints 2648!
 ```
 
-The `example` directory contains a program that computes pi in float-256.
+The [examples](examples) directory contains a program that computes many digits of pi in float-256.
 
 ### Resources
 
