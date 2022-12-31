@@ -5,6 +5,8 @@ use super::utils;
 use super::utils::mask;
 
 impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
+    /// Load the integer \p val into the float. Notice that the number may
+    /// overflow, or rounded to the nearest even integer.
     pub fn from_u64(val: u64) -> Self {
         let val = MantissaTy::from_u64(val);
         let mut a = Self::new(false, MANTISSA as i64, val);
@@ -12,6 +14,8 @@ impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
         a
     }
 
+    /// Load the integer \p val into the float. Notice that the number may
+    /// overflow, or rounded to the nearest even integer.
     pub fn from_i64(val: i64) -> Self {
         if val < 0 {
             let mut a = Self::from_u64(-val as u64);
@@ -22,6 +26,7 @@ impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
         Self::from_u64(val as u64)
     }
 
+    /// Converts and returns the rounded integral part.
     pub fn to_i64(&self, rm: RoundingMode) -> i64 {
         if self.is_nan() || self.is_zero() {
             return 0;
@@ -125,6 +130,7 @@ impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
         Self::new(sign, exp, mantissa)
     }
 
+    /// Cast to another float using the rounding mode \p rm.
     pub fn cast_with_rm<const E: usize, const M: usize>(
         &self,
         rm: RoundingMode,
@@ -186,21 +192,29 @@ impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
         bits |= mantissa;
         bits
     }
+    // Convert this float to fp32. Notice that the number may overflow or
+    // rounded to the nearest even (see cast and cast_with_rm).
     pub fn as_f32(&self) -> f32 {
         let b: FP32 = self.cast();
         let bits = b.as_native_float();
         f32::from_bits(bits as u32)
     }
+    // Convert this float to fp64. Notice that the number may overflow or
+    // rounded to the nearest even (see cast and cast_with_rm).
     pub fn as_f64(&self) -> f64 {
         let b: FP64 = self.cast();
         let bits = b.as_native_float();
         f64::from_bits(bits)
     }
 
+    // Loads and converts a native fp32 value. Notice that the number may overflow or
+    // rounded to the nearest even (see cast and cast_with_rm).
     pub fn from_f32(float: f32) -> Self {
         FP32::from_bits(float.to_bits() as u64).cast()
     }
 
+    // Loads and converts a native fp64 value. Notice that the number may overflow or
+    // rounded to the nearest even (see cast and cast_with_rm).
     pub fn from_f64(float: f64) -> Self {
         FP64::from_bits(float.to_bits()).cast()
     }

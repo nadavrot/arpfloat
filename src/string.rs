@@ -67,11 +67,7 @@ impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
         integer.inplace_div(divisor);
     }
 
-    /// This method converts floats to strings. This is a simple implementation
-    /// that does not take into account rounding during the round-trip of
-    /// parsing-printing of the value, or scientific notation, and the minimal
-    /// representation of numbers. For all of that that check out the paper:
-    /// "How to Print Floating-Point Numbers Accurately" by Steele and White.
+
     fn convert_normal_to_string(&self) -> String {
         let (mut integer, mut exp) = self.convert_to_integer();
         let mut buff = Vec::new();
@@ -98,7 +94,11 @@ impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
         String::from_iter(buff)
     }
 
-    /// Convert the floating point number to a string.
+    /// Convert the number to a string. This is a simple implementation
+    /// that does not take into account rounding during the round-trip of
+    /// parsing-printing of the value, or scientific notation, and the minimal
+    /// representation of numbers. For all of that that check out the paper:
+    /// "How to Print Floating-Point Numbers Accurately" by Steele and White.
     fn convert_to_string(&self) -> String {
         let result = if self.get_sign() { "-" } else { "" };
         let mut result: String = result.to_string();

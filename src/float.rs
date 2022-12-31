@@ -159,7 +159,7 @@ impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
         self.category
     }
 
-    /// Returns a new float which has a flipped sign (negated value). 
+    /// Returns a new float which has a flipped sign (negated value).
     pub fn neg(&self) -> Self {
         Self::raw(!self.sign, self.exp, self.mantissa, self.category)
     }
@@ -274,7 +274,7 @@ fn shift_right_fraction() {
 
 impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
     /// The number overflowed, set the right value based on the rounding mode
-    /// and sign. 
+    /// and sign.
     fn overflow(&mut self, rm: RoundingMode) {
         let bounds = Self::get_exp_bounds();
         let inf = Self::inf(self.sign);

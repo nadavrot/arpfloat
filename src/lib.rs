@@ -6,3 +6,4 @@ mod string;
 mod utils;
 
 pub use self::float::{Float, RoundingMode, FP128, FP16, FP32, FP64};
+pub use self::bigint::BigInt;

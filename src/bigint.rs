@@ -40,7 +40,8 @@ impl LossFraction {
         }
     }
 }
-
+/// This is a fixed-size big int implementation that's used to represent the
+/// significand part of the floating point number.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct BigInt<const PARTS: usize> {
     parts: [u64; PARTS],
@@ -146,7 +147,7 @@ impl<const PARTS: usize> BigInt<PARTS> {
         self.parts[which_word] ^= 1 << bit_in_word;
     }
 
-    // Zero out all of the bits above \p bits.
+    /// Zero out all of the bits above \p bits.
     pub fn mask(&mut self, bits: usize) {
         let mut bits = bits;
         for i in 0..PARTS {
@@ -219,7 +220,7 @@ impl<const PARTS: usize> BigInt<PARTS> {
         BigInt { parts: *parts }
     }
 
-    // Add \p rhs to self, and return true if the operation overflowed.
+    /// Add \p rhs to self, and return true if the operation overflowed.
     pub fn inplace_add(&mut self, rhs: &Self) -> bool {
         let mut carry: bool = false;
         for i in 0..PARTS {
