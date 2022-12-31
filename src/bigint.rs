@@ -775,3 +775,34 @@ fn test_flip_bit() {
         assert_eq!(v0.get_part(0), 1);
     }
 }
+
+#[test]
+fn test_mul_div_encode_decode() {
+    // Take a string of symbols and encode them into one large number.
+    const P: usize = 10;
+    const BASE: u64 = 5;
+    type BI = BigInt<P>;
+    let base = BI::from_u64(BASE);
+    let mut bitstream = BI::from_u64(0);
+    let mut message: Vec<u64> = Vec::new();
+
+    // We can fit this many digits in the bignum without overflowing.
+    for i in 0..275 {
+        message.push(((i + 6) * 17) % BASE);
+    }
+
+    // Encode the message.
+    for letter in &message {
+        let letter = BI::from_u64(*letter);
+        let overflow = bitstream.inplace_mul(base);
+        assert!(!overflow);
+        bitstream.inplace_add(&letter);
+    }
+
+    let len = message.len();
+    // Decode the message
+    for idx in (0..len).rev() {
+        let rem = bitstream.inplace_div(base);
+        assert_eq!(message[idx], rem.as_u64());
+    }
+}
