@@ -1,7 +1,4 @@
-use crate::base::RoundingMode;
-
 use super::bigint::BigInt;
-
 use super::float::Float;
 use std::fmt::Display;
 
@@ -170,9 +167,10 @@ fn test_fuzz_printing() {
 fn test_print_sqrt() {
     type FP = crate::base::FP128;
 
-    // Use Newton-Raphson to find the square root of some number.
-    let n = FP::from_f64(5.);
-    let half = FP::from_f64(0.5);
+    // Use Newton-Raphson to find the square root of 5.
+    let n = FP::from_u64(5);
+
+    let half = FP::from_u64(2);
     let mut x = n;
 
     for _ in 0..100 {
@@ -186,13 +184,15 @@ fn test_readme_example() {
     // Create a new type: 15 bits exponent, 112 significand.
     type FP128 = Float<15, 112>;
 
-    // Create new instances.
-    let x = FP128::from_f64(18.3);
-    let y = FP128::from_f64(97.32);
+    // Use Newton-Raphson to find the square root of 5.
+    let n = FP128::from_u64(5);
 
-    // Do some calculations.
-    let z = x + y;
-    let val = FP128::mul_with_rm(y, z, RoundingMode::NearestTiesToEven);
+    let two = FP128::from_u64(2);
+    let mut x = n;
 
-    println!("val = {}", val);
+    for _ in 0..1000 {
+        x = (x + (n / x)) / two;
+    }
+    println!("fp128: {}", x);
+    println!("fp64:  {}", x.as_f64());
 }
