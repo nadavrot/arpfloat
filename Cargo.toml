@@ -4,6 +4,7 @@ version = "0.1.0"
 authors = ["Nadav Rotem <nadav256@gmail.com>"]
 categories = ["floating point"]
 description = "Arbitrary-precision floating point library"
+documentation = "https://docs.rs/arpfloat/"
 edition = "2021"
 keywords = ["float"]
 license = "Apache-2.0"
