@@ -1,10 +1,12 @@
+use crate::base::RoundingMode;
+
 use super::bigint::BigInt;
 
 use super::float::Float;
 use std::fmt::Display;
 
 // Use a bigint for the decimal conversions.
-type BigNum = BigInt<4>;
+type BigNum = BigInt<6>;
 
 impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
     /// Convert the number into a large integer, and a base-10 exponent.
@@ -177,4 +179,20 @@ fn test_print_sqrt() {
         x = half * (x + (n / x));
     }
     println!("{}", x);
+}
+
+#[test]
+fn test_readme_example() {
+    // Create a new type: 15 bits exponent, 112 significand.
+    type FP128 = Float<15, 112>;
+
+    // Create new instances.
+    let x = FP128::from_f64(18.3);
+    let y = FP128::from_f64(97.32);
+
+    // Do some calculations.
+    let z = x + y;
+    let val = FP128::mul_with_rm(y, z, RoundingMode::NearestTiesToEven);
+
+    println!("val = {}", val);
 }

@@ -78,11 +78,11 @@ impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
     }
 
     /// Compute a+b.
-    fn add_with_rm(a: Self, b: Self, rm: RoundingMode) -> Self {
+    pub fn add_with_rm(a: Self, b: Self, rm: RoundingMode) -> Self {
         Self::add_sub(a, b, false, rm)
     }
     /// Compute a-b.
-    fn sub_with_rm(a: Self, b: Self, rm: RoundingMode) -> Self {
+    pub fn sub_with_rm(a: Self, b: Self, rm: RoundingMode) -> Self {
         Self::add_sub(a, b, true, rm)
     }
 

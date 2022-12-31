@@ -295,12 +295,12 @@ impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
         debug_assert!(self.mantissa.lt(&max_mantissa));
     }
 
-    pub fn shift_significand_left(&mut self, amt: u64) {
+    pub(crate) fn shift_significand_left(&mut self, amt: u64) {
         self.exp -= amt as i64;
         self.mantissa.shift_left(amt as usize);
     }
 
-    pub fn shift_significand_right(&mut self, amt: u64) -> LossFraction {
+    pub(crate) fn shift_significand_right(&mut self, amt: u64) -> LossFraction {
         self.exp += amt as i64;
         let res = shift_right_with_loss(self.mantissa, amt);
         self.mantissa = res.0;
