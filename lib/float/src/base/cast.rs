@@ -43,6 +43,35 @@ impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
         }
     }
 
+    /// Returns a value that is rounded to the nearest integer that's not larger
+    /// in magnitude than this float.
+    pub fn trunc(&self) -> Self {
+        // Only handle normal numbers (don't do anything to NaN, Inf, Zero).
+        if !self.is_normal() {
+            return *self;
+        }
+
+        let exp = self.get_exp();
+
+        if exp > MANTISSA as i64 {
+            // Already an integer.
+            return *self;
+        }
+
+        // Numbers that are smaller than 1 are rounded to zero.
+        if exp < -1 {
+            return Self::zero(self.get_sign());
+        }
+
+        // This is a fraction. Figure out which bits represent values over one
+        // and clear out the values that represent the fraction.
+        let trim = (MANTISSA as i64 - exp) as usize;
+        let mut m = self.get_mantissa();
+        m.shift_right(trim);
+        m.shift_left(trim);
+        Self::new(self.get_sign(), self.get_exp(), m)
+    }
+
     fn convert_normal_to_integer(&self, rm: RoundingMode) -> MantissaTy {
         // We are converting to integer, so set the center point of the exponent
         // to the lsb instead of the msb.
@@ -374,4 +403,20 @@ fn test_cast_down_complex() {
         assert_eq!(v.is_nan(), res.is_nan());
         assert!(v.is_nan() || res == v as f32);
     }
+}
+
+#[test]
+fn test_round_floor() {
+    let large_integer = (1u64 << 52) as f64;
+    assert_eq!(FP64::from_f64(0.4).trunc().as_f64(), 0.);
+    assert_eq!(FP64::from_f64(1.4).trunc().as_f64(), 1.);
+    assert_eq!(FP64::from_f64(1.99).trunc().as_f64(), 1.);
+    assert_eq!(FP64::from_f64(2.0).trunc().as_f64(), 2.0);
+    assert_eq!(FP64::from_f64(-2.4).trunc().as_f64(), -2.0);
+    assert_eq!(FP64::from_f64(1999999.).trunc().as_f64(), 1999999.);
+    assert_eq!(
+        FP64::from_f64(large_integer).trunc().as_f64(),
+        large_integer
+    );
+    assert_eq!(FP64::from_f64(0.001).trunc().as_f64(), 0.);
 }
