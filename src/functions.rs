@@ -29,6 +29,13 @@ impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
         }
     }
 
+    /// Returns the absolute value of this float.
+    pub fn abs(&self) -> Self {
+        let mut x = *self;
+        x.set_sign(false);
+        x
+    }
+
     /// Returns the greater of self and `other`.
     pub fn max(&self, other: Self) -> Self {
         if self.is_nan() {
@@ -139,5 +146,16 @@ fn test_min_max() {
         let v0 = f64::from_bits(lfsr.get64());
         let v1 = f64::from_bits(lfsr.get64());
         check(v0, v1);
+    }
+}
+
+#[test]
+fn test_abs() {
+    use super::utils;
+    use super::FP64;
+    for v in utils::get_special_test_values() {
+        if !v.is_nan() {
+            assert_eq!(FP64::from_f64(v).abs().as_f64(), v.abs());
+        }
     }
 }
