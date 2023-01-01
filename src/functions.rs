@@ -28,6 +28,38 @@ impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
             prev = x;
         }
     }
+
+    /// Returns the greater of self and `other`.
+    pub fn max(&self, other: Self) -> Self {
+        if self.is_nan() {
+            return other;
+        } else if other.is_nan() {
+            return *self;
+        } else if self.get_sign() != other.get_sign() {
+            return if self.get_sign() { other } else { *self }; // Handle (+-)0.
+        }
+        if *self > other {
+            *self
+        } else {
+            other
+        }
+    }
+
+    /// Returns the smaller of self and `other`.
+    pub fn min(&self, other: Self) -> Self {
+        if self.is_nan() {
+            return other;
+        } else if other.is_nan() {
+            return *self;
+        } else if self.get_sign() != other.get_sign() {
+            return if self.get_sign() { *self } else { other }; // Handle (+-)0.
+        }
+        if *self > other {
+            other
+        } else {
+            *self
+        }
+    }
 }
 
 #[test]
@@ -70,4 +102,42 @@ fn test_sqrt() {
     check(0.0009530162965786716, 0.030870962028719993);
     check(1.1085159520988087e-5, 0.00332943831914455);
     check(5.0120298432056786e-8, 0.0002238756316173263);
+}
+
+#[test]
+fn test_min_max() {
+    use super::utils;
+    use super::FP64;
+
+    fn check(v0: f64, v1: f64) {
+        // Min.
+        let correct = v0.min(v1);
+        let test = FP64::from_f64(v0).min(FP64::from_f64(v1)).as_f64();
+        assert_eq!(test.is_nan(), correct.is_nan());
+        if !correct.is_nan() {
+            assert_eq!(correct, test);
+        }
+        // Max.
+        let correct = v0.max(v1);
+        let test = FP64::from_f64(v0).max(FP64::from_f64(v1)).as_f64();
+        assert_eq!(test.is_nan(), correct.is_nan());
+        if !correct.is_nan() {
+            assert_eq!(correct, test);
+        }
+    }
+
+    // Test a bunch of special values (Inf, Epsilon, Nan, (+-)Zeros).
+    for v0 in utils::get_special_test_values() {
+        for v1 in utils::get_special_test_values() {
+            check(v0, v1);
+        }
+    }
+
+    let mut lfsr = utils::Lfsr::new();
+
+    for _ in 0..100 {
+        let v0 = f64::from_bits(lfsr.get64());
+        let v1 = f64::from_bits(lfsr.get64());
+        check(v0, v1);
+    }
 }
