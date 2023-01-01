@@ -3,26 +3,12 @@
 
 type FP = arpfloat::FP256;
 
-/// Calculate a very accurate sqrt(10005) using the Newton-Raphson method on a
-/// number with a high bitwidth.
-fn accurate_sqrt_10005() -> FP {
-    let n = FP::from_u64(10005);
-
-    let two = FP::from_u64(2);
-    let mut x = n;
-
-    for _ in 0..1000 {
-        x = (x + (n / x)) / two;
-    }
-    x
-}
-
 fn main() {
     // https://en.wikipedia.org/wiki/Chudnovsky_algorithm
     let iterations = 5;
 
     // Constants:
-    let c1 = accurate_sqrt_10005();
+    let c1 = FP::from_u64(10005).sqrt();
     let c2 = FP::from_u64(545140134);
     let c3 = FP::from_i64(-262537412640768000);
     let c16 = FP::from_u64(16);
