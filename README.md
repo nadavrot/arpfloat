@@ -63,12 +63,13 @@ The [examples](examples) directory contains a program that computes many digits 
 
 There are excellent resources out there, some of which are referenced in the code:
 
-* Books: 
+* Books:
     * Handbook of Floating-Point Arithmetic 2010th by Jean-Michel Muller et al.
     * Elementary Functions: Algorithms and Implementation by Jean-Michel Muller.
 * Papers:
-    * How to print floating-point numbers accurately
-* Other excellent software implementations: APFloat by Neil Booth, RYU, newlib, musl, etc.
+    * How to print floating-point numbers accurately by Steele, White.
+    * What Every Computer Scientist Should Know About Floating-Point Arithmetic by David Goldberg.
+* Other excellent software implementations: APFloat, RYU, libBF, newlib, musl, etc.
 
 ### License
 
