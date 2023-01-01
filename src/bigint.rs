@@ -72,7 +72,7 @@ impl<const PARTS: usize> BigInt<PARTS> {
         }
         let mut x = Self::one();
         x.shift_left(bits);
-        x.inplace_sub(&Self::one());
+        let _ = x.inplace_sub(&Self::one());
         debug_assert_eq!(x.msb_index(), bits);
         x
     }
@@ -221,6 +221,7 @@ impl<const PARTS: usize> BigInt<PARTS> {
     }
 
     /// Add `rhs` to self, and return true if the operation overflowed.
+    #[must_use]
     pub fn inplace_add(&mut self, rhs: &Self) -> bool {
         let mut carry: bool = false;
         for i in 0..PARTS {
@@ -233,6 +234,7 @@ impl<const PARTS: usize> BigInt<PARTS> {
     }
 
     /// Add `rhs` to self, and return true if the operation overflowed (borrow).
+    #[must_use]
     pub fn inplace_sub(&mut self, rhs: &Self) -> bool {
         let mut borrow: bool = false;
         for i in 0..PARTS {
@@ -720,7 +722,7 @@ impl<const PARTS: usize> Add for BigInt<PARTS> {
 
     fn add(self, rhs: Self) -> Self::Output {
         let mut n = self;
-        n.inplace_add(&rhs);
+        let _ = n.inplace_add(&rhs);
         n
     }
 }
@@ -729,7 +731,7 @@ impl<const PARTS: usize> Sub for BigInt<PARTS> {
 
     fn sub(self, rhs: Self) -> Self::Output {
         let mut n = self;
-        n.inplace_sub(&rhs);
+        let _ = n.inplace_sub(&rhs);
         n
     }
 }
@@ -826,7 +828,8 @@ fn test_mul_div_encode_decode() {
         let letter = BI::from_u64(*letter);
         let overflow = bitstream.inplace_mul(base);
         assert!(!overflow);
-        bitstream.inplace_add(&letter);
+        let overflow = bitstream.inplace_add(&letter);
+        assert!(!overflow);
     }
 
     let len = message.len();

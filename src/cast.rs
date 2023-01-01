@@ -88,7 +88,7 @@ impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
             );
 
             if self.need_round_away_from_zero(rm, loss) {
-                m.inplace_add(&MantissaTy::one());
+                let _ = m.inplace_add(&MantissaTy::one());
             }
             m
         } else {
