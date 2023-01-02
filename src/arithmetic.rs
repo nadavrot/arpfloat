@@ -679,3 +679,15 @@ fn test_slow_sqrt_2_test() {
     assert!(res.as_f64() < 1.4142137_f64);
     assert!(res.as_f64() > 1.4142134_f64);
 }
+
+#[test]
+fn test_famous_pentium4_bug() {
+    // https://en.wikipedia.org/wiki/Pentium_FDIV_bug
+    use crate::FP128;
+
+    let a = FP128::from_u64(4_195_835);
+    let b = FP128::from_u64(3_145_727);
+    let res = a / b;
+    let result = res.to_string();
+    assert!(result.starts_with("1.333820449136241002"));
+}
