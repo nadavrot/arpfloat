@@ -327,13 +327,12 @@ impl<const PARTS: usize> BigInt<PARTS> {
                 }
             };
         }
-
-        delegate_small_div!(64);
-        delegate_small_div!(32);
-        delegate_small_div!(16);
-        delegate_small_div!(8);
-        delegate_small_div!(4);
         delegate_small_div!(2);
+        delegate_small_div!(4);
+        delegate_small_div!(8);
+        delegate_small_div!(16);
+        delegate_small_div!(32);
+        delegate_small_div!(64);
 
         // Align the first bit of the divisor with the first bit of the
         // dividend.
