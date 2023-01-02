@@ -66,6 +66,7 @@ There are excellent resources out there, some of which are referenced in the cod
 * Books:
     * Handbook of Floating-Point Arithmetic 2010th by Jean-Michel Muller et al.
     * Elementary Functions: Algorithms and Implementation by Jean-Michel Muller.
+    * Modern Computer Arithmetic by Brent and Zimmermann.
 * Papers:
     * How to print floating-point numbers accurately by Steele, White.
     * What Every Computer Scientist Should Know About Floating-Point Arithmetic by David Goldberg.
