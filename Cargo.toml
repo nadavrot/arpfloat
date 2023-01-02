@@ -1,6 +1,6 @@
 [package]
 name = "arpfloat"
-version = "0.1.1"
+version = "0.1.2"
 authors = ["Nadav Rotem <nadav256@gmail.com>"]
 categories = ["floating point"]
 description = "Arbitrary-precision floating point library"
