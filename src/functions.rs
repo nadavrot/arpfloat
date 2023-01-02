@@ -1,7 +1,11 @@
 use super::float::Float;
 
 impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
-    /// Calculate the square root of the number using the Newton Raphson
+    // Calculates the power of two.
+    pub fn sqr(&self) -> Self {
+        *self * *self
+    }
+    /// Calculates the square root of the number using the Newton Raphson
     // method.
     pub fn sqrt(&self) -> Self {
         if self.is_zero() {
@@ -158,4 +162,37 @@ fn test_abs() {
             assert_eq!(FP64::from_f64(v).abs().as_f64(), v.abs());
         }
     }
+}
+
+//  Compute basic constants.
+
+impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
+    /// Computes PI -- Algorithm description in Pg 246:
+    // Fast Multiple-Precision Evaluation of Elementary Functions
+    // by Richard P. Brent.
+    pub fn pi() -> Self {
+        let one = Self::from_i64(1);
+        let two = Self::from_i64(2);
+        let four = Self::from_i64(4);
+
+        let mut a = one;
+        let mut b = one / two.sqrt();
+        let mut t = one / four;
+        let mut x = one;
+
+        while a != b {
+            let y = a;
+            a = (a + b) / two;
+            b = (b * y).sqrt();
+            t = t - x * ((a - y).sqr());
+            x = x * two;
+        }
+        a * a / t
+    }
+}
+
+#[test]
+fn test_pi() {
+    use super::FP128;
+    assert_eq!(FP128::pi().as_f64(), std::f64::consts::PI);
 }

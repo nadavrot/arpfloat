@@ -70,6 +70,7 @@ There are excellent resources out there, some of which are referenced in the cod
 * Papers:
     * How to print floating-point numbers accurately by Steele, White.
     * What Every Computer Scientist Should Know About Floating-Point Arithmetic by David Goldberg.
+    * Fast Multiple-Precision Evaluation of Elementary Functions by Richard Brent.
 * Other excellent software implementations: APFloat, RYU, libBF, newlib, musl, etc.
 
 ### License
