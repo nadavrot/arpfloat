@@ -189,10 +189,31 @@ impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
         }
         a * a / t
     }
+
+    // Computes e using Euler's continued fraction, which is a simple series.
+    pub fn e() -> Self {
+        let two = Self::from_i64(2);
+        let one = Self::from_i64(1);
+        let mut term = one;
+        let iterations: i64 = (EXPONENT * 2) as i64;
+        for i in (1..iterations).rev() {
+            let v = Self::from_i64(i);
+            term = v + v / term;
+        }
+
+        two + one / term
+    }
 }
 
 #[test]
 fn test_pi() {
     use super::FP128;
     assert_eq!(FP128::pi().as_f64(), std::f64::consts::PI);
+}
+
+#[test]
+fn test_e() {
+    use super::{FP128, FP32};
+    assert_eq!(FP128::e().as_f64(), std::f64::consts::E);
+    assert_eq!(FP32::e().as_f32(), std::f32::consts::E);
 }
