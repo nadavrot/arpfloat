@@ -5,7 +5,9 @@ use std::fmt::Display;
 // Use a bigint for the decimal conversions.
 type BigNum = BigInt<50>;
 
-impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
+impl<const EXPONENT: usize, const MANTISSA: usize, const PARTS: usize>
+    Float<EXPONENT, MANTISSA, PARTS>
+{
     /// Convert the number into a large integer, and a base-10 exponent.
     fn convert_to_integer(&self) -> (BigNum, i64) {
         // The natural representation of numbers is 1.mmmmmmm, where the
@@ -122,8 +124,8 @@ impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
         result
     }
 }
-impl<const EXPONENT: usize, const MANTISSA: usize> Display
-    for Float<EXPONENT, MANTISSA>
+impl<const EXPONENT: usize, const MANTISSA: usize, const PARTS: usize> Display
+    for Float<EXPONENT, MANTISSA, PARTS>
 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.convert_to_string())
@@ -189,8 +191,10 @@ fn test_print_sqrt() {
 
 #[test]
 fn test_readme_example() {
+    use crate::new_float_type;
+
     // Create a new type: 15 bits exponent, 112 significand.
-    type FP128 = Float<15, 112>;
+    type FP128 = new_float_type!(15, 112);
 
     // Use Newton-Raphson to find the square root of 5.
     let n = FP128::from_u64(5);

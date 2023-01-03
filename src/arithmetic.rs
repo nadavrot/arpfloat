@@ -1,11 +1,13 @@
+use crate::BigInt;
+
 use super::bigint::LossFraction;
 use std::ops::{Add, Div, Mul, Sub};
 
-use super::float::{
-    shift_right_with_loss, Category, Float, MantissaTy, RoundingMode,
-};
+use super::float::{shift_right_with_loss, Category, Float, RoundingMode};
 
-impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
+impl<const EXPONENT: usize, const MANTISSA: usize, const PARTS: usize>
+    Float<EXPONENT, MANTISSA, PARTS>
+{
     /// An inner function that performs the addition and subtraction of normal
     /// numbers (no NaN, Inf, Zeros).
     /// See Pg 247.  Chapter 8. Algorithms for the Five Basic Operations.
@@ -49,7 +51,7 @@ impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
             // Figure out the carry from the shifting operations that dropped
             // bits.
             let c = !loss.is_exactly_zero() as u64;
-            let c = MantissaTy::from_u64(c);
+            let c = BigInt::from_u64(c);
 
             // Figure out which mantissa is larger, to make sure that we don't
             // overflow the subtraction.
@@ -311,7 +313,9 @@ fn test_add_random_vals() {
     }
 }
 
-impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
+impl<const EXPONENT: usize, const MANTISSA: usize, const PARTS: usize>
+    Float<EXPONENT, MANTISSA, PARTS>
+{
     /// Compute a*b using the rounding mode `rm`.
     pub fn mul_with_rm(a: Self, b: Self, rm: RoundingMode) -> Self {
         let sign = a.get_sign() ^ b.get_sign();
@@ -479,7 +483,9 @@ fn test_mul_random_vals() {
     }
 }
 
-impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
+impl<const EXPONENT: usize, const MANTISSA: usize, const PARTS: usize>
+    Float<EXPONENT, MANTISSA, PARTS>
+{
     /// Compute a/b, with the rounding mode `rm`.
     pub fn div_with_rm(a: Self, b: Self, rm: RoundingMode) -> Self {
         let sign = a.get_sign() ^ b.get_sign();
@@ -601,8 +607,8 @@ fn test_div_special_values() {
     }
 }
 
-impl<const EXPONENT: usize, const MANTISSA: usize> Add
-    for Float<EXPONENT, MANTISSA>
+impl<const EXPONENT: usize, const MANTISSA: usize, const PARTS: usize> Add
+    for Float<EXPONENT, MANTISSA, PARTS>
 {
     type Output = Self;
 
@@ -611,8 +617,8 @@ impl<const EXPONENT: usize, const MANTISSA: usize> Add
     }
 }
 
-impl<const EXPONENT: usize, const MANTISSA: usize> Sub
-    for Float<EXPONENT, MANTISSA>
+impl<const EXPONENT: usize, const MANTISSA: usize, const PARTS: usize> Sub
+    for Float<EXPONENT, MANTISSA, PARTS>
 {
     type Output = Self;
 
@@ -620,9 +626,8 @@ impl<const EXPONENT: usize, const MANTISSA: usize> Sub
         Self::sub_with_rm(self, rhs, RoundingMode::NearestTiesToEven)
     }
 }
-
-impl<const EXPONENT: usize, const MANTISSA: usize> Mul
-    for Float<EXPONENT, MANTISSA>
+impl<const EXPONENT: usize, const MANTISSA: usize, const PARTS: usize> Mul
+    for Float<EXPONENT, MANTISSA, PARTS>
 {
     type Output = Self;
 
@@ -631,8 +636,8 @@ impl<const EXPONENT: usize, const MANTISSA: usize> Mul
     }
 }
 
-impl<const EXPONENT: usize, const MANTISSA: usize> Div
-    for Float<EXPONENT, MANTISSA>
+impl<const EXPONENT: usize, const MANTISSA: usize, const PARTS: usize> Div
+    for Float<EXPONENT, MANTISSA, PARTS>
 {
     type Output = Self;
 

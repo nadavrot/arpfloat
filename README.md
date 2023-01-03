@@ -8,8 +8,11 @@ operation, in software, or create new floating point data types.
 ### Example
 
 ```rust
+  use arpfloat::Float;
+  use arpfloat::new_float_type;
+
   // Create a new type: 15 bits exponent, 112 significand.
-  type FP128 = Float<15, 112>;
+  type FP128 = new_float_type!(15, 112);
 
   // Use Newton-Raphson to find the square root of 5.
   let n = FP128::from_u64(5);

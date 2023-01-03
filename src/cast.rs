@@ -1,14 +1,17 @@
+use super::bigint::BigInt;
 use super::bigint::LossFraction;
 use super::float::{self, Category};
-use super::float::{Float, MantissaTy, RoundingMode, FP32, FP64};
+use super::float::{Float, RoundingMode, FP32, FP64};
 use super::utils;
 use super::utils::mask;
 
-impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
+impl<const EXPONENT: usize, const MANTISSA: usize, const PARTS: usize>
+    Float<EXPONENT, MANTISSA, PARTS>
+{
     /// Load the integer `val` into the float. Notice that the number may
     /// overflow, or rounded to the nearest even integer.
     pub fn from_u64(val: u64) -> Self {
-        let val = MantissaTy::from_u64(val);
+        let val = BigInt::from_u64(val);
         let mut a = Self::new(false, MANTISSA as i64, val);
         a.normalize(RoundingMode::NearestTiesToEven, LossFraction::ExactlyZero);
         a
@@ -77,7 +80,7 @@ impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
         Self::new(self.get_sign(), self.get_exp(), m)
     }
 
-    fn convert_normal_to_integer(&self, rm: RoundingMode) -> MantissaTy {
+    fn convert_normal_to_integer(&self, rm: RoundingMode) -> BigInt<PARTS> {
         // We are converting to integer, so set the center point of the exponent
         // to the lsb instead of the msb.
         let i_exp = self.get_exp() - MANTISSA as i64;
@@ -88,7 +91,7 @@ impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
             );
 
             if self.need_round_away_from_zero(rm, loss) {
-                let _ = m.inplace_add(&MantissaTy::one());
+                let _ = m.inplace_add(&BigInt::one());
             }
             m
         } else {
@@ -126,20 +129,20 @@ impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
             exp += 1;
         }
 
-        let mantissa = MantissaTy::from_u64(mantissa);
+        let mantissa = BigInt::from_u64(mantissa);
         Self::new(sign, exp, mantissa)
     }
 
     /// Cast to another float using the rounding mode `rm`.
-    pub fn cast_with_rm<const E: usize, const M: usize>(
+    pub fn cast_with_rm<const E: usize, const M: usize, const P: usize>(
         &self,
         rm: RoundingMode,
-    ) -> Float<E, M> {
+    ) -> Float<E, M, P> {
         let exp_delta = MANTISSA as i64 - M as i64;
-        let mut x = Float::<E, M>::raw(
+        let mut x = Float::<E, M, P>::raw(
             self.get_sign(),
             self.get_exp() - exp_delta,
-            self.get_mantissa(),
+            self.get_mantissa().cast(),
             self.get_category(),
         );
         // Don't normalize if this is a nop conversion.
@@ -149,7 +152,9 @@ impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
         x
     }
     /// Convert from one float format to another.
-    pub fn cast<const E: usize, const M: usize>(&self) -> Float<E, M> {
+    pub fn cast<const E: usize, const M: usize, const P: usize>(
+        &self,
+    ) -> Float<E, M, P> {
         self.cast_with_rm(RoundingMode::NearestTiesToEven)
     }
 

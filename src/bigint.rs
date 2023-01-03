@@ -102,11 +102,14 @@ impl<const PARTS: usize> BigInt<PARTS> {
 
     /// Returns the lowest 64 bits.
     pub fn as_u128(&self) -> u128 {
-        debug_assert!(PARTS >= 2);
-        for i in 2..PARTS {
-            debug_assert_eq!(self.parts[i], 0);
+        if PARTS >= 2 {
+            for i in 2..PARTS {
+                debug_assert_eq!(self.parts[i], 0);
+            }
+            (self.parts[0] as u128) + ((self.parts[1] as u128) << 64)
+        } else {
+            self.parts[0] as u128
         }
-        (self.parts[0] as u128) + ((self.parts[1] as u128) << 64)
     }
 
     /// Convert this instance to a smaller number. Notice that this may truncate

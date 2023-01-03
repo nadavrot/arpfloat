@@ -7,9 +7,10 @@
 //!### Example
 //!```
 //!  use arpfloat::Float;
+//!  use arpfloat::new_float_type;
 //!
 //!  // Create a new type: 15 bits exponent, 112 significand.
-//!  type FP128 = Float<15, 112>;
+//!  type FP128 = new_float_type!(15, 112);
 //!
 //!  // Use Newton-Raphson to find the square root of 5.
 //!  let n = FP128::from_u64(5);
@@ -62,6 +63,17 @@
 //!    println!("{}", b); // Prints 2648!
 //!```
 
+#[macro_export]
+macro_rules! new_float_type {
+    // The `tt` (token tree) designator is used for
+    // operators and tokens.
+    ($exponent:expr, $mantissa:expr) => {
+        // Allocate twice as many bits for the mantissa, to allow to perform
+        // div/mul operations that require shifting of the mantissa to the left.
+        Float<$exponent, $mantissa, {($mantissa * 2) / 64 + 1}>
+    };
+}
+
 mod arithmetic;
 mod bigint;
 mod cast;
@@ -71,4 +83,6 @@ mod string;
 mod utils;
 
 pub use self::bigint::BigInt;
-pub use self::float::{Float, RoundingMode, FP128, FP16, FP256, FP32, FP64};
+pub use self::float::Float;
+pub use self::float::RoundingMode;
+pub use self::float::{FP128, FP16, FP256, FP32, FP64};

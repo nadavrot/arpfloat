@@ -1,6 +1,8 @@
 use super::float::Float;
 
-impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
+impl<const EXPONENT: usize, const MANTISSA: usize, const PARTS: usize>
+    Float<EXPONENT, MANTISSA, PARTS>
+{
     /// Calculates the power of two.
     pub fn sqr(&self) -> Self {
         *self * *self
@@ -166,7 +168,9 @@ fn test_abs() {
 
 //  Compute basic constants.
 
-impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
+impl<const EXPONENT: usize, const MANTISSA: usize, const PARTS: usize>
+    Float<EXPONENT, MANTISSA, PARTS>
+{
     /// Computes PI -- Algorithm description in Pg 246:
     /// Fast Multiple-Precision Evaluation of Elementary Functions
     /// by Richard P. Brent.

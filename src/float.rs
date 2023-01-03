@@ -23,29 +23,32 @@ pub enum Category {
     Zero,
 }
 
-/// Defines the type of the mantissa. The current maximum size is 4 words.
-pub type MantissaTy = BigInt<8>;
-
 /// This is the main data structure of this library. It represents an
 /// arbitrary-precision floating-point number. The data structure is generic
 /// and accepts the EXPONENT and MANTISSA constants, that represent the encoding
 /// number of bits that are dedicated to storing these values.
 #[derive(Debug, Clone, Copy)]
-pub struct Float<const EXPONENT: usize, const MANTISSA: usize> {
+pub struct Float<
+    const EXPONENT: usize,
+    const MANTISSA: usize,
+    const PARTS: usize,
+> {
     // The Sign bit.
     sign: bool,
     // The Exponent.
     exp: i64,
     // The significand, including the implicit bit, aligned to the right.
     // Format [00000001xxxxxxx].
-    mantissa: MantissaTy,
+    mantissa: BigInt<PARTS>,
     // The kind of number this float represents.
     category: Category,
 }
 
-impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
+impl<const EXPONENT: usize, const MANTISSA: usize, const PARTS: usize>
+    Float<EXPONENT, MANTISSA, PARTS>
+{
     /// Create a new normal floating point number.
-    pub fn new(sign: bool, exp: i64, mantissa: MantissaTy) -> Self {
+    pub fn new(sign: bool, exp: i64, mantissa: BigInt<PARTS>) -> Self {
         if mantissa.is_zero() {
             return Float::zero(sign);
         }
@@ -61,7 +64,7 @@ impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
     pub fn raw(
         sign: bool,
         exp: i64,
-        mantissa: MantissaTy,
+        mantissa: BigInt<PARTS>,
         category: Category,
     ) -> Self {
         Float {
@@ -77,7 +80,7 @@ impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
         Float {
             sign,
             exp: 0,
-            mantissa: MantissaTy::zero(),
+            mantissa: BigInt::zero(),
             category: Category::Zero,
         }
     }
@@ -87,7 +90,7 @@ impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
         Float {
             sign,
             exp: 0,
-            mantissa: MantissaTy::zero(),
+            mantissa: BigInt::zero(),
             category: Category::Infinity,
         }
     }
@@ -97,7 +100,7 @@ impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
         Float {
             sign,
             exp: 0,
-            mantissa: MantissaTy::zero(),
+            mantissa: BigInt::zero(),
             category: Category::NaN,
         }
     }
@@ -149,7 +152,7 @@ impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
     }
 
     /// Returns the mantissa of the float.
-    pub fn get_mantissa(&self) -> MantissaTy {
+    pub fn get_mantissa(&self) -> BigInt<PARTS> {
         self.mantissa
     }
 
@@ -231,15 +234,15 @@ impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
 // Table 3.5 — Binary interchange format parameters.
 
 /// Predefined FP16 float with 5 exponent bits, and 10 mantissa bits.
-pub type FP16 = Float<5, 10>;
+pub type FP16 = new_float_type!(5, 10);
 /// Predefined FP32 float with 8 exponent bits, and 23 mantissa bits.
-pub type FP32 = Float<8, 23>;
+pub type FP32 = new_float_type!(8, 23);
 /// Predefined FP64 float with 11 exponent bits, and 52 mantissa bits.
-pub type FP64 = Float<11, 52>;
+pub type FP64 = new_float_type!(11, 52);
 /// Predefined FP128 float with 15 exponent bits, and 112 mantissa bits.
-pub type FP128 = Float<15, 112>;
+pub type FP128 = new_float_type!(15, 112);
 /// Predefined FP256 float with 19 exponent bits, and 236 mantissa bits.
-pub type FP256 = Float<19, 236>;
+pub type FP256 = new_float_type!(19, 236);
 
 //// Shift `val` by `bits`, and report the loss.
 pub(crate) fn shift_right_with_loss<const P: usize>(
@@ -266,30 +269,32 @@ fn combine_loss_fraction(msb: LossFraction, lsb: LossFraction) -> LossFraction {
 
 #[test]
 fn shift_right_fraction() {
-    let x = MantissaTy::from_u64(0b10000000);
+    let x: BigInt<4> = BigInt::from_u64(0b10000000);
     let res = shift_right_with_loss(x, 3);
     assert!(res.1.is_exactly_zero());
 
-    let x = MantissaTy::from_u64(0b10000111);
+    let x: BigInt<4> = BigInt::from_u64(0b10000111);
     let res = shift_right_with_loss(x, 3);
     assert!(res.1.is_mt_half());
 
-    let x = MantissaTy::from_u64(0b10000100);
+    let x: BigInt<4> = BigInt::from_u64(0b10000100);
     let res = shift_right_with_loss(x, 3);
     assert!(res.1.is_exactly_half());
 
-    let x = MantissaTy::from_u64(0b10000001);
+    let x: BigInt<4> = BigInt::from_u64(0b10000001);
     let res = shift_right_with_loss(x, 3);
     assert!(res.1.is_lt_half());
 }
 
-impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
+impl<const EXPONENT: usize, const MANTISSA: usize, const PARTS: usize>
+    Float<EXPONENT, MANTISSA, PARTS>
+{
     /// The number overflowed, set the right value based on the rounding mode
     /// and sign.
     fn overflow(&mut self, rm: RoundingMode) {
         let bounds = Self::get_exp_bounds();
         let inf = Self::inf(self.sign);
-        let max = Self::new(self.sign, bounds.1, MantissaTy::all1s(MANTISSA));
+        let max = Self::new(self.sign, bounds.1, BigInt::all1s(MANTISSA));
 
         *self = match rm {
             RoundingMode::NearestTiesToEven => inf,
@@ -317,7 +322,7 @@ impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
         let bounds = Self::get_exp_bounds();
         debug_assert!(self.exp >= bounds.0);
         debug_assert!(self.exp <= bounds.1);
-        let max_mantissa = MantissaTy::one_hot(Self::get_precision() as usize);
+        let max_mantissa = BigInt::one_hot(Self::get_precision() as usize);
         debug_assert!(self.mantissa.lt(&max_mantissa));
     }
 
@@ -417,7 +422,7 @@ impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
                 self.exp = bounds.0
             }
 
-            let one = MantissaTy::one();
+            let one = BigInt::one();
             self.mantissa = self.mantissa + one;
             // Did the mantissa overflow?
             let mut m = self.mantissa;
@@ -442,8 +447,8 @@ impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
 
 use std::cmp::Ordering;
 
-impl<const EXPONENT: usize, const MANTISSA: usize> PartialEq
-    for Float<EXPONENT, MANTISSA>
+impl<const EXPONENT: usize, const MANTISSA: usize, const PARTS: usize> PartialEq
+    for Float<EXPONENT, MANTISSA, PARTS>
 {
     fn eq(&self, other: &Self) -> bool {
         let bitwise = self.sign == other.sign
@@ -463,8 +468,8 @@ impl<const EXPONENT: usize, const MANTISSA: usize> PartialEq
 /// Table 3.8: Comparison predicates and the four relations.
 ///   and
 /// IEEE 754-2019 section 5.10 - totalOrder.
-impl<const EXPONENT: usize, const MANTISSA: usize> PartialOrd
-    for Float<EXPONENT, MANTISSA>
+impl<const EXPONENT: usize, const MANTISSA: usize, const PARTS: usize>
+    PartialOrd for Float<EXPONENT, MANTISSA, PARTS>
 {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         let bool_to_ord = |ord: bool| -> Option<Ordering> {
