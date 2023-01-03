@@ -1,12 +1,12 @@
 use super::float::Float;
 
 impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
-    // Calculates the power of two.
+    /// Calculates the power of two.
     pub fn sqr(&self) -> Self {
         *self * *self
     }
     /// Calculates the square root of the number using the Newton Raphson
-    // method.
+    /// method.
     pub fn sqrt(&self) -> Self {
         if self.is_zero() {
             return *self; // (+/-) zero
@@ -168,8 +168,8 @@ fn test_abs() {
 
 impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
     /// Computes PI -- Algorithm description in Pg 246:
-    // Fast Multiple-Precision Evaluation of Elementary Functions
-    // by Richard P. Brent.
+    /// Fast Multiple-Precision Evaluation of Elementary Functions
+    /// by Richard P. Brent.
     pub fn pi() -> Self {
         let one = Self::from_i64(1);
         let two = Self::from_i64(2);
@@ -190,7 +190,7 @@ impl<const EXPONENT: usize, const MANTISSA: usize> Float<EXPONENT, MANTISSA> {
         a * a / t
     }
 
-    // Computes e using Euler's continued fraction, which is a simple series.
+    /// Computes e using Euler's continued fraction, which is a simple series.
     pub fn e() -> Self {
         let two = Self::from_i64(2);
         let one = Self::from_i64(1);
