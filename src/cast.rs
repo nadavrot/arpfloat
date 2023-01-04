@@ -138,16 +138,25 @@ impl<const EXPONENT: usize, const MANTISSA: usize, const PARTS: usize>
         &self,
         rm: RoundingMode,
     ) -> Float<E, M, P> {
+        let mut loss = LossFraction::ExactlyZero;
         let exp_delta = MANTISSA as i64 - M as i64;
+        let mut temp = *self;
+        // If we are casting to a narrow type then we need to shift the bits
+        // to the new-mantissa part of the word. This will adjust the exponent,
+        // and if we lose bits then we'll need to round the number.
+        if exp_delta > 0 {
+            loss = temp.shift_significand_right(exp_delta as u64);
+        }
+
         let mut x = Float::<E, M, P>::raw(
-            self.get_sign(),
-            self.get_exp() - exp_delta,
-            self.get_mantissa().cast(),
-            self.get_category(),
+            temp.get_sign(),
+            temp.get_exp() - exp_delta,
+            temp.get_mantissa().cast(),
+            temp.get_category(),
         );
         // Don't normalize if this is a nop conversion.
         if E != EXPONENT && M != MANTISSA {
-            x.normalize(rm, LossFraction::ExactlyZero);
+            x.normalize(rm, loss);
         }
         x
     }
@@ -438,4 +447,41 @@ fn test_round_floor() {
         large_integer
     );
     assert_eq!(FP64::from_f64(0.001).trunc().as_f64(), 0.);
+}
+
+#[test]
+fn test_cast_sizes() {
+    use crate::FP16;
+    use crate::FP256;
+    let e = std::f64::consts::E;
+    {
+        let wide = FP256::from_f64(e);
+        let narrow: FP64 = wide.cast();
+        assert_eq!(narrow.as_f64(), e);
+    }
+
+    {
+        let narrow = FP64::from_f64(e);
+        let wide: FP256 = narrow.cast();
+        assert_eq!(wide.as_f64(), e);
+    }
+
+    {
+        let wide = FP256::from_u64(1 << 50);
+        let narrow: FP16 = wide.cast();
+        assert!(narrow.is_inf());
+    }
+
+    {
+        let narrow = FP16::from_u64(1 << 50);
+        let wide: FP256 = narrow.cast();
+        assert!(wide.is_inf());
+    }
+
+    {
+        let narrow = FP16::from_u64(50);
+        let wide: FP256 = narrow.cast();
+        assert_eq!(wide.as_f64(), narrow.as_f64());
+        assert_eq!(wide.to_i64(RoundingMode::NearestTiesToEven), 50);
+    }
 }
