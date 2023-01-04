@@ -151,7 +151,11 @@ impl<const PARTS: usize> BigInt<PARTS> {
     /// the number.
     pub fn cast<const P: usize>(&self) -> BigInt<P> {
         let mut n = BigInt::<P>::zero();
-        for i in 0..PARTS.min(P) {
+        let to = PARTS.min(P);
+        for i in to..PARTS {
+            debug_assert_eq!(self.parts[i], 0, "losing information");
+        }
+        for i in 0..to {
             n.parts[i] = self.parts[i];
         }
         n
