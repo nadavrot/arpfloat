@@ -63,10 +63,10 @@
 //!    println!("{}", b); // Prints 2648!
 //!```
 
+/// Creates a new Float<> type with a specific number of bits for the exponent and mantissa.
+/// The macros selects the appropriate size for the underlying storage.
 #[macro_export]
 macro_rules! new_float_type {
-    // The `tt` (token tree) designator is used for
-    // operators and tokens.
     ($exponent:expr, $mantissa:expr) => {
         // Allocate twice as many bits for the mantissa, to allow to perform
         // div/mul operations that require shifting of the mantissa to the left.
