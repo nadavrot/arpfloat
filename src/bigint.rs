@@ -112,6 +112,41 @@ impl<const PARTS: usize> BigInt<PARTS> {
         }
     }
 
+    /// Prints the bigint as a sequence of bits.
+    pub fn as_str(&self) -> String {
+        let mut sb = String::new();
+        let mut first = true;
+        for i in (0..PARTS).rev() {
+            let mut part = self.parts[i];
+            // Don't print leading zeros in empty parts of the bigint.
+            if first && part == 0 {
+                continue;
+            }
+
+            // Don't print leading zeros for the first word.
+            if first {
+                while part > 0 {
+                    let last = if part & 0x1 == 1 { '1' } else { '0' };
+                    sb.insert(0, last);
+                    part /= 2;
+                }
+                continue;
+            }
+            first = false;
+
+            // Print leading zeros for the rest of the words.
+            for _ in 0..64 {
+                let last = if part & 0x1 == 1 { '1' } else { '0' };
+                sb.insert(0, last);
+                part /= 2;
+            }
+        }
+        if sb.is_empty() {
+            sb.push('0');
+        }
+        sb
+    }
+
     /// Convert this instance to a smaller number. Notice that this may truncate
     /// the number.
     pub fn cast<const P: usize>(&self) -> BigInt<P> {

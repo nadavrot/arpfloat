@@ -198,13 +198,7 @@ impl<const EXPONENT: usize, const MANTISSA: usize, const PARTS: usize>
             }
             Category::Normal => {
                 let m = self.mantissa;
-                let width = MANTISSA;
-                println!(
-                    "FP[{} E={:4} M = 0x{:0width$b}]",
-                    sign,
-                    self.exp,
-                    m.as_u128()
-                );
+                println!("FP[{} E={:4} M = {}]", sign, self.exp, m.as_str());
             }
         }
     }
