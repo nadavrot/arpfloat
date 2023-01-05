@@ -435,6 +435,8 @@ fn test_cast_down_complex() {
 
 #[test]
 fn test_round_floor() {
+    use super::utils::Lfsr;
+
     let large_integer = (1u64 << 52) as f64;
     assert_eq!(FP64::from_f64(0.4).trunc().as_f64(), 0.);
     assert_eq!(FP64::from_f64(1.4).trunc().as_f64(), 1.);
@@ -447,6 +449,28 @@ fn test_round_floor() {
         large_integer
     );
     assert_eq!(FP64::from_f64(0.001).trunc().as_f64(), 0.);
+
+    // Test random values.
+    let mut lfsr = Lfsr::new();
+    for _ in 0..5000 {
+        let v0 = f64::from_bits(lfsr.get64());
+        let t0 = FP64::from_f64(v0).trunc().as_f64();
+        let t1 = v0.trunc();
+        assert_eq!(t0.is_nan(), t1.is_nan());
+        if !t1.is_nan() {
+            assert_eq!(t0, t1);
+        }
+    }
+
+    // Test special values.
+    for val in utils::get_special_test_values() {
+        let t0 = FP64::from_f64(val).trunc().as_f64();
+        let t1 = val.trunc();
+        assert_eq!(t0.is_nan(), t1.is_nan());
+        if !t1.is_nan() {
+            assert_eq!(t0, t1);
+        }
+    }
 }
 
 #[test]
