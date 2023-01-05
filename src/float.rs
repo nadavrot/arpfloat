@@ -85,6 +85,18 @@ impl<const EXPONENT: usize, const MANTISSA: usize, const PARTS: usize>
         }
     }
 
+    /// Returns a new float with the value one.
+    pub fn one(sign: bool) -> Self {
+        let mut one = BigInt::one();
+        one.shift_left(MANTISSA);
+        Float {
+            sign,
+            exp: 0,
+            mantissa: one,
+            category: Category::Normal,
+        }
+    }
+
     /// Returns a new infinity float.
     pub fn inf(sign: bool) -> Self {
         Float {
@@ -526,4 +538,10 @@ fn test_comparisons() {
             assert_eq!(is_gt, first > second, ">");
         }
     }
+}
+
+#[test]
+fn test_one_imm() {
+    let x = FP64::one(false);
+    assert_eq!(x.as_f64(), 1.0);
 }
