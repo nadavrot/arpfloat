@@ -3,6 +3,7 @@ use crate::BigInt;
 
 use super::bigint::LossFraction;
 use core::ops::{Add, Div, Mul, Sub};
+use core::cmp::Ordering;
 use super::float::{shift_right_with_loss, Category, Float, RoundingMode};
 
 #[cfg(test)]
@@ -33,14 +34,14 @@ impl<const EXPONENT: usize, const MANTISSA: usize, const PARTS: usize>
             // Align the input numbers. We shift LHS one bit to the left to
             // allow carry/borrow in case of underflow as result of subtraction.
             match bits.cmp(&0) {
-                core::cmp::Ordering::Equal => {
+                Ordering::Equal => {
                     loss = LossFraction::ExactlyZero;
                 }
-                core::cmp::Ordering::Greater => {
+                Ordering::Greater => {
                     loss = b.shift_significand_right((bits - 1) as u64);
                     a.shift_significand_left(1);
                 }
-                core::cmp::Ordering::Less => {
+                Ordering::Less => {
                     loss = a.shift_significand_right((-bits - 1) as u64);
                     b.shift_significand_left(1);
                 }
@@ -550,15 +551,15 @@ impl<const EXPONENT: usize, const MANTISSA: usize, const PARTS: usize>
         let reminder = reminder_2x.cmp(&b_mantissa);
         let is_zero = reminder_2x.is_zero();
         let loss = match reminder {
-            core::cmp::Ordering::Less => {
+            Ordering::Less => {
                 if is_zero {
                     LossFraction::ExactlyZero
                 } else {
                     LossFraction::LessThanHalf
                 }
             }
-            core::cmp::Ordering::Equal => LossFraction::ExactlyHalf,
-            core::cmp::Ordering::Greater => LossFraction::MoreThanHalf,
+            Ordering::Equal => LossFraction::ExactlyHalf,
+            Ordering::Greater => LossFraction::MoreThanHalf,
         };
 
         let x = Self::new(sign, exp, a_mantissa);

@@ -1,6 +1,7 @@
 extern crate alloc;
 use super::bigint::BigInt;
 use super::bigint::LossFraction;
+use core::cmp::Ordering;
 
 #[cfg(feature = "std")]
 use std::println;
@@ -455,8 +456,6 @@ impl<const EXPONENT: usize, const MANTISSA: usize, const PARTS: usize>
         }
     } // round.
 }
-
-use core::cmp::Ordering;
 
 impl<const EXPONENT: usize, const MANTISSA: usize, const PARTS: usize> PartialEq
     for Float<EXPONENT, MANTISSA, PARTS>
