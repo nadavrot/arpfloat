@@ -4,6 +4,7 @@ ARPFloat is an implementation of arbitrary precision
 [floating point](https://en.wikipedia.org/wiki/IEEE_754) data
 structures and utilities. The library can be used to emulate floating point
 operation, in software, or create new floating point data types.
+`no_std` environments are supported by disabling the `std` feature.
 
 ### Example
 

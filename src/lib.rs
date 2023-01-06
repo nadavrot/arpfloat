@@ -63,6 +63,11 @@
 //!    println!("{}", b); // Prints 2648!
 //!```
 
+#![no_std]
+
+#[cfg(feature = "std")]
+extern crate std;
+
 /// Creates a new Float<> type with a specific number of bits for the exponent and mantissa.
 /// The macros selects the appropriate size for the underlying storage.
 #[macro_export]

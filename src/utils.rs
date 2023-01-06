@@ -10,6 +10,7 @@ fn test_masking() {
     assert_eq!(mask(8), 255);
 }
 
+#[cfg(feature = "std")]
 #[allow(dead_code)]
 /// Returns list of interesting values that various tests use to catch edge cases.
 pub fn get_special_test_values() -> [f64; 20] {

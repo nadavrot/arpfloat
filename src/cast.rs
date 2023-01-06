@@ -465,6 +465,7 @@ fn test_load_store_all_f32() {
     }
 }
 
+#[cfg(feature = "std")]
 #[test]
 fn test_cast_down_complex() {
     // Try casting a bunch of difficult values such as inf, nan, denormals, etc.
@@ -476,6 +477,7 @@ fn test_cast_down_complex() {
     }
 }
 
+#[cfg(feature = "std")]
 #[test]
 fn test_trunc() {
     use super::utils::Lfsr;
@@ -516,6 +518,7 @@ fn test_trunc() {
     }
 }
 
+#[cfg(feature = "std")]
 #[test]
 fn test_round() {
     use super::utils::Lfsr;
@@ -557,6 +560,7 @@ fn test_round() {
     }
 }
 
+#[cfg(feature = "std")]
 #[test]
 fn test_cast_sizes() {
     use crate::FP16;

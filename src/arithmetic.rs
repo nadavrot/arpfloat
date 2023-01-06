@@ -1,9 +1,12 @@
+extern crate alloc;
 use crate::BigInt;
 
 use super::bigint::LossFraction;
-use std::ops::{Add, Div, Mul, Sub};
-
+use core::ops::{Add, Div, Mul, Sub};
 use super::float::{shift_right_with_loss, Category, Float, RoundingMode};
+
+#[cfg(test)]
+use crate::std::string::ToString;
 
 impl<const EXPONENT: usize, const MANTISSA: usize, const PARTS: usize>
     Float<EXPONENT, MANTISSA, PARTS>
@@ -30,14 +33,14 @@ impl<const EXPONENT: usize, const MANTISSA: usize, const PARTS: usize>
             // Align the input numbers. We shift LHS one bit to the left to
             // allow carry/borrow in case of underflow as result of subtraction.
             match bits.cmp(&0) {
-                std::cmp::Ordering::Equal => {
+                core::cmp::Ordering::Equal => {
                     loss = LossFraction::ExactlyZero;
                 }
-                std::cmp::Ordering::Greater => {
+                core::cmp::Ordering::Greater => {
                     loss = b.shift_significand_right((bits - 1) as u64);
                     a.shift_significand_left(1);
                 }
-                std::cmp::Ordering::Less => {
+                core::cmp::Ordering::Less => {
                     loss = a.shift_significand_right((-bits - 1) as u64);
                     b.shift_significand_left(1);
                 }
@@ -231,6 +234,7 @@ fn add_denormals() {
     assert_eq!(add_f64(10000., v0), 10000. + v0);
 }
 
+#[cfg(feature = "std")]
 #[test]
 fn add_special_values() {
     use crate::utils;
@@ -421,6 +425,7 @@ fn mul_regular_values() {
     }
 }
 
+#[cfg(feature = "std")]
 #[test]
 fn test_mul_special_values() {
     use super::utils;
@@ -545,15 +550,15 @@ impl<const EXPONENT: usize, const MANTISSA: usize, const PARTS: usize>
         let reminder = reminder_2x.cmp(&b_mantissa);
         let is_zero = reminder_2x.is_zero();
         let loss = match reminder {
-            std::cmp::Ordering::Less => {
+            core::cmp::Ordering::Less => {
                 if is_zero {
                     LossFraction::ExactlyZero
                 } else {
                     LossFraction::LessThanHalf
                 }
             }
-            std::cmp::Ordering::Equal => LossFraction::ExactlyHalf,
-            std::cmp::Ordering::Greater => LossFraction::MoreThanHalf,
+            core::cmp::Ordering::Equal => LossFraction::ExactlyHalf,
+            core::cmp::Ordering::Greater => LossFraction::MoreThanHalf,
         };
 
         let x = Self::new(sign, exp, a_mantissa);
@@ -577,6 +582,7 @@ fn test_div_simple() {
     assert_eq!(r0, r1);
 }
 
+#[cfg(feature = "std")]
 #[test]
 fn test_div_special_values() {
     use super::utils;
@@ -685,6 +691,7 @@ fn test_slow_sqrt_2_test() {
     assert!(res.as_f64() > 1.4142134_f64);
 }
 
+#[cfg(feature = "std")]
 #[test]
 fn test_famous_pentium4_bug() {
     // https://en.wikipedia.org/wiki/Pentium_FDIV_bug
