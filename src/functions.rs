@@ -338,3 +338,105 @@ fn test_rem() {
         }
     }
 }
+
+impl<const EXPONENT: usize, const MANTISSA: usize, const PARTS: usize>
+    Float<EXPONENT, MANTISSA, PARTS>
+{
+    /// sin(x) = x - x^3 / 3! + x^5 / 5! - x^7/7! ....
+    fn sin_taylor(x: Self) -> Self {
+        let mut neg = false;
+        let mut top = x;
+        let mut bottom = 1;
+        let mut sum = Self::zero(false);
+        let x2 = x.sqr();
+        for i in 1..10 {
+            // Update sum.
+            let elem = top / Self::from_u64(bottom);
+            sum = if neg { sum - elem } else { sum + elem };
+
+            // Prepare the next element.
+            top = top * x2;
+            bottom = bottom * (i * 2) * (i * 2 + 1);
+            neg ^= true;
+        }
+
+        sum
+    }
+
+    /// Reduce sin(x) in the range 0..pi/2, using the identity:
+    /// sin(3x) = 3sin(x)-4(sin(x)^3)
+    fn sin_step4_reduction(x: Self, steps: usize) -> Self {
+        if steps == 0 {
+            return Self::sin_taylor(x);
+        }
+        let three = Self::from_u64(3);
+        let four = Self::from_u64(4);
+
+        let x3 = x / Self::from_u64(3);
+        let sx = Self::sin_step4_reduction(x3, steps - 1);
+        three * sx - four * (sx * sx * sx)
+    }
+
+    /// Return the sine function.
+    pub fn sin(&self) -> Self {
+        // Fast Trigonometric functions for Arbitrary Precision number
+        // by Henrik Vestermark.
+
+        if self.is_zero() {
+            return *self;
+        }
+        assert!(self.is_normal());
+
+        let mut neg = false;
+        // Step1 range reduction.
+
+        let mut val = *self;
+
+        // Handle the negatives.
+        if val.is_negative() {
+            val = val.neg();
+            neg ^= true;
+        }
+        let pi = Self::pi();
+        let pi2 = pi.scale(1, RoundingMode::Zero);
+        let pi_half = pi.scale(-1, RoundingMode::Zero);
+
+        // Step 1
+        if val > pi2 {
+            val = val.rem(pi2);
+        }
+
+        debug_assert!(val <= pi2);
+        // Step 2.
+        if val > pi {
+            val = val - pi;
+            neg ^= true;
+        }
+
+        debug_assert!(val <= pi);
+        // Step 3.
+        if val > pi_half {
+            val = pi - val;
+        }
+        debug_assert!(val <= pi_half);
+
+        let res = Self::sin_step4_reduction(val, 5);
+        if neg {
+            res.neg()
+        } else {
+            res
+        }
+    }
+}
+
+#[test]
+fn test_sin_taylor() {
+    use super::FP128;
+
+    for i in -10..100 {
+        let f0 = i as f64;
+        let r0 = f0.sin();
+        let r1 = FP128::from_f64(f0).sin().as_f64();
+        assert_eq!(r0, r1);
+    }
+}
