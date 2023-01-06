@@ -2,11 +2,11 @@
 name = "arpfloat"
 version = "0.1.2"
 authors = ["Nadav Rotem <nadav256@gmail.com>"]
-categories = ["floating point"]
+categories = ["floating point", "no-std"]
 description = "Arbitrary-precision floating point library"
 documentation = "https://docs.rs/arpfloat/"
 edition = "2021"
-keywords = ["float", "no-std"]
+keywords = ["float"]
 license = "Apache-2.0"
 readme = "README.md"
 repository = "https://github.com/nadavrot/arpfloat"
