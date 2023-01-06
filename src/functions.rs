@@ -1,3 +1,5 @@
+use crate::RoundingMode;
+
 use super::float::Float;
 
 impl<const EXPONENT: usize, const MANTISSA: usize, const PARTS: usize>
@@ -220,4 +222,119 @@ fn test_e() {
     use super::{FP128, FP32};
     assert_eq!(FP128::e().as_f64(), std::f64::consts::E);
     assert_eq!(FP32::e().as_f32(), std::f32::consts::E);
+}
+
+impl<const EXPONENT: usize, const MANTISSA: usize, const PARTS: usize>
+    Float<EXPONENT, MANTISSA, PARTS>
+{
+    /// Similar to 'scalbln'. Adds or subtracts to the exponent of the number,
+    /// and scaling it by 2^exp.
+    pub fn scale(&self, scale: i64, rm: RoundingMode) -> Self {
+        use crate::bigint::LossFraction;
+        if !self.is_normal() {
+            return *self;
+        }
+
+        let mut r = Self::new(
+            self.get_sign(),
+            self.get_exp() + scale,
+            self.get_mantissa(),
+        );
+        r.normalize(rm, LossFraction::ExactlyZero);
+        r
+    }
+
+    /// Returns the remainder from a division of two floats. This is equivalent
+    /// to rust 'rem' or c 'fmod'.
+    pub fn rem(&self, rhs: Self) -> Self {
+        use std::ops::Sub;
+        // Handle NaNs.
+        if self.is_nan() || rhs.is_nan() || self.is_inf() || rhs.is_zero() {
+            return Self::nan(self.get_sign());
+        }
+        // Handle values that are obviously zero or self.
+        if self.is_zero() || rhs.is_inf() {
+            return *self;
+        }
+
+        // Operate on integers.
+        let mut lhs = self.abs();
+        let rhs = if rhs.is_negative() { rhs.neg() } else { rhs };
+        debug_assert!(lhs.is_normal() && rhs.is_normal());
+
+        // This is a clever algorithm. Subtracting the RHS from LHS in a loop
+        // would be slow, but we perform a divide-like algorithm where we shift
+        // 'rhs' by higher powers of two, and subtract it from LHS, until LHS is
+        // lower than RHS.
+        while lhs >= rhs && lhs.is_normal() {
+            let scale = lhs.get_exp() - rhs.get_exp();
+
+            // Scale RHS by a power of two. If we overshoot, take a step back.
+            let mut diff = rhs.scale(scale, RoundingMode::NearestTiesToEven);
+            if diff > lhs {
+                diff = rhs.scale(scale - 1, RoundingMode::NearestTiesToEven);
+            }
+
+            lhs = lhs.sub(diff);
+        }
+
+        // Set the original sign.
+        lhs.set_sign(self.get_sign());
+        lhs
+    }
+}
+
+#[test]
+fn test_scale() {
+    use super::FP64;
+    let x = FP64::from_u64(1);
+    let y = x.scale(1, RoundingMode::NearestTiesToEven);
+    assert_eq!(y.as_f64(), 2.0);
+    let z = x.scale(-1, RoundingMode::NearestTiesToEven);
+    assert_eq!(z.as_f64(), 0.5);
+}
+
+#[test]
+fn test_rem() {
+    use super::utils;
+    use super::utils::Lfsr;
+    use super::FP64;
+    use std::ops::Rem;
+
+    fn check_two_numbers(v0: f64, v1: f64) {
+        let f0 = FP64::from_f64(v0);
+        let f1 = FP64::from_f64(v1);
+        let r0 = v0.rem(v1);
+        let r1 = f0.rem(f1).as_f64();
+        assert_eq!(r0.is_nan(), r1.is_nan());
+        if !r0.is_nan() {
+            assert_eq!(r0, r1);
+        }
+    }
+
+    // Test addition, multiplication, subtraction with random values.
+    check_two_numbers(1.4, 2.5);
+    check_two_numbers(2.4, 1.5);
+    check_two_numbers(1000., std::f64::consts::PI);
+    check_two_numbers(10000000000000000000., std::f64::consts::PI / 1000.);
+    check_two_numbers(10000000000000000000., std::f64::consts::PI);
+    check_two_numbers(100., std::f64::consts::PI);
+    check_two_numbers(100., -std::f64::consts::PI);
+    check_two_numbers(0., 10.);
+    check_two_numbers(std::f64::consts::PI, 10.0);
+
+    // Test a bunch of random values:
+    let mut lfsr = Lfsr::new();
+    for _ in 0..5000 {
+        let v0 = f64::from_bits(lfsr.get64());
+        let v1 = f64::from_bits(lfsr.get64());
+        check_two_numbers(v0, v1);
+    }
+
+    // Test the hard cases:
+    for v0 in utils::get_special_test_values() {
+        for v1 in utils::get_special_test_values() {
+            check_two_numbers(v0, v1);
+        }
+    }
 }
