@@ -80,6 +80,49 @@ impl<const EXPONENT: usize, const MANTISSA: usize, const PARTS: usize>
         Self::new(self.get_sign(), self.get_exp(), m)
     }
 
+    /// Returns a number rounded to nearest integer, away from zero.
+    pub fn round(&self) -> Self {
+        use crate::float::shift_right_with_loss;
+
+        // Only handle normal numbers (don't do anything to NaN, Inf, Zero).
+        if !self.is_normal() {
+            return *self;
+        }
+
+        let exp = self.get_exp();
+
+        if exp > MANTISSA as i64 {
+            // Already an integer.
+            return *self;
+        }
+
+        // Numbers that are between 0.5 and 1.0 are rounded to 1.0.
+        if exp == -1 {
+            return Self::one(self.get_sign());
+        }
+
+        // Numbers below 0.5 are rounded to zero.
+        if exp < -2 {
+            return Self::zero(self.get_sign());
+        }
+
+        // This is a fraction. Figure out which bits represent values over one
+        // and clear out the values that represent the fraction.
+        let trim = (MANTISSA as i64 - exp) as usize;
+        let (mut m, loss) =
+            shift_right_with_loss(self.get_mantissa(), trim as u64);
+        m.shift_left(trim);
+        let t = Self::new(self.get_sign(), self.get_exp(), m);
+
+        if loss.is_lt_half() {
+            t
+        } else if self.get_sign() {
+            t - Self::one(false)
+        } else {
+            t + Self::one(false)
+        }
+    }
+
     fn convert_normal_to_integer(&self, rm: RoundingMode) -> BigInt<PARTS> {
         // We are converting to integer, so set the center point of the exponent
         // to the lsb instead of the msb.
@@ -434,7 +477,7 @@ fn test_cast_down_complex() {
 }
 
 #[test]
-fn test_round_floor() {
+fn test_trunc() {
     use super::utils::Lfsr;
 
     let large_integer = (1u64 << 52) as f64;
@@ -466,6 +509,47 @@ fn test_round_floor() {
     for val in utils::get_special_test_values() {
         let t0 = FP64::from_f64(val).trunc().as_f64();
         let t1 = val.trunc();
+        assert_eq!(t0.is_nan(), t1.is_nan());
+        if !t1.is_nan() {
+            assert_eq!(t0, t1);
+        }
+    }
+}
+
+#[test]
+fn test_round() {
+    use super::utils::Lfsr;
+    assert_eq!(FP64::from_f64(2.0).round().as_f64(), 2.0);
+    assert_eq!(FP64::from_f64(2.5).round().as_f64(), 3.0);
+    assert_eq!(FP64::from_f64(-2.5).round().as_f64(), -3.0);
+
+    let big_num = (1u64 << 52) as f64;
+    assert_eq!(FP64::from_f64(0.4).round().as_f64(), 0.);
+    assert_eq!(FP64::from_f64(1.4).round().as_f64(), 1.);
+    assert_eq!(FP64::from_f64(1.99).round().as_f64(), 2.);
+    assert_eq!(FP64::from_f64(2.0).round().as_f64(), 2.0);
+    assert_eq!(FP64::from_f64(2.1).round().as_f64(), 2.0);
+    assert_eq!(FP64::from_f64(-2.4).round().as_f64(), -2.0);
+    assert_eq!(FP64::from_f64(1999999.).round().as_f64(), 1999999.);
+    assert_eq!(FP64::from_f64(big_num).round().as_f64(), big_num);
+    assert_eq!(FP64::from_f64(0.001).round().as_f64(), 0.);
+
+    // Test random values.
+    let mut lfsr = Lfsr::new();
+    for _ in 0..5000 {
+        let v0 = f64::from_bits(lfsr.get64());
+        let t0 = FP64::from_f64(v0).round().as_f64();
+        let t1 = v0.round();
+        assert_eq!(t0.is_nan(), t1.is_nan());
+        if !t1.is_nan() {
+            assert_eq!(t0, t1);
+        }
+    }
+
+    // Test special values.
+    for val in utils::get_special_test_values() {
+        let t0 = FP64::from_f64(val).round().as_f64();
+        let t1 = val.round();
         assert_eq!(t0.is_nan(), t1.is_nan());
         if !t1.is_nan() {
             assert_eq!(t0, t1);

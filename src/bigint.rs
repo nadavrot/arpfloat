@@ -16,7 +16,7 @@ impl LossFraction {
         matches!(self, Self::ExactlyZero)
     }
     pub fn is_lt_half(&self) -> bool {
-        matches!(self, Self::LessThanHalf)
+        matches!(self, Self::LessThanHalf) || self.is_exactly_zero()
     }
     pub fn is_exactly_half(&self) -> bool {
         matches!(self, Self::ExactlyHalf)
