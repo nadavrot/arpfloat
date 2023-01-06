@@ -1,6 +1,15 @@
+extern crate alloc;
+
 use super::bigint::BigInt;
 use super::float::Float;
-use std::fmt::Display;
+use core::fmt::Display;
+use alloc::string::{String, ToString};
+use alloc::vec::{Vec};
+
+#[cfg(test)]
+#[cfg(feature = "std")]
+use std::{println, format};
+
 
 // Use a bigint for the decimal conversions.
 type BigNum = BigInt<50>;
@@ -20,7 +29,7 @@ impl<const EXPONENT: usize, const MANTISSA: usize, const PARTS: usize>
         let mut mantissa: BigNum = self.get_mantissa().cast();
 
         match exp.cmp(&0) {
-            std::cmp::Ordering::Less => {
+            core::cmp::Ordering::Less => {
                 // The number is not yet an integer, we need to convert it using
                 // the method:
                 // mmmmm * 5^(e) * 10 ^(-e) == mmmmm * 10 ^ (-e);
@@ -34,7 +43,7 @@ impl<const EXPONENT: usize, const MANTISSA: usize, const PARTS: usize>
                 debug_assert!(!overflow);
                 exp = -exp;
             }
-            std::cmp::Ordering::Equal | std::cmp::Ordering::Greater => {
+            core::cmp::Ordering::Equal | core::cmp::Ordering::Greater => {
                 // The number is already an integer, just align it.
                 // In this case, E - M > 0, so we are aligning the larger
                 // integers, for example [1.mmmm * e^15], in FP16 (where M=10).
@@ -127,11 +136,12 @@ impl<const EXPONENT: usize, const MANTISSA: usize, const PARTS: usize>
 impl<const EXPONENT: usize, const MANTISSA: usize, const PARTS: usize> Display
     for Float<EXPONENT, MANTISSA, PARTS>
 {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         write!(f, "{}", self.convert_to_string())
     }
 }
 
+#[cfg(feature = "std")]
 #[test]
 fn test_convert_to_string() {
     use crate::FP16;
@@ -173,6 +183,7 @@ fn test_fuzz_printing() {
     }
 }
 
+#[cfg(feature = "std")]
 #[test]
 fn test_print_sqrt() {
     type FP = crate::FP128;
@@ -190,6 +201,7 @@ fn test_print_sqrt() {
 }
 
 #[test]
+#[cfg(feature = "std")]
 fn test_readme_example() {
     use crate::new_float_type;
 

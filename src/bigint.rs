@@ -1,5 +1,14 @@
-use std::cmp::Ordering;
-use std::ops::{Add, Div, Mul, Sub};
+extern crate alloc;
+
+use core::cmp::Ordering;
+use core::ops::{Add, Div, Mul, Sub};
+#[cfg(test)]
+use alloc::vec::Vec;
+use alloc::string::String;
+
+#[cfg(feature = "std")]
+use std::{print, println};
+
 
 /// Reports the kind of values that are lost when we shift right bits. In some
 /// context this used as the two guard bits.
@@ -486,6 +495,7 @@ impl<const PARTS: usize> BigInt<PARTS> {
         self.parts[idx]
     }
 
+    #[cfg(feature = "std")]
     pub fn dump(&self) {
         print!("[");
         for i in (0..PARTS).rev() {
@@ -745,13 +755,13 @@ impl<const PARTS: usize> PartialOrd for BigInt<PARTS> {
     }
 }
 impl<const PARTS: usize> Ord for BigInt<PARTS> {
-    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+    fn cmp(&self, other: &Self) -> Ordering {
         // Compare all of the digits, from MSB to LSB.
         for i in (0..PARTS).rev() {
             match self.parts[i].cmp(&other.parts[i]) {
-                std::cmp::Ordering::Less => return Ordering::Less,
-                std::cmp::Ordering::Equal => {}
-                std::cmp::Ordering::Greater => return Ordering::Greater,
+                Ordering::Less => return Ordering::Less,
+                Ordering::Equal => {}
+                Ordering::Greater => return Ordering::Greater,
             }
         }
         Ordering::Equal
@@ -849,6 +859,7 @@ fn test_flip_bit() {
     }
 }
 
+#[cfg(feature = "std")]
 #[test]
 fn test_mul_div_encode_decode() {
     // Take a string of symbols and encode them into one large number.

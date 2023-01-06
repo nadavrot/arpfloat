@@ -1,5 +1,9 @@
+extern crate alloc;
 use super::bigint::BigInt;
 use super::bigint::LossFraction;
+
+#[cfg(feature = "std")]
+use std::println;
 
 /// Defines the supported rounding modes.
 /// See IEEE754-2019 Section 4.3 Rounding-direction attributes
@@ -196,6 +200,7 @@ impl<const EXPONENT: usize, const MANTISSA: usize, const PARTS: usize>
     }
 
     /// Prints the number using the internal representation.
+    #[cfg(feature = "std")]
     pub fn dump(&self) {
         let sign = if self.sign { "-" } else { "+" };
         match self.category {
@@ -451,7 +456,7 @@ impl<const EXPONENT: usize, const MANTISSA: usize, const PARTS: usize>
     } // round.
 }
 
-use std::cmp::Ordering;
+use core::cmp::Ordering;
 
 impl<const EXPONENT: usize, const MANTISSA: usize, const PARTS: usize> PartialEq
     for Float<EXPONENT, MANTISSA, PARTS>
@@ -519,6 +524,7 @@ impl<const EXPONENT: usize, const MANTISSA: usize, const PARTS: usize>
     }
 }
 
+#[cfg(feature = "std")]
 #[test]
 fn test_comparisons() {
     use super::utils;

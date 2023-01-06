@@ -77,6 +77,7 @@ impl<const EXPONENT: usize, const MANTISSA: usize, const PARTS: usize>
     }
 }
 
+#[cfg(feature = "std")]
 #[test]
 fn test_sqrt() {
     use super::utils;
@@ -119,6 +120,7 @@ fn test_sqrt() {
     check(5.0120298432056786e-8, 0.0002238756316173263);
 }
 
+#[cfg(feature = "std")]
 #[test]
 fn test_min_max() {
     use super::utils;
@@ -157,6 +159,7 @@ fn test_min_max() {
     }
 }
 
+#[cfg(feature = "std")]
 #[test]
 fn test_abs() {
     use super::utils;
@@ -211,12 +214,14 @@ impl<const EXPONENT: usize, const MANTISSA: usize, const PARTS: usize>
     }
 }
 
+#[cfg(feature = "std")]
 #[test]
 fn test_pi() {
     use super::FP128;
     assert_eq!(FP128::pi().as_f64(), std::f64::consts::PI);
 }
 
+#[cfg(feature = "std")]
 #[test]
 fn test_e() {
     use super::{FP128, FP32};
@@ -247,7 +252,7 @@ impl<const EXPONENT: usize, const MANTISSA: usize, const PARTS: usize>
     /// Returns the remainder from a division of two floats. This is equivalent
     /// to rust 'rem' or c 'fmod'.
     pub fn rem(&self, rhs: Self) -> Self {
-        use std::ops::Sub;
+        use core::ops::Sub;
         // Handle NaNs.
         if self.is_nan() || rhs.is_nan() || self.is_inf() || rhs.is_zero() {
             return Self::nan(self.get_sign());
@@ -294,12 +299,13 @@ fn test_scale() {
     assert_eq!(z.as_f64(), 0.5);
 }
 
+#[cfg(feature = "std")]
 #[test]
 fn test_rem() {
     use super::utils;
     use super::utils::Lfsr;
     use super::FP64;
-    use std::ops::Rem;
+    use core::ops::Rem;
 
     fn check_two_numbers(v0: f64, v1: f64) {
         let f0 = FP64::from_f64(v0);
