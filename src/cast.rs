@@ -11,8 +11,13 @@ impl<const EXPONENT: usize, const MANTISSA: usize, const PARTS: usize>
     /// Load the integer `val` into the float. Notice that the number may
     /// overflow, or rounded to the nearest even integer.
     pub fn from_u64(val: u64) -> Self {
-        let val = BigInt::from_u64(val);
-        let mut a = Self::new(false, MANTISSA as i64, val);
+        Self::from_bigint::<PARTS>(BigInt::from_u64(val))
+    }
+
+    /// Load the big int `val` into the float. Notice that the number may
+    /// overflow, or rounded to the nearest even integer.
+    pub fn from_bigint<const P: usize>(val: BigInt<P>) -> Self {
+        let mut a = Self::new(false, MANTISSA as i64, val.cast());
         a.normalize(RoundingMode::NearestTiesToEven, LossFraction::ExactlyZero);
         a
     }
