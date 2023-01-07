@@ -497,3 +497,67 @@ fn test_sin() {
         }
     }
 }
+
+impl<const EXPONENT: usize, const MANTISSA: usize, const PARTS: usize>
+    Float<EXPONENT, MANTISSA, PARTS>
+{
+    /// Computes the taylor series, centered around 1, and valid in [0..2].
+    /// z = (x - 1)
+    /// log(x) =  z - z^2/2 + z^3/3 - z^4/4 ...
+    fn log_taylor(x: Self) -> Self {
+        let mut neg = false;
+        let z = x - Self::one(false);
+        let mut top = Self::one(false);
+        let mut sum = Self::zero(false);
+        let mut prev = Self::one(true);
+        for i in 1..50 {
+            if prev == sum {
+                break; // Stop if we are not making progress.
+            }
+            prev = sum;
+
+            // Update sum.
+            top = top * z;
+            let elem = top / Self::from_u64(i);
+            sum = if neg { sum - elem } else { sum + elem };
+            neg ^= true;
+        }
+
+        sum
+    }
+
+    /// Reduce the range of 'x' with the identity:
+    /// ln(x) = ln(sqrt(x)^2) = 2 * ln(sqrt(x))
+    fn log_range_reduce(x: Self) -> Self {
+        let up = Self::from_f64(1.0001);
+        let low = Self::from_f64(0.9999);
+
+        if x > up || x < low {
+            let two = Self::from_u64(2);
+            let sx = x.sqrt();
+            return two * Self::log_range_reduce(sx);
+        }
+
+        Self::log_taylor(x)
+    }
+
+    /// Computes logarithm of 'x'.
+    pub fn log(&self) -> Self {
+        //Fast Logarithm function for Arbitrary Precision number,
+        // by Henrik Vestermark.
+
+        // Handle all of the special cases:
+        if !self.is_normal() {
+            return Self::zero(self.get_sign());
+        }
+
+        Self::log_range_reduce(*self)
+    }
+}
+
+#[test]
+fn test_log() {
+    use super::FP128;
+    let x = FP128::from_u64(3).log();
+    assert_eq!(x.as_f64(), 1.0986122886681098);
+}
