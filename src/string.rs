@@ -3,7 +3,6 @@ extern crate alloc;
 use super::bigint::BigInt;
 use super::float::Float;
 use alloc::string::{String, ToString};
-use alloc::vec::Vec;
 use core::cmp::Ordering;
 use core::fmt::Display;
 
@@ -84,6 +83,7 @@ impl<const EXPONENT: usize, const MANTISSA: usize, const PARTS: usize>
     }
 
     fn convert_normal_to_string(&self) -> String {
+        use alloc::vec::Vec;
         let (mut integer, mut exp) = self.convert_to_integer();
         let mut buff = Vec::new();
         let ten = BigNum::from_u64(10);
@@ -232,4 +232,90 @@ fn test_decimal_accuracy_for_type() {
     assert_eq!(FP64::get_decimal_accuracy(), 17);
     assert_eq!(FP128::get_decimal_accuracy(), 35);
     assert_eq!(FP256::get_decimal_accuracy(), 73);
+}
+
+impl<const PARTS: usize> BigInt<PARTS> {
+    /// Prints the bigint as a decimal number.
+    pub fn as_decimal(&self) -> String {
+        use alloc::vec::Vec;
+
+        if self.is_zero() {
+            return "0".to_string();
+        }
+
+        let mut buff = Vec::new();
+        let digits = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'];
+        let ten = Self::from_u64(10);
+        let mut val = *self;
+        while !val.is_zero() {
+            let rem = val.inplace_div(ten);
+            buff.insert(0, digits[rem.as_u64() as usize]);
+        }
+
+        String::from_iter(buff)
+    }
+    /// Prints the bigint as a sequence of bits.
+    pub fn as_str(&self) -> String {
+        let mut sb = String::new();
+        let mut first = true;
+        for i in 0..PARTS {
+            let mut part = self.get_part(i);
+            // Don't print leading zeros in empty parts of the bigint.
+            if first && part == 0 {
+                continue;
+            }
+
+            // Don't print leading zeros for the first word.
+            if first {
+                while part > 0 {
+                    let last = if part & 0x1 == 1 { '1' } else { '0' };
+                    sb.insert(0, last);
+                    part /= 2;
+                }
+                continue;
+            }
+            first = false;
+
+            // Print leading zeros for the rest of the words.
+            for _ in 0..64 {
+                let last = if part & 0x1 == 1 { '1' } else { '0' };
+                sb.insert(0, last);
+                part /= 2;
+            }
+        }
+        if sb.is_empty() {
+            sb.push('0');
+        }
+        sb
+    }
+}
+
+#[cfg(feature = "std")]
+#[test]
+fn test_bigint_to_string() {
+    let val = 0b101110011010011111010101011110000000101011110101;
+    let mut bi = BigInt::<2>::from_u64(val);
+    bi.shift_left(32);
+    assert_eq!(
+        bi.as_str(),
+        "10111001101001111101010101111000\
+        000010101111010100000000000000000\
+        000000000000000"
+    );
+}
+
+#[cfg(feature = "std")]
+#[test]
+fn test_bigint_to_decimal() {
+    let mut num = BigInt::<100>::one();
+    for i in 1..41 {
+        let term = BigInt::<100>::from_u64(i);
+        let overflow = num.inplace_mul(term);
+        assert!(!overflow);
+    }
+
+    assert_eq!(
+        num.as_decimal(),
+        "815915283247897734345611269596115894272000000000"
+    );
 }

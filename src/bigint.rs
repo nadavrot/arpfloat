@@ -1,6 +1,5 @@
 extern crate alloc;
 
-use alloc::string::String;
 #[cfg(test)]
 use alloc::vec::Vec;
 use core::cmp::Ordering;
@@ -115,41 +114,6 @@ impl<const PARTS: usize> BigInt<PARTS> {
         } else {
             self.parts[0] as u128
         }
-    }
-
-    /// Prints the bigint as a sequence of bits.
-    pub fn as_str(&self) -> String {
-        let mut sb = String::new();
-        let mut first = true;
-        for i in 0..PARTS {
-            let mut part = self.parts[i];
-            // Don't print leading zeros in empty parts of the bigint.
-            if first && part == 0 {
-                continue;
-            }
-
-            // Don't print leading zeros for the first word.
-            if first {
-                while part > 0 {
-                    let last = if part & 0x1 == 1 { '1' } else { '0' };
-                    sb.insert(0, last);
-                    part /= 2;
-                }
-                continue;
-            }
-            first = false;
-
-            // Print leading zeros for the rest of the words.
-            for _ in 0..64 {
-                let last = if part & 0x1 == 1 { '1' } else { '0' };
-                sb.insert(0, last);
-                part /= 2;
-            }
-        }
-        if sb.is_empty() {
-            sb.push('0');
-        }
-        sb
     }
 
     /// Convert this instance to a smaller number. Notice that this may truncate
@@ -298,7 +262,7 @@ impl<const PARTS: usize> BigInt<PARTS> {
     pub fn inplace_mul(&mut self, rhs: Self) -> bool {
         /// The parameter `P2` is here to work around a limitation in the
         /// rust generic system. P2 needs to be greater or equal to PARTS*2.
-        const P2: usize = 100;
+        const P2: usize = 200;
         debug_assert!(P2 >= PARTS * 2);
         let mut parts: [u64; P2] = [0; P2];
         let mut carries: [u64; P2] = [0; P2];
@@ -887,13 +851,4 @@ fn test_mul_div_encode_decode() {
         let rem = bitstream.inplace_div(base);
         assert_eq!(message[idx], rem.as_u64());
     }
-}
-
-#[cfg(feature = "std")]
-#[test]
-fn test_dump() {
-    let val = 0b101110011010011111010101011110000000101011110101;
-    let mut bi = BigInt::<2>::from_u64(val);
-    bi.shift_left(32);
-    assert_eq!(bi.as_str(), "10111001101001111101010101111000000010101111010100000000000000000000000000000000");
 }
