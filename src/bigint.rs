@@ -121,7 +121,7 @@ impl<const PARTS: usize> BigInt<PARTS> {
     pub fn as_str(&self) -> String {
         let mut sb = String::new();
         let mut first = true;
-        for i in (0..PARTS).rev() {
+        for i in 0..PARTS {
             let mut part = self.parts[i];
             // Don't print leading zeros in empty parts of the bigint.
             if first && part == 0 {
@@ -887,4 +887,13 @@ fn test_mul_div_encode_decode() {
         let rem = bitstream.inplace_div(base);
         assert_eq!(message[idx], rem.as_u64());
     }
+}
+
+#[cfg(feature = "std")]
+#[test]
+fn test_dump() {
+    let val = 0b101110011010011111010101011110000000101011110101;
+    let mut bi = BigInt::<2>::from_u64(val);
+    bi.shift_left(32);
+    assert_eq!(bi.as_str(), "10111001101001111101010101111000000010101111010100000000000000000000000000000000");
 }
