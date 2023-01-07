@@ -1,14 +1,10 @@
 extern crate alloc;
 
-use core::cmp::Ordering;
-use core::ops::{Add, Div, Mul, Sub};
+use alloc::string::String;
 #[cfg(test)]
 use alloc::vec::Vec;
-use alloc::string::String;
-
-#[cfg(feature = "std")]
-use std::{print, println};
-
+use core::cmp::Ordering;
+use core::ops::{Add, Div, Mul, Sub};
 
 /// Reports the kind of values that are lost when we shift right bits. In some
 /// context this used as the two guard bits.
@@ -497,6 +493,7 @@ impl<const PARTS: usize> BigInt<PARTS> {
 
     #[cfg(feature = "std")]
     pub fn dump(&self) {
+        use std::{print, println};
         print!("[");
         for i in (0..PARTS).rev() {
             let width = u64::BITS as usize;

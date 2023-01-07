@@ -2,12 +2,9 @@ extern crate alloc;
 use crate::BigInt;
 
 use super::bigint::LossFraction;
-use core::ops::{Add, Div, Mul, Sub};
-use core::cmp::Ordering;
 use super::float::{shift_right_with_loss, Category, Float, RoundingMode};
-
-#[cfg(test)]
-use crate::std::string::ToString;
+use core::cmp::Ordering;
+use core::ops::{Add, Div, Mul, Sub};
 
 impl<const EXPONENT: usize, const MANTISSA: usize, const PARTS: usize>
     Float<EXPONENT, MANTISSA, PARTS>
@@ -695,6 +692,7 @@ fn test_slow_sqrt_2_test() {
 #[cfg(feature = "std")]
 #[test]
 fn test_famous_pentium4_bug() {
+    use crate::std::string::ToString;
     // https://en.wikipedia.org/wiki/Pentium_FDIV_bug
     use crate::FP128;
 

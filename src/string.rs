@@ -4,13 +4,8 @@ use super::bigint::BigInt;
 use super::float::Float;
 use alloc::string::{String, ToString};
 use alloc::vec::Vec;
-use core::fmt::Display;
 use core::cmp::Ordering;
-
-#[cfg(test)]
-#[cfg(feature = "std")]
-use std::{println, format};
-
+use core::fmt::Display;
 
 // Use a bigint for the decimal conversions.
 type BigNum = BigInt<50>;
@@ -147,6 +142,7 @@ impl<const EXPONENT: usize, const MANTISSA: usize, const PARTS: usize> Display
 fn test_convert_to_string() {
     use crate::FP16;
     use crate::FP64;
+    use std::format;
 
     fn to_str_w_fp16(val: f64) -> String {
         format!("{}", FP16::from_f64(val))
@@ -188,6 +184,7 @@ fn test_fuzz_printing() {
 #[test]
 fn test_print_sqrt() {
     type FP = crate::FP128;
+    use std::println;
 
     // Use Newton-Raphson to find the square root of 5.
     let n = FP::from_u64(5);
@@ -205,7 +202,7 @@ fn test_print_sqrt() {
 #[cfg(feature = "std")]
 fn test_readme_example() {
     use crate::new_float_type;
-
+    use std::println;
     // Create a new type: 15 bits exponent, 112 significand.
     type FP128 = new_float_type!(15, 112);
 
