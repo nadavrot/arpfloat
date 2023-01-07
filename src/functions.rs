@@ -443,6 +443,23 @@ impl<const EXPONENT: usize, const MANTISSA: usize, const PARTS: usize>
     }
 }
 
+#[cfg(feature = "std")]
+#[test]
+fn test_sin_known_value() {
+    use super::FP128;
+    use crate::std::string::ToString;
+    // Verify the results with:
+    // from mpmath import mp
+    // mp.dps = 1000
+    // mp.sin(801./10000)
+    let res = FP128::from_f64(801. / 10000.).sin().to_string();
+    assert_eq!(res, ".08001437374006335063004091256546517");
+    let res = FP128::from_f64(90210. / 10000.).sin().to_string();
+    assert_eq!(res, ".3928952872542333310202066837055861");
+    let res = FP128::from_f64(95051.).sin().to_string();
+    assert_eq!(res, "-.8559198239971502543265812323548967");
+}
+
 #[test]
 fn test_sin_taylor() {
     use super::FP128;
