@@ -1,7 +1,5 @@
 extern crate alloc;
 
-#[cfg(test)]
-use alloc::vec::Vec;
 use core::cmp::Ordering;
 use core::ops::{Add, Div, Mul, Sub};
 
@@ -823,6 +821,7 @@ fn test_flip_bit() {
 #[cfg(feature = "std")]
 #[test]
 fn test_mul_div_encode_decode() {
+    use alloc::vec::Vec;
     // Take a string of symbols and encode them into one large number.
     const P: usize = 10;
     const BASE: u64 = 5;
