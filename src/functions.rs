@@ -344,19 +344,27 @@ impl<const EXPONENT: usize, const MANTISSA: usize, const PARTS: usize>
 {
     /// sin(x) = x - x^3 / 3! + x^5 / 5! - x^7/7! ....
     fn sin_taylor(x: Self) -> Self {
+        use crate::BigInt;
+
         let mut neg = false;
         let mut top = x;
-        let mut bottom = 1;
+        let mut bottom: BigInt<PARTS> = BigInt::one();
         let mut sum = Self::zero(false);
         let x2 = x.sqr();
-        for i in 1..10 {
+        let mut prev = Self::one(true);
+        for i in 1..50 {
+            if prev == sum {
+                break; // Stop if we are not making progress.
+            }
+            prev = sum;
             // Update sum.
-            let elem = top / Self::from_u64(bottom);
+            let elem = top / Self::from_bigint(bottom);
             sum = if neg { sum - elem } else { sum + elem };
 
             // Prepare the next element.
             top = top * x2;
-            bottom = bottom * (i * 2) * (i * 2 + 1);
+            let next_term = BigInt::from_u64((i * 2) * (i * 2 + 1));
+            bottom = bottom * next_term;
             neg ^= true;
         }
 
@@ -420,7 +428,7 @@ impl<const EXPONENT: usize, const MANTISSA: usize, const PARTS: usize>
         }
         debug_assert!(val <= pi_half);
 
-        let res = Self::sin_step4_reduction(val, 5);
+        let res = Self::sin_step4_reduction(val, 16);
         if neg {
             res.neg()
         } else {
@@ -433,10 +441,18 @@ impl<const EXPONENT: usize, const MANTISSA: usize, const PARTS: usize>
 fn test_sin_taylor() {
     use super::FP128;
 
-    for i in -10..100 {
+    for i in -100..100 {
         let f0 = i as f64;
         let r0 = f0.sin();
         let r1 = FP128::from_f64(f0).sin().as_f64();
         assert_eq!(r0, r1);
+    }
+
+    for i in -300..300 {
+        let f0 = (i as f64) / 100.;
+        let r0 = f0.sin();
+        let r1 = FP128::from_f64(f0).sin().as_f64();
+        let delta = r0 - r1;
+        assert_eq!(delta.abs(), 0.);
     }
 }
