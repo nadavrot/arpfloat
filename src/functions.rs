@@ -396,9 +396,14 @@ impl<const EXPONENT: usize, const MANTISSA: usize, const PARTS: usize>
         // Fast Trigonometric functions for Arbitrary Precision number
         // by Henrik Vestermark.
 
-        if self.is_zero() {
+        if self.is_zero() || self.is_nan() {
             return *self;
         }
+
+        if self.is_inf() {
+            return Self::nan(self.get_sign());
+        }
+
         assert!(self.is_normal());
 
         let mut neg = false;
@@ -461,7 +466,8 @@ fn test_sin_known_value() {
 }
 
 #[test]
-fn test_sin_taylor() {
+fn test_sin() {
+    use super::utils;
     use super::FP128;
 
     for i in -100..100 {
@@ -475,7 +481,19 @@ fn test_sin_taylor() {
         let f0 = (i as f64) / 100.;
         let r0 = f0.sin();
         let r1 = FP128::from_f64(f0).sin().as_f64();
-        let delta = r0 - r1;
-        assert_eq!(delta.abs(), 0.);
+        assert_eq!(r0, r1);
+    }
+
+    // Test non-normal values.
+    for v in utils::get_special_test_values() {
+        if v.is_normal() {
+            continue;
+        }
+        let r0 = v.sin();
+        let r1 = FP128::from_f64(v).sin().as_f64();
+        assert_eq!(r0.is_nan(), r1.is_nan());
+        if !r0.is_nan() {
+            assert_eq!(r0, r1);
+        }
     }
 }
