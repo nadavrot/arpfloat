@@ -501,6 +501,27 @@ fn test_sin() {
 impl<const EXPONENT: usize, const MANTISSA: usize, const PARTS: usize>
     Float<EXPONENT, MANTISSA, PARTS>
 {
+    /// Compute log(2).
+    pub fn ln2() -> Self {
+        // Represent log(2) using the sum 1/k*2^k
+        let one = Self::one(false);
+        let mut sum = Self::zero(false);
+        let mut prev = Self::inf(true);
+        for k in 1..500 {
+            let k2 = Self::from_u64(1).scale(k, RoundingMode::Zero);
+            let k = Self::from_u64(k as u64);
+            let term = one / (k * k2);
+
+            sum = sum + term;
+
+            if prev == sum {
+                break;
+            }
+            prev = sum;
+        }
+        sum
+    }
+
     /// Computes the taylor series, centered around 1, and valid in [0..2].
     /// z = (x - 1)
     /// log(x) =  z - z^2/2 + z^3/3 - z^4/4 ...
@@ -553,6 +574,13 @@ impl<const EXPONENT: usize, const MANTISSA: usize, const PARTS: usize>
 
         Self::log_range_reduce(*self)
     }
+}
+
+#[cfg(feature = "std")]
+#[test]
+fn test_ln2() {
+    use super::FP128;
+    assert_eq!(FP128::ln2().as_f64(), std::f64::consts::LN_2);
 }
 
 #[test]
