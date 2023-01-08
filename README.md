@@ -22,7 +22,7 @@ operation, in software, or create new floating point data types.
   let mut x = n;
 
   for _ in 0..1000 {
-      x = (x + (n / x))/two;
+      x = (x + (n / x))/2;
   }
 
   println!("fp128: {}", x);

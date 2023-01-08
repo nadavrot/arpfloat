@@ -208,12 +208,10 @@ fn test_readme_example() {
 
     // Use Newton-Raphson to find the square root of 5.
     let n = FP128::from_u64(5);
-
-    let two = FP128::from_u64(2);
     let mut x = n.clone();
 
     for _ in 0..1000 {
-        x = (x.clone() + (n.clone() / x)) / two.clone();
+        x = (x.clone() + (n.clone() / x)) / 2;
     }
     println!("fp128: {}", x);
     println!("fp64:  {}", x.as_f64());

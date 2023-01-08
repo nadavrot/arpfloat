@@ -262,7 +262,7 @@ pub(crate) fn shift_right_with_loss<const P: usize>(
     bits: u64,
 ) -> (BigInt<P>, LossFraction) {
     let mut val = val.clone();
-    let loss = val.get_loss_kind_for_bit(bits as usize);    
+    let loss = val.get_loss_kind_for_bit(bits as usize);
     val.shift_right(bits as usize);
     (val, loss)
 }

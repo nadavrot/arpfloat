@@ -24,15 +24,11 @@ impl<const EXPONENT: usize, const MANTISSA: usize, const PARTS: usize>
         let two = Self::from_u64(2);
 
         // Start the search at max(2, x).
-        let mut x = if target < two {
-            two.clone()
-        } else {
-            target.clone()
-        };
+        let mut x = if target < two { two } else { target.clone() };
         let mut prev = x.clone();
 
         loop {
-            x = (x.clone() + (target.clone() / x.clone())) / two.clone();
+            x = (x.clone() + (target.clone() / x.clone())) / 2;
             // Stop when value did not change or regressed.
             if prev < x || x == prev {
                 return x;
@@ -203,17 +199,16 @@ impl<const EXPONENT: usize, const MANTISSA: usize, const PARTS: usize>
 
         while a != b {
             let y = a.clone();
-            a = (&a + &b) / two.clone();
+            a = (&a + &b) / 2;
             b = (&b * &y).sqrt();
             t = &t - &(&x * &((&a - &y).sqr()));
-            x = x.clone() * two.clone();
+            x = x.clone() * 2;
         }
         a.sqr() / t
     }
 
     /// Computes e using Euler's continued fraction, which is a simple series.
     pub fn e() -> Self {
-        let two = Self::from_i64(2);
         let one = Self::from_i64(1);
         let mut term = one.clone();
         let iterations: i64 = (EXPONENT * 2) as i64;
@@ -222,7 +217,7 @@ impl<const EXPONENT: usize, const MANTISSA: usize, const PARTS: usize>
             term = &v + &(&v / &term);
         }
 
-        two + one / term
+        one / term + 2
     }
 }
 
@@ -276,7 +271,11 @@ impl<const EXPONENT: usize, const MANTISSA: usize, const PARTS: usize>
 
         // Operate on integers.
         let mut lhs = self.abs();
-        let rhs = if rhs.is_negative() { rhs.neg() } else { rhs.clone() };
+        let rhs = if rhs.is_negative() {
+            rhs.neg()
+        } else {
+            rhs.clone()
+        };
         debug_assert!(lhs.is_normal() && rhs.is_normal());
 
         // This is a clever algorithm. Subtracting the RHS from LHS in a loop

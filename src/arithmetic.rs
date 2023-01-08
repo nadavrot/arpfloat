@@ -619,6 +619,7 @@ macro_rules! declare_operator {
     ($trait_name:ident,
      $func_name:ident,
      $func_impl_name:ident) => {
+        // Self + Self
         impl<
                 const EXPONENT: usize,
                 const MANTISSA: usize,
@@ -635,6 +636,23 @@ macro_rules! declare_operator {
             }
         }
 
+        // Self + u64
+        impl<
+                const EXPONENT: usize,
+                const MANTISSA: usize,
+                const PARTS: usize,
+            > $trait_name<u64> for Float<EXPONENT, MANTISSA, PARTS>
+        {
+            type Output = Self;
+            fn $func_name(self, rhs: u64) -> Self {
+                Self::$func_impl_name(
+                    &self,
+                    &Self::Output::from_u64(rhs),
+                    RoundingMode::NearestTiesToEven,
+                )
+            }
+        }
+        // &Self + &Self
         impl<
                 const EXPONENT: usize,
                 const MANTISSA: usize,
@@ -646,6 +664,22 @@ macro_rules! declare_operator {
                 Self::Output::$func_impl_name(
                     &self,
                     rhs,
+                    RoundingMode::NearestTiesToEven,
+                )
+            }
+        }
+        // &Self + u64
+        impl<
+                const EXPONENT: usize,
+                const MANTISSA: usize,
+                const PARTS: usize,
+            > $trait_name<u64> for &Float<EXPONENT, MANTISSA, PARTS>
+        {
+            type Output = Float<EXPONENT, MANTISSA, PARTS>;
+            fn $func_name(self, rhs: u64) -> Self::Output {
+                Self::Output::$func_impl_name(
+                    &self,
+                    &Self::Output::from_u64(rhs),
                     RoundingMode::NearestTiesToEven,
                 )
             }
@@ -684,7 +718,7 @@ fn test_slow_sqrt_2_test() {
     let mut low = FP128::from_f64(1.0);
 
     for _ in 0..25 {
-        let mid = &(high.clone() + low.clone()) / &two;
+        let mid = &(high.clone() + low.clone()) / 2;
         if (&mid * &mid) < two {
             low = mid;
         } else {
