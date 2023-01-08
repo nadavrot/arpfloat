@@ -15,11 +15,13 @@ impl<const EXPONENT: usize, const MANTISSA: usize, const PARTS: usize>
     /// This implementation follows the APFloat implementation, that does not
     /// swap the operands.
     fn add_or_sub_normals(
-        mut a: Self,
-        mut b: Self,
+        a: &Self,
+        b: &Self,
         subtract: bool,
     ) -> (Self, LossFraction) {
         let loss;
+        let mut a = a.clone();
+        let mut b = b.clone();
 
         // Align the input numbers on the same exponent.
         let bits = a.get_exp() - b.get_exp();
@@ -67,8 +69,8 @@ impl<const EXPONENT: usize, const MANTISSA: usize, const PARTS: usize>
             (Self::new(sign, a.get_exp(), ab_mantissa), loss.invert())
         } else {
             // Handle the easy case of Add:
-            let mut b = b;
-            let mut a = a;
+            let mut b = b.clone();
+            let mut a = a.clone();
             if bits > 0 {
                 loss = b.shift_significand_right(bits as u64);
             } else {
@@ -81,15 +83,15 @@ impl<const EXPONENT: usize, const MANTISSA: usize, const PARTS: usize>
     }
 
     /// Computes a+b using the rounding mode `rm`.
-    pub fn add_with_rm(a: Self, b: Self, rm: RoundingMode) -> Self {
+    pub fn add_with_rm(a: &Self, b: &Self, rm: RoundingMode) -> Self {
         Self::add_sub(a, b, false, rm)
     }
     /// Computes a-b using the rounding mode `rm`.
-    pub fn sub_with_rm(a: Self, b: Self, rm: RoundingMode) -> Self {
+    pub fn sub_with_rm(a: &Self, b: &Self, rm: RoundingMode) -> Self {
         Self::add_sub(a, b, true, rm)
     }
 
-    fn add_sub(a: Self, b: Self, subtract: bool, rm: RoundingMode) -> Self {
+    fn add_sub(a: &Self, b: &Self, subtract: bool, rm: RoundingMode) -> Self {
         // Table 8.2: Specification of addition for positive floating-point
         // data. Pg 247.
         match (a.get_category(), b.get_category()) {
@@ -99,7 +101,7 @@ impl<const EXPONENT: usize, const MANTISSA: usize, const PARTS: usize>
             | (Category::NaN, Category::Zero)
             | (Category::Normal, Category::Zero)
             | (Category::Infinity, Category::Normal)
-            | (Category::Infinity, Category::Zero) => a,
+            | (Category::Infinity, Category::Zero) => a.clone(),
 
             (Category::Zero, Category::NaN)
             | (Category::Normal, Category::NaN)
@@ -110,7 +112,7 @@ impl<const EXPONENT: usize, const MANTISSA: usize, const PARTS: usize>
                 Self::inf(b.get_sign() ^ subtract)
             }
 
-            (Category::Zero, Category::Normal) => b,
+            (Category::Zero, Category::Normal) => b.clone(),
 
             (Category::Zero, Category::Zero) => {
                 Self::zero(a.get_sign() && b.get_sign())
@@ -187,13 +189,13 @@ fn test_addition_large_numbers() {
     let one = FP64::from_i64(1);
     let mut a = FP64::from_i64(1);
 
-    while FP64::sub(FP64::add(a, one), a) == one {
-        a = FP64::add(a, a);
+    while FP64::sub(FP64::add(a.clone(), one.clone()), a.clone()) == one {
+        a = FP64::add(a.clone(), a);
     }
 
-    let mut b = one;
-    while FP64::sub(FP64::add(a, b), a) != b {
-        b = FP64::add(b, one);
+    let mut b = one.clone();
+    while FP64::sub(FP64::add(a.clone(), b.clone()), a.clone()) != b {
+        b = FP64::add(b.clone(), one.clone());
     }
 
     assert_eq!(a.as_f64(), 9007199254740992.);
@@ -319,7 +321,7 @@ impl<const EXPONENT: usize, const MANTISSA: usize, const PARTS: usize>
     Float<EXPONENT, MANTISSA, PARTS>
 {
     /// Compute a*b using the rounding mode `rm`.
-    pub fn mul_with_rm(a: Self, b: Self, rm: RoundingMode) -> Self {
+    pub fn mul_with_rm(a: &Self, b: &Self, rm: RoundingMode) -> Self {
         let sign = a.get_sign() ^ b.get_sign();
 
         // Table 8.4: Specification of multiplication for floating-point data of
@@ -351,7 +353,7 @@ impl<const EXPONENT: usize, const MANTISSA: usize, const PARTS: usize>
     }
 
     /// See Pg 251. 8.4 Floating-Point Multiplication
-    fn mul_normals(a: Self, b: Self, sign: bool) -> (Self, LossFraction) {
+    fn mul_normals(a: &Self, b: &Self, sign: bool) -> (Self, LossFraction) {
         // We multiply digits in the format 1.xx * 2^(e), or mantissa * 2^(e+1).
         // When we multiply two 2^(e+1) numbers, we get:
         // log(2^(e_a+1)*2^(e_b+1)) = e_a + e_b + 2.
@@ -375,7 +377,7 @@ impl<const EXPONENT: usize, const MANTISSA: usize, const PARTS: usize>
             let bits = first_non_zero - precision;
 
             (ab_significand, loss) =
-                shift_right_with_loss(ab_significand, bits);
+                shift_right_with_loss(&ab_significand, bits);
             exp += bits as i64;
         }
 
@@ -490,7 +492,7 @@ impl<const EXPONENT: usize, const MANTISSA: usize, const PARTS: usize>
     Float<EXPONENT, MANTISSA, PARTS>
 {
     /// Compute a/b, with the rounding mode `rm`.
-    pub fn div_with_rm(a: Self, b: Self, rm: RoundingMode) -> Self {
+    pub fn div_with_rm(a: &Self, b: &Self, rm: RoundingMode) -> Self {
         let sign = a.get_sign() ^ b.get_sign();
         // Table 8.5: Special values for x/y - Page 263.
         match (a.get_category(), b.get_category()) {
@@ -514,7 +516,9 @@ impl<const EXPONENT: usize, const MANTISSA: usize, const PARTS: usize>
     /// Compute a/b, where both `a` and `b` are normals.
     /// Page 262 8.6. Floating-Point Division.
     /// This implementation uses a regular integer division for the mantissa.
-    fn div_normals(mut a: Self, mut b: Self) -> (Self, LossFraction) {
+    fn div_normals(a: &Self, b: &Self) -> (Self, LossFraction) {
+        let mut a = a.clone();
+        let mut b = b.clone();
         // Start by normalizing the dividend and divisor to the MSB.
         a.align_mantissa(); // Normalize the dividend.
         b.align_mantissa(); // Normalize the divisor.
@@ -573,7 +577,7 @@ fn test_div_simple() {
 
     let af = FP64::from_f64(a);
     let bf = FP64::from_f64(b);
-    let cf = FP64::div_with_rm(af, bf, RoundingMode::NearestTiesToEven);
+    let cf = FP64::div_with_rm(&af, &bf, RoundingMode::NearestTiesToEven);
 
     let r0 = cf.as_f64();
     let r1: f64 = a / b;
@@ -593,7 +597,7 @@ fn test_div_special_values() {
     fn div_f64(a: f64, b: f64) -> f64 {
         let a = FP64::from_f64(a);
         let b = FP64::from_f64(b);
-        FP64::div_with_rm(a, b, RoundingMode::NearestTiesToEven).as_f64()
+        FP64::div_with_rm(&a, &b, RoundingMode::NearestTiesToEven).as_f64()
     }
 
     for v0 in values {
@@ -611,54 +615,58 @@ fn test_div_special_values() {
     }
 }
 
-impl<const EXPONENT: usize, const MANTISSA: usize, const PARTS: usize> Add
-    for Float<EXPONENT, MANTISSA, PARTS>
-{
-    type Output = Self;
+macro_rules! declare_operator {
+    ($trait_name:ident,
+     $func_name:ident,
+     $func_impl_name:ident) => {
+        impl<
+                const EXPONENT: usize,
+                const MANTISSA: usize,
+                const PARTS: usize,
+            > $trait_name for Float<EXPONENT, MANTISSA, PARTS>
+        {
+            type Output = Self;
+            fn $func_name(self, rhs: Self) -> Self {
+                Self::$func_impl_name(
+                    &self,
+                    &rhs,
+                    RoundingMode::NearestTiesToEven,
+                )
+            }
+        }
 
-    fn add(self, rhs: Self) -> Self {
-        Self::add_with_rm(self, rhs, RoundingMode::NearestTiesToEven)
-    }
+        impl<
+                const EXPONENT: usize,
+                const MANTISSA: usize,
+                const PARTS: usize,
+            > $trait_name<Self> for &Float<EXPONENT, MANTISSA, PARTS>
+        {
+            type Output = Float<EXPONENT, MANTISSA, PARTS>;
+            fn $func_name(self, rhs: Self) -> Self::Output {
+                Self::Output::$func_impl_name(
+                    &self,
+                    rhs,
+                    RoundingMode::NearestTiesToEven,
+                )
+            }
+        }
+    };
 }
 
-impl<const EXPONENT: usize, const MANTISSA: usize, const PARTS: usize> Sub
-    for Float<EXPONENT, MANTISSA, PARTS>
-{
-    type Output = Self;
-
-    fn sub(self, rhs: Self) -> Self {
-        Self::sub_with_rm(self, rhs, RoundingMode::NearestTiesToEven)
-    }
-}
-impl<const EXPONENT: usize, const MANTISSA: usize, const PARTS: usize> Mul
-    for Float<EXPONENT, MANTISSA, PARTS>
-{
-    type Output = Self;
-
-    fn mul(self, rhs: Self) -> Self {
-        Self::mul_with_rm(self, rhs, RoundingMode::NearestTiesToEven)
-    }
-}
-
-impl<const EXPONENT: usize, const MANTISSA: usize, const PARTS: usize> Div
-    for Float<EXPONENT, MANTISSA, PARTS>
-{
-    type Output = Self;
-
-    fn div(self, rhs: Self) -> Self {
-        Self::div_with_rm(self, rhs, RoundingMode::NearestTiesToEven)
-    }
-}
+declare_operator!(Add, add, add_with_rm);
+declare_operator!(Sub, sub, sub_with_rm);
+declare_operator!(Mul, mul, mul_with_rm);
+declare_operator!(Div, div, div_with_rm);
 
 #[test]
 fn test_operators() {
     use crate::FP64;
     let a = FP64::from_f32(8.0);
     let b = FP64::from_f32(2.0);
-    let c = a + b;
-    let d = a - b;
-    let e = a * b;
-    let f = a / b;
+    let c = &a + &b;
+    let d = &a - &b;
+    let e = &a * &b;
+    let f = &a / &b;
     assert_eq!(c.as_f64(), 10.0);
     assert_eq!(d.as_f64(), 6.0);
     assert_eq!(e.as_f64(), 16.0);
@@ -676,8 +684,8 @@ fn test_slow_sqrt_2_test() {
     let mut low = FP128::from_f64(1.0);
 
     for _ in 0..25 {
-        let mid = (high + low) / two;
-        if (mid * mid) < two {
+        let mid = &(high.clone() + low.clone()) / &two;
+        if (&mid * &mid) < two {
             low = mid;
         } else {
             high = mid;

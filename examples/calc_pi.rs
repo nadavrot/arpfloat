@@ -23,12 +23,12 @@ fn main() {
 
     for q in 1..iterations + 1 {
         let q3 = FP::from_u64(q * q * q);
-        let k3 = kc * kc * kc;
-        m = (k3 - (kc * c16)) * m / q3;
-        l = l + c2;
-        x = x * c3;
-        s = s + (m * l / x);
-        kc = kc + c12;
+        let k3 = &kc * &(&kc * &kc);
+        m = (k3 - (&kc * &c16)) * m / q3;
+        l = &l + &c2;
+        x = &x * &c3;
+        s = s + (&(&m * &l) / &x);
+        kc = &kc + &c12;
     }
     let pi = FP::from_u64(426880) * (c1 / s);
     println!("pi = {}", pi);

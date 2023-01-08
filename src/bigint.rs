@@ -44,7 +44,7 @@ impl LossFraction {
 }
 /// This is a fixed-size big int implementation that's used to represent the
 /// significand part of the floating point number.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct BigInt<const PARTS: usize> {
     parts: [u64; PARTS],
 }
@@ -184,7 +184,7 @@ impl<const PARTS: usize> BigInt<PARTS> {
         if bit > PARTS * 64 {
             return LossFraction::LessThanHalf;
         }
-        let mut a = *self;
+        let mut a = self.clone();
         a.mask(bit);
         if a.is_zero() {
             return LossFraction::ExactlyZero;
@@ -294,8 +294,8 @@ impl<const PARTS: usize> BigInt<PARTS> {
 
     /// Divide self by `divisor`, and return the reminder.
     pub fn inplace_div(&mut self, divisor: &Self) -> Self {
-        let mut dividend = *self;
-        let mut divisor = *divisor;
+        let mut dividend = self.clone();
+        let mut divisor = divisor.clone();
         let mut quotient = Self::zero();
 
         let dividend_msb = dividend.msb_index();
@@ -303,7 +303,7 @@ impl<const PARTS: usize> BigInt<PARTS> {
         assert_ne!(divisor_msb, 0, "division by zero");
 
         if divisor_msb > dividend_msb {
-            let ret = *self;
+            let ret = self.clone();
             *self = Self::zero();
             return ret;
         }
@@ -351,7 +351,7 @@ impl<const PARTS: usize> BigInt<PARTS> {
         // Perform the long division.
         for i in (0..bits + 1).rev() {
             if dividend >= divisor {
-                dividend = dividend - divisor;
+                dividend = dividend.clone() - &divisor;
                 quotient.flip_bit(i);
             }
             divisor.shift_right(1);
@@ -432,7 +432,7 @@ impl<const PARTS: usize> BigInt<PARTS> {
     /// \return raise this number to the power of `exp`.
     pub fn powi(&self, mut exp: u64) -> Self {
         let mut v = Self::one();
-        let mut base = *self;
+        let mut base = self.clone();
         loop {
             if exp & 0x1 == 1 {
                 let overflow = v.inplace_mul(&base);
@@ -731,8 +731,15 @@ impl<const PARTS: usize> Add for BigInt<PARTS> {
     type Output = Self;
 
     fn add(self, rhs: Self) -> Self::Output {
+        self.add(&rhs)
+    }
+}
+impl<const PARTS: usize> Add<&Self> for BigInt<PARTS> {
+    type Output = Self;
+
+    fn add(self, rhs: &Self) -> Self::Output {
         let mut n = self;
-        let _ = n.inplace_add(&rhs);
+        let _ = n.inplace_add(rhs);
         n
     }
 }
@@ -740,8 +747,15 @@ impl<const PARTS: usize> Sub for BigInt<PARTS> {
     type Output = Self;
 
     fn sub(self, rhs: Self) -> Self::Output {
+        self.sub(&rhs)
+    }
+}
+impl<const PARTS: usize> Sub<&Self> for BigInt<PARTS> {
+    type Output = Self;
+
+    fn sub(self, rhs: &Self) -> Self::Output {
         let mut n = self;
-        let _ = n.inplace_sub(&rhs);
+        let _ = n.inplace_sub(rhs);
         n
     }
 }
@@ -749,8 +763,15 @@ impl<const PARTS: usize> Mul for BigInt<PARTS> {
     type Output = Self;
 
     fn mul(self, rhs: Self) -> Self::Output {
+        self.mul(&rhs)
+    }
+}
+impl<const PARTS: usize> Mul<&Self> for BigInt<PARTS> {
+    type Output = Self;
+
+    fn mul(self, rhs: &Self) -> Self::Output {
         let mut n = self;
-        let overflow = n.inplace_mul(&rhs);
+        let overflow = n.inplace_mul(rhs);
         debug_assert!(!overflow);
         n
     }
@@ -772,9 +793,9 @@ fn test_bigint_operators() {
     let y = BI::from_u64(1);
     let two = BI::from_u64(2);
 
-    let c = ((x - y) * x) / two;
+    let c = ((x.clone() - &y) * x) / two;
     assert_eq!(c.as_u64(), 45);
-    assert_eq!((y + y).as_u64(), 2);
+    assert_eq!((y.clone() + &y).as_u64(), 2);
 }
 
 #[test]

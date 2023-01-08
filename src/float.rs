@@ -32,7 +32,7 @@ pub enum Category {
 /// arbitrary-precision floating-point number. The data structure is generic
 /// and accepts the EXPONENT and MANTISSA constants, that represent the encoding
 /// number of bits that are dedicated to storing these values.
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct Float<
     const EXPONENT: usize,
     const MANTISSA: usize,
@@ -170,7 +170,7 @@ impl<const EXPONENT: usize, const MANTISSA: usize, const PARTS: usize>
 
     /// Returns the mantissa of the float.
     pub fn get_mantissa(&self) -> BigInt<PARTS> {
-        self.mantissa
+        self.mantissa.clone()
     }
 
     /// Returns the exponent of the float.
@@ -185,7 +185,7 @@ impl<const EXPONENT: usize, const MANTISSA: usize, const PARTS: usize>
 
     /// Returns a new float which has a flipped sign (negated value).
     pub fn neg(&self) -> Self {
-        Self::raw(!self.sign, self.exp, self.mantissa, self.category)
+        Self::raw(!self.sign, self.exp, self.mantissa.clone(), self.category)
     }
 
     /// Shift the mantissa to the left to ensure that the MSB if the mantissa
@@ -215,7 +215,7 @@ impl<const EXPONENT: usize, const MANTISSA: usize, const PARTS: usize>
                 println!("[{}0.0]", sign);
             }
             Category::Normal => {
-                let m = self.mantissa;
+                let m = self.mantissa.as_str();
                 println!("FP[{} E={:4} M = {}]", sign, self.exp, m.as_str());
             }
         }
@@ -258,10 +258,11 @@ pub type FP256 = new_float_type!(19, 236);
 
 //// Shift `val` by `bits`, and report the loss.
 pub(crate) fn shift_right_with_loss<const P: usize>(
-    mut val: BigInt<P>,
+    val: &BigInt<P>,
     bits: u64,
 ) -> (BigInt<P>, LossFraction) {
-    let loss = val.get_loss_kind_for_bit(bits as usize);
+    let mut val = val.clone();
+    let loss = val.get_loss_kind_for_bit(bits as usize);    
     val.shift_right(bits as usize);
     (val, loss)
 }
@@ -282,19 +283,19 @@ fn combine_loss_fraction(msb: LossFraction, lsb: LossFraction) -> LossFraction {
 #[test]
 fn shift_right_fraction() {
     let x: BigInt<4> = BigInt::from_u64(0b10000000);
-    let res = shift_right_with_loss(x, 3);
+    let res = shift_right_with_loss(&x, 3);
     assert!(res.1.is_exactly_zero());
 
     let x: BigInt<4> = BigInt::from_u64(0b10000111);
-    let res = shift_right_with_loss(x, 3);
+    let res = shift_right_with_loss(&x, 3);
     assert!(res.1.is_mt_half());
 
     let x: BigInt<4> = BigInt::from_u64(0b10000100);
-    let res = shift_right_with_loss(x, 3);
+    let res = shift_right_with_loss(&x, 3);
     assert!(res.1.is_exactly_half());
 
     let x: BigInt<4> = BigInt::from_u64(0b10000001);
-    let res = shift_right_with_loss(x, 3);
+    let res = shift_right_with_loss(&x, 3);
     assert!(res.1.is_lt_half());
 }
 
@@ -345,7 +346,7 @@ impl<const EXPONENT: usize, const MANTISSA: usize, const PARTS: usize>
 
     pub(crate) fn shift_significand_right(&mut self, amt: u64) -> LossFraction {
         self.exp += amt as i64;
-        let res = shift_right_with_loss(self.mantissa, amt);
+        let res = shift_right_with_loss(&self.mantissa, amt);
         self.mantissa = res.0;
         res.1
     }
@@ -435,9 +436,9 @@ impl<const EXPONENT: usize, const MANTISSA: usize, const PARTS: usize>
             }
 
             let one = BigInt::one();
-            self.mantissa = self.mantissa + one;
+            self.mantissa = self.mantissa.clone() + one;
             // Did the mantissa overflow?
-            let mut m = self.mantissa;
+            let mut m = self.mantissa.clone();
             m.shift_right(Self::get_precision() as usize);
             if !m.is_zero() {
                 // Can we fix the exponent?

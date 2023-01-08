@@ -190,10 +190,10 @@ fn test_print_sqrt() {
     let n = FP::from_u64(5);
 
     let half = FP::from_u64(2);
-    let mut x = n;
+    let mut x = n.clone();
 
     for _ in 0..100 {
-        x = half * (x + (n / x));
+        x = (x.clone() + (n.clone() / x)) * half.clone();
     }
     println!("{}", x);
 }
@@ -210,10 +210,10 @@ fn test_readme_example() {
     let n = FP128::from_u64(5);
 
     let two = FP128::from_u64(2);
-    let mut x = n;
+    let mut x = n.clone();
 
     for _ in 0..1000 {
-        x = (x + (n / x)) / two;
+        x = (x.clone() + (n.clone() / x)) / two.clone();
     }
     println!("fp128: {}", x);
     println!("fp64:  {}", x.as_f64());
@@ -246,7 +246,7 @@ impl<const PARTS: usize> BigInt<PARTS> {
         let mut buff = Vec::new();
         let digits = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'];
         let ten = Self::from_u64(10);
-        let mut val = *self;
+        let mut val = self.clone();
         while !val.is_zero() {
             let rem = val.inplace_div(&ten);
             buff.insert(0, digits[rem.as_u64() as usize]);

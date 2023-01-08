@@ -16,10 +16,10 @@
 //!  let n = FP128::from_u64(5);
 //!
 //!  let two = FP128::from_u64(2);
-//!  let mut x = n;
+//!  let mut x = n.clone();
 //!
-//!  for _ in 0..1000 {
-//!      x = (x + (n / x))/two;
+//!  for _ in 0..20 {
+//!      x = (x.clone() + (&n / &x))/two.clone();
 //!  }
 //!
 //!  println!("fp128: {}", x);
@@ -41,7 +41,7 @@
 //!
 //!    let x = FP128::from_u64(1<<53);
 //!    let y = FP128::from_f64(1000.0);
-//!    let val = FP128::mul_with_rm(x, y, RoundingMode::NearestTiesToEven);
+//!    let val = FP128::mul_with_rm(&x, &y, RoundingMode::NearestTiesToEven);
 //! ```
 //!
 //! View the internal representation of numbers:

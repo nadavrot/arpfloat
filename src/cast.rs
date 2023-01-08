@@ -11,12 +11,12 @@ impl<const EXPONENT: usize, const MANTISSA: usize, const PARTS: usize>
     /// Load the integer `val` into the float. Notice that the number may
     /// overflow, or rounded to the nearest even integer.
     pub fn from_u64(val: u64) -> Self {
-        Self::from_bigint::<PARTS>(BigInt::from_u64(val))
+        Self::from_bigint::<PARTS>(&BigInt::from_u64(val))
     }
 
     /// Load the big int `val` into the float. Notice that the number may
     /// overflow, or rounded to the nearest even integer.
-    pub fn from_bigint<const P: usize>(val: BigInt<P>) -> Self {
+    pub fn from_bigint<const P: usize>(val: &BigInt<P>) -> Self {
         let mut a = Self::new(false, MANTISSA as i64, val.cast());
         a.normalize(RoundingMode::NearestTiesToEven, LossFraction::ExactlyZero);
         a
@@ -61,14 +61,14 @@ impl<const EXPONENT: usize, const MANTISSA: usize, const PARTS: usize>
     pub fn trunc(&self) -> Self {
         // Only handle normal numbers (don't do anything to NaN, Inf, Zero).
         if !self.is_normal() {
-            return *self;
+            return self.clone();
         }
 
         let exp = self.get_exp();
 
         if exp > MANTISSA as i64 {
             // Already an integer.
-            return *self;
+            return self.clone();
         }
 
         // Numbers that are smaller than 1 are rounded to zero.
@@ -91,14 +91,14 @@ impl<const EXPONENT: usize, const MANTISSA: usize, const PARTS: usize>
 
         // Only handle normal numbers (don't do anything to NaN, Inf, Zero).
         if !self.is_normal() {
-            return *self;
+            return self.clone();
         }
 
         let exp = self.get_exp();
 
         if exp > MANTISSA as i64 {
             // Already an integer.
-            return *self;
+            return self.clone();
         }
 
         // Numbers that are between 0.5 and 1.0 are rounded to 1.0.
@@ -115,7 +115,7 @@ impl<const EXPONENT: usize, const MANTISSA: usize, const PARTS: usize>
         // and clear out the values that represent the fraction.
         let trim = (MANTISSA as i64 - exp) as usize;
         let (mut m, loss) =
-            shift_right_with_loss(self.get_mantissa(), trim as u64);
+            shift_right_with_loss(&self.get_mantissa(), trim as u64);
         m.shift_left(trim);
         let t = Self::new(self.get_sign(), self.get_exp(), m);
 
@@ -134,7 +134,7 @@ impl<const EXPONENT: usize, const MANTISSA: usize, const PARTS: usize>
         let i_exp = self.get_exp() - MANTISSA as i64;
         if i_exp < 0 {
             let (mut m, loss) = float::shift_right_with_loss(
-                self.get_mantissa(),
+                &self.get_mantissa(),
                 -i_exp as u64,
             );
 
@@ -188,7 +188,7 @@ impl<const EXPONENT: usize, const MANTISSA: usize, const PARTS: usize>
     ) -> Float<E, M, P> {
         let mut loss = LossFraction::ExactlyZero;
         let exp_delta = MANTISSA as i64 - M as i64;
-        let mut temp = *self;
+        let mut temp = self.clone();
         // If we are casting to a narrow type then we need to shift the bits
         // to the new-mantissa part of the word. This will adjust the exponent,
         // and if we lose bits then we'll need to round the number.

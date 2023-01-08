@@ -7,72 +7,84 @@ impl<const EXPONENT: usize, const MANTISSA: usize, const PARTS: usize>
 {
     /// Calculates the power of two.
     pub fn sqr(&self) -> Self {
-        *self * *self
+        Self::mul_with_rm(self, self, RoundingMode::NearestTiesToEven)
     }
     /// Calculates the square root of the number using the Newton Raphson
     /// method.
     pub fn sqrt(&self) -> Self {
         if self.is_zero() {
-            return *self; // (+/-) zero
+            return self.clone(); // (+/-) zero
         } else if self.is_nan() || self.is_negative() {
             return Self::nan(self.get_sign()); // (-/+)Nan, -Number.
         } else if self.is_inf() {
-            return *self; // Inf+.
+            return self.clone(); // Inf+.
         }
 
-        let target = *self;
+        let target = self.clone();
         let two = Self::from_u64(2);
 
         // Start the search at max(2, x).
-        let mut x = if target < two { two } else { target };
-        let mut prev = x;
+        let mut x = if target < two {
+            two.clone()
+        } else {
+            target.clone()
+        };
+        let mut prev = x.clone();
 
         loop {
-            x = (x + (target / x)) / two;
+            x = (x.clone() + (target.clone() / x.clone())) / two.clone();
             // Stop when value did not change or regressed.
             if prev < x || x == prev {
                 return x;
             }
-            prev = x;
+            prev = x.clone();
         }
     }
 
     /// Returns the absolute value of this float.
     pub fn abs(&self) -> Self {
-        let mut x = *self;
+        let mut x = self.clone();
         x.set_sign(false);
         x
     }
 
     /// Returns the greater of self and `other`.
-    pub fn max(&self, other: Self) -> Self {
+    pub fn max(&self, other: &Self) -> Self {
         if self.is_nan() {
-            return other;
+            return other.clone();
         } else if other.is_nan() {
-            return *self;
+            return self.clone();
         } else if self.get_sign() != other.get_sign() {
-            return if self.get_sign() { other } else { *self }; // Handle (+-)0.
+            return if self.get_sign() {
+                other.clone()
+            } else {
+                self.clone()
+            }; // Handle (+-)0.
         }
-        if *self > other {
-            *self
+        if *self > other.clone() {
+            self.clone()
         } else {
-            other
+            other.clone()
         }
     }
 
     /// Returns the smaller of self and `other`.
-    pub fn min(&self, other: Self) -> Self {
+    pub fn min(&self, other: &Self) -> Self {
         if self.is_nan() {
-            return other;
+            return other.clone();
         } else if other.is_nan() {
-            return *self;
+            return self.clone();
         } else if self.get_sign() != other.get_sign() {
-            return if self.get_sign() { *self } else { other }; // Handle (+-)0.
+            return if self.get_sign() {
+                self.clone()
+            } else {
+                other.clone()
+            }; // Handle (+-)0.
         }
-        if *self > other {
-            other
+        if *self > other.clone() {
+            other.clone()
         } else {
-            *self
+            self.clone()
         }
     }
 }
@@ -129,14 +141,14 @@ fn test_min_max() {
     fn check(v0: f64, v1: f64) {
         // Min.
         let correct = v0.min(v1);
-        let test = FP64::from_f64(v0).min(FP64::from_f64(v1)).as_f64();
+        let test = FP64::from_f64(v0).min(&FP64::from_f64(v1)).as_f64();
         assert_eq!(test.is_nan(), correct.is_nan());
         if !correct.is_nan() {
             assert_eq!(correct, test);
         }
         // Max.
         let correct = v0.max(v1);
-        let test = FP64::from_f64(v0).max(FP64::from_f64(v1)).as_f64();
+        let test = FP64::from_f64(v0).max(&FP64::from_f64(v1)).as_f64();
         assert_eq!(test.is_nan(), correct.is_nan());
         if !correct.is_nan() {
             assert_eq!(correct, test);
@@ -184,30 +196,30 @@ impl<const EXPONENT: usize, const MANTISSA: usize, const PARTS: usize>
         let two = Self::from_i64(2);
         let four = Self::from_i64(4);
 
-        let mut a = one;
-        let mut b = one / two.sqrt();
-        let mut t = one / four;
+        let mut a = one.clone();
+        let mut b = one.clone() / two.sqrt();
+        let mut t = one.clone() / four;
         let mut x = one;
 
         while a != b {
-            let y = a;
-            a = (a + b) / two;
-            b = (b * y).sqrt();
-            t = t - x * ((a - y).sqr());
-            x = x * two;
+            let y = a.clone();
+            a = (&a + &b) / two.clone();
+            b = (&b * &y).sqrt();
+            t = &t - &(&x * &((&a - &y).sqr()));
+            x = x.clone() * two.clone();
         }
-        a * a / t
+        a.sqr() / t
     }
 
     /// Computes e using Euler's continued fraction, which is a simple series.
     pub fn e() -> Self {
         let two = Self::from_i64(2);
         let one = Self::from_i64(1);
-        let mut term = one;
+        let mut term = one.clone();
         let iterations: i64 = (EXPONENT * 2) as i64;
         for i in (1..iterations).rev() {
             let v = Self::from_i64(i);
-            term = v + v / term;
+            term = &v + &(&v / &term);
         }
 
         two + one / term
@@ -237,7 +249,7 @@ impl<const EXPONENT: usize, const MANTISSA: usize, const PARTS: usize>
     pub fn scale(&self, scale: i64, rm: RoundingMode) -> Self {
         use crate::bigint::LossFraction;
         if !self.is_normal() {
-            return *self;
+            return self.clone();
         }
 
         let mut r = Self::new(
@@ -251,7 +263,7 @@ impl<const EXPONENT: usize, const MANTISSA: usize, const PARTS: usize>
 
     /// Returns the remainder from a division of two floats. This is equivalent
     /// to rust 'rem' or c 'fmod'.
-    pub fn rem(&self, rhs: Self) -> Self {
+    pub fn rem(&self, rhs: &Self) -> Self {
         use core::ops::Sub;
         // Handle NaNs.
         if self.is_nan() || rhs.is_nan() || self.is_inf() || rhs.is_zero() {
@@ -259,12 +271,12 @@ impl<const EXPONENT: usize, const MANTISSA: usize, const PARTS: usize>
         }
         // Handle values that are obviously zero or self.
         if self.is_zero() || rhs.is_inf() {
-            return *self;
+            return self.clone();
         }
 
         // Operate on integers.
         let mut lhs = self.abs();
-        let rhs = if rhs.is_negative() { rhs.neg() } else { rhs };
+        let rhs = if rhs.is_negative() { rhs.neg() } else { rhs.clone() };
         debug_assert!(lhs.is_normal() && rhs.is_normal());
 
         // This is a clever algorithm. Subtracting the RHS from LHS in a loop
@@ -311,7 +323,7 @@ fn test_rem() {
         let f0 = FP64::from_f64(v0);
         let f1 = FP64::from_f64(v1);
         let r0 = v0.rem(v1);
-        let r1 = f0.rem(f1).as_f64();
+        let r1 = f0.rem(&f1).as_f64();
         assert_eq!(r0.is_nan(), r1.is_nan());
         if !r0.is_nan() {
             assert_eq!(r0, r1);
@@ -349,11 +361,11 @@ impl<const EXPONENT: usize, const MANTISSA: usize, const PARTS: usize>
     Float<EXPONENT, MANTISSA, PARTS>
 {
     /// sin(x) = x - x^3 / 3! + x^5 / 5! - x^7/7! ....
-    fn sin_taylor(x: Self) -> Self {
+    fn sin_taylor(x: &Self) -> Self {
         use crate::BigInt;
 
         let mut neg = false;
-        let mut top = x;
+        let mut top = x.clone();
         let mut bottom: BigInt<PARTS> = BigInt::one();
         let mut sum = Self::zero(false);
         let x2 = x.sqr();
@@ -362,15 +374,15 @@ impl<const EXPONENT: usize, const MANTISSA: usize, const PARTS: usize>
             if prev == sum {
                 break; // Stop if we are not making progress.
             }
-            prev = sum;
+            prev = sum.clone();
             // Update sum.
-            let elem = top / Self::from_bigint(bottom);
+            let elem = &top / &Self::from_bigint(&bottom);
             sum = if neg { sum - elem } else { sum + elem };
 
             // Prepare the next element.
-            top = top * x2;
+            top = &top * &x2;
             let next_term = BigInt::from_u64((i * 2) * (i * 2 + 1));
-            bottom = bottom * next_term;
+            bottom = bottom * &next_term;
             neg ^= true;
         }
 
@@ -379,16 +391,16 @@ impl<const EXPONENT: usize, const MANTISSA: usize, const PARTS: usize>
 
     /// Reduce sin(x) in the range 0..pi/2, using the identity:
     /// sin(3x) = 3sin(x)-4(sin(x)^3)
-    fn sin_step4_reduction(x: Self, steps: usize) -> Self {
+    fn sin_step4_reduction(x: &Self, steps: usize) -> Self {
         if steps == 0 {
             return Self::sin_taylor(x);
         }
         let three = Self::from_u64(3);
         let four = Self::from_u64(4);
 
-        let x3 = x / Self::from_u64(3);
-        let sx = Self::sin_step4_reduction(x3, steps - 1);
-        three * sx - four * (sx * sx * sx)
+        let x3 = x.clone() / Self::from_u64(3);
+        let sx = Self::sin_step4_reduction(&x3, steps - 1);
+        (&three * &sx) - four * (&(&sx * &sx) * &sx)
     }
 
     /// Return the sine function.
@@ -397,7 +409,7 @@ impl<const EXPONENT: usize, const MANTISSA: usize, const PARTS: usize>
         // by Henrik Vestermark.
 
         if self.is_zero() || self.is_nan() {
-            return *self;
+            return self.clone();
         }
 
         if self.is_inf() {
@@ -409,7 +421,7 @@ impl<const EXPONENT: usize, const MANTISSA: usize, const PARTS: usize>
         let mut neg = false;
         // Step1 range reduction.
 
-        let mut val = *self;
+        let mut val = self.clone();
 
         // Handle the negatives.
         if val.is_negative() {
@@ -422,13 +434,13 @@ impl<const EXPONENT: usize, const MANTISSA: usize, const PARTS: usize>
 
         // Step 1
         if val > pi2 {
-            val = val.rem(pi2);
+            val = val.rem(&pi2);
         }
 
         debug_assert!(val <= pi2);
         // Step 2.
         if val > pi {
-            val = val - pi;
+            val = &val - &pi;
             neg ^= true;
         }
 
@@ -439,7 +451,7 @@ impl<const EXPONENT: usize, const MANTISSA: usize, const PARTS: usize>
         }
         debug_assert!(val <= pi_half);
 
-        let res = Self::sin_step4_reduction(val, 16);
+        let res = Self::sin_step4_reduction(&val, 16);
         if neg {
             res.neg()
         } else {
@@ -510,14 +522,14 @@ impl<const EXPONENT: usize, const MANTISSA: usize, const PARTS: usize>
         for k in 1..500 {
             let k2 = Self::from_u64(1).scale(k, RoundingMode::Zero);
             let k = Self::from_u64(k as u64);
-            let term = one / (k * k2);
+            let term = &one / &(k * k2);
 
-            sum = sum + term;
+            sum = &sum + &term;
 
             if prev == sum {
                 break;
             }
-            prev = sum;
+            prev = sum.clone();
         }
         sum
     }
@@ -525,9 +537,9 @@ impl<const EXPONENT: usize, const MANTISSA: usize, const PARTS: usize>
     /// Computes the taylor series, centered around 1, and valid in [0..2].
     /// z = (x - 1)/(x + 1)
     /// log(x) = 2 (z + z^3/3 + z^5/5 + z^7/7 ... )
-    fn log_taylor(x: Self) -> Self {
+    fn log_taylor(x: &Self) -> Self {
         let one = Self::one(false);
-        let z = (x - one) / (x + one);
+        let z = &(x - &one) / &(x + &one);
         let z2 = z.sqr();
 
         let mut top = z;
@@ -537,13 +549,13 @@ impl<const EXPONENT: usize, const MANTISSA: usize, const PARTS: usize>
             if prev == sum {
                 break; // Stop if we are not making progress.
             }
-            prev = sum;
+            prev = sum.clone();
 
-            let elem = top / Self::from_u64(i * 2 + 1);
+            let elem = &top / &Self::from_u64(i * 2 + 1);
             sum = sum + elem;
 
             // Prepare the next iteration.
-            top = top * z2;
+            top = &top * &z2;
         }
 
         sum.scale(1, RoundingMode::Zero)
@@ -552,18 +564,18 @@ impl<const EXPONENT: usize, const MANTISSA: usize, const PARTS: usize>
     /// Reduce the range of 'x' with the identity:
     /// ln(x) = ln(sqrt(x)^2) = 2 * ln(sqrt(x)) and
     /// ln(x) = -ln(1/x)
-    fn log_range_reduce(x: Self) -> Self {
+    fn log_range_reduce(x: &Self) -> Self {
         let up = Self::from_f64(1.001);
         let one = Self::from_u64(1);
 
-        if x > up {
+        if x > &up {
             let two = Self::from_u64(2);
             let sx = x.sqrt();
-            return two * Self::log_range_reduce(sx);
+            return two * Self::log_range_reduce(&sx);
         }
 
-        if x < one {
-            return Self::log_range_reduce(one / x).neg();
+        if x < &one {
+            return Self::log_range_reduce(&(&one / x)).neg();
         }
 
         Self::log_taylor(x)
@@ -579,7 +591,7 @@ impl<const EXPONENT: usize, const MANTISSA: usize, const PARTS: usize>
             return Self::nan(self.get_sign());
         }
 
-        Self::log_range_reduce(*self)
+        Self::log_range_reduce(self)
     }
 }
 
@@ -621,14 +633,14 @@ impl<const EXPONENT: usize, const MANTISSA: usize, const PARTS: usize>
             if prev == sum {
                 break; // Stop if we are not making progress.
             }
-            prev = sum;
+            prev = sum.clone();
 
-            let elem = top / Self::from_bigint(bottom);
+            let elem = &top / &Self::from_bigint(&bottom);
             sum = sum + elem;
 
             // Prepare the next iteration.
             bottom = bottom * BigInt::from_u64(k);
-            top = top * x;
+            top = top * x.clone();
         }
 
         sum
@@ -661,7 +673,7 @@ impl<const EXPONENT: usize, const MANTISSA: usize, const PARTS: usize>
             return one / self.neg().exp();
         }
 
-        Self::exp_range_reduce(*self)
+        Self::exp_range_reduce(self.clone())
     }
 }
 
