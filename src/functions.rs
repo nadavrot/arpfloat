@@ -523,40 +523,46 @@ impl<const EXPONENT: usize, const MANTISSA: usize, const PARTS: usize>
     }
 
     /// Computes the taylor series, centered around 1, and valid in [0..2].
-    /// z = (x - 1)
-    /// log(x) =  z - z^2/2 + z^3/3 - z^4/4 ...
+    /// z = (x - 1)/(x + 1)
+    /// log(x) = 2 (z + z^3/3 + z^5/5 + z^7/7 ... )
     fn log_taylor(x: Self) -> Self {
-        let mut neg = false;
-        let z = x - Self::one(false);
-        let mut top = Self::one(false);
+        let one = Self::one(false);
+        let z = (x - one) / (x + one);
+        let z2 = z.sqr();
+
+        let mut top = z;
         let mut sum = Self::zero(false);
         let mut prev = Self::one(true);
-        for i in 1..50 {
+        for i in 0..50 {
             if prev == sum {
                 break; // Stop if we are not making progress.
             }
             prev = sum;
 
-            // Update sum.
-            top = top * z;
-            let elem = top / Self::from_u64(i);
-            sum = if neg { sum - elem } else { sum + elem };
-            neg ^= true;
+            let elem = top / Self::from_u64(i * 2 + 1);
+            sum = sum + elem;
+
+            // Prepare the next iteration.
+            top = top * z2;
         }
 
-        sum
+        sum.scale(1, RoundingMode::Zero)
     }
 
     /// Reduce the range of 'x' with the identity:
     /// ln(x) = ln(sqrt(x)^2) = 2 * ln(sqrt(x))
     fn log_range_reduce(x: Self) -> Self {
-        let up = Self::from_f64(1.0001);
-        let low = Self::from_f64(0.9999);
+        let up = Self::from_f64(1.001);
+        let one = Self::from_u64(1);
 
-        if x > up || x < low {
+        if x > up {
             let two = Self::from_u64(2);
             let sx = x.sqrt();
             return two * Self::log_range_reduce(sx);
+        }
+
+        if x < one {
+            return Self::log_range_reduce(one / x).neg();
         }
 
         Self::log_taylor(x)
@@ -586,6 +592,15 @@ fn test_ln2() {
 #[test]
 fn test_log() {
     use super::FP128;
-    let x = FP128::from_u64(3).log();
-    assert_eq!(x.as_f64(), 1.0986122886681098);
+    let x = FP128::from_f64(0.1).log();
+    assert_eq!(x.as_f64(), -2.3025850929940455);
+
+    for x in [
+        0.1, 0.5, 2.3, 4.5, 9.8, 11.2, 15.2, 91.2, 102.2, 192.4, 1024.2,
+        90210.2,
+    ] {
+        let lhs = FP128::from_f64(x).log().as_f64();
+        let rhs = x.ln();
+        assert_eq!(lhs, rhs);
+    }
 }
