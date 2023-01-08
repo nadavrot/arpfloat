@@ -2,7 +2,7 @@
 name = "arpfloat"
 version = "0.1.4"
 authors = ["Nadav Rotem <nadav256@gmail.com>"]
-categories = ["floating-point", "no-std"]
+categories = ["mathematics", "algorithms", "no-std"]
 description = "Arbitrary-precision floating point library"
 documentation = "https://docs.rs/arpfloat/"
 edition = "2021"
