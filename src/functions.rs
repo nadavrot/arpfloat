@@ -582,7 +582,6 @@ impl<const EXPONENT: usize, const MANTISSA: usize, const PARTS: usize>
     }
 }
 
-#[cfg(feature = "std")]
 #[test]
 fn test_ln2() {
     use super::FP128;
