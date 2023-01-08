@@ -257,7 +257,7 @@ impl<const PARTS: usize> BigInt<PARTS> {
 
     /// Multiply `rhs` to self, and return true if the operation overflowed.
     #[must_use]
-    pub fn inplace_mul(&mut self, rhs: Self) -> bool {
+    pub fn inplace_mul(&mut self, rhs: &Self) -> bool {
         /// The parameter `P2` is here to work around a limitation in the
         /// rust generic system. P2 needs to be greater or equal to PARTS*2.
         const P2: usize = 200;
@@ -293,9 +293,9 @@ impl<const PARTS: usize> BigInt<PARTS> {
     }
 
     /// Divide self by `divisor`, and return the reminder.
-    pub fn inplace_div(&mut self, divisor: Self) -> Self {
+    pub fn inplace_div(&mut self, divisor: &Self) -> Self {
         let mut dividend = *self;
-        let mut divisor = divisor;
+        let mut divisor = *divisor;
         let mut quotient = Self::zero();
 
         let dividend_msb = dividend.msb_index();
@@ -330,7 +330,7 @@ impl<const PARTS: usize> BigInt<PARTS> {
                 {
                     let mut a4: BigInt<$num_parts> = dividend.cast();
                     let b4: BigInt<$num_parts> = divisor.cast();
-                    let rem = a4.inplace_div(b4);
+                    let rem = a4.inplace_div(&b4);
                     *self = a4.cast();
                     return rem.cast();
                 }
@@ -435,14 +435,14 @@ impl<const PARTS: usize> BigInt<PARTS> {
         let mut base = *self;
         loop {
             if exp & 0x1 == 1 {
-                let overflow = v.inplace_mul(base);
+                let overflow = v.inplace_mul(&base);
                 debug_assert!(!overflow)
             }
             exp >>= 1;
             if exp == 0 {
                 break;
             }
-            let overflow = base.inplace_mul(base);
+            let overflow = base.inplace_mul(&base.clone());
             debug_assert!(!overflow)
         }
         v
@@ -525,11 +525,11 @@ fn test_div_basic() {
     let mut x2 = BigInt::<2>::from_u64(703);
     let y = BigInt::<2>::from_u64(7);
 
-    let rem = x1.inplace_div(y);
+    let rem = x1.inplace_div(&y);
     assert_eq!(x1.as_u64(), 7);
     assert_eq!(rem.as_u64(), 0);
 
-    let rem = x2.inplace_div(y);
+    let rem = x2.inplace_div(&y);
     assert_eq!(x2.as_u64(), 100);
     assert_eq!(rem.as_u64(), 3);
 }
@@ -538,11 +538,11 @@ fn test_div_basic() {
 fn test_div_10() {
     let mut x1 = BigInt::<2>::from_u64(19940521);
     let ten = BigInt::<2>::from_u64(10);
-    assert_eq!(x1.inplace_div(ten).as_u64(), 1);
-    assert_eq!(x1.inplace_div(ten).as_u64(), 2);
-    assert_eq!(x1.inplace_div(ten).as_u64(), 5);
-    assert_eq!(x1.inplace_div(ten).as_u64(), 0);
-    assert_eq!(x1.inplace_div(ten).as_u64(), 4);
+    assert_eq!(x1.inplace_div(&ten).as_u64(), 1);
+    assert_eq!(x1.inplace_div(&ten).as_u64(), 2);
+    assert_eq!(x1.inplace_div(&ten).as_u64(), 5);
+    assert_eq!(x1.inplace_div(&ten).as_u64(), 0);
+    assert_eq!(x1.inplace_div(&ten).as_u64(), 4);
 }
 
 #[allow(dead_code)]
@@ -623,13 +623,13 @@ fn test_basic_operations() {
     fn test_mul(a: u128, b: u128) -> (u128, bool) {
         let mut a = BigInt::<2>::from_u128(a);
         let b = BigInt::<2>::from_u128(b);
-        let c = a.inplace_mul(b);
+        let c = a.inplace_mul(&b);
         (a.as_u128(), c)
     }
     fn test_div(a: u128, b: u128) -> (u128, bool) {
         let mut a = BigInt::<2>::from_u128(a);
         let b = BigInt::<2>::from_u128(b);
-        a.inplace_div(b);
+        a.inplace_div(&b);
         (a.as_u128(), false)
     }
 
@@ -750,7 +750,7 @@ impl<const PARTS: usize> Mul for BigInt<PARTS> {
 
     fn mul(self, rhs: Self) -> Self::Output {
         let mut n = self;
-        let overflow = n.inplace_mul(rhs);
+        let overflow = n.inplace_mul(&rhs);
         debug_assert!(!overflow);
         n
     }
@@ -760,7 +760,7 @@ impl<const PARTS: usize> Div for BigInt<PARTS> {
 
     fn div(self, rhs: Self) -> Self::Output {
         let mut n = self;
-        n.inplace_div(rhs);
+        n.inplace_div(&rhs);
         n
     }
 }
@@ -838,7 +838,7 @@ fn test_mul_div_encode_decode() {
     // Encode the message.
     for letter in &message {
         let letter = BI::from_u64(*letter);
-        let overflow = bitstream.inplace_mul(base);
+        let overflow = bitstream.inplace_mul(&base);
         assert!(!overflow);
         let overflow = bitstream.inplace_add(&letter);
         assert!(!overflow);
@@ -847,7 +847,7 @@ fn test_mul_div_encode_decode() {
     let len = message.len();
     // Decode the message
     for idx in (0..len).rev() {
-        let rem = bitstream.inplace_div(base);
+        let rem = bitstream.inplace_div(&base);
         assert_eq!(message[idx], rem.as_u64());
     }
 }

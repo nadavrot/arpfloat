@@ -538,7 +538,7 @@ impl<const EXPONENT: usize, const MANTISSA: usize, const PARTS: usize>
         // Shift the dividend to make sure that we generate the bits after
         // the period.
         a_mantissa.shift_left(MANTISSA);
-        let reminder = a_mantissa.inplace_div(b_mantissa);
+        let reminder = a_mantissa.inplace_div(&b_mantissa);
 
         // Find 2 x reminder, to be able to compare to the reminder and figure
         // out the kind of loss that we have.

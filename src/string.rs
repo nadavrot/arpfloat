@@ -34,7 +34,7 @@ impl<const EXPONENT: usize, const MANTISSA: usize, const PARTS: usize>
                 // our decimal number: nnnnnnn * 10^-e.
                 let five = BigInt::from_u64(5);
                 let e5 = five.powi((-exp) as u64);
-                let overflow = mantissa.inplace_mul(e5);
+                let overflow = mantissa.inplace_mul(&e5);
                 debug_assert!(!overflow);
                 exp = -exp;
             }
@@ -79,7 +79,7 @@ impl<const EXPONENT: usize, const MANTISSA: usize, const PARTS: usize>
         *exp -= digits_to_remove;
         let ten = BigInt::from_u64(10);
         let divisor = ten.powi(digits_to_remove as u64);
-        integer.inplace_div(divisor);
+        integer.inplace_div(&divisor);
     }
 
     fn convert_normal_to_string(&self) -> String {
@@ -92,7 +92,7 @@ impl<const EXPONENT: usize, const MANTISSA: usize, const PARTS: usize>
 
         let chars = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'];
         while !integer.is_zero() {
-            let rem = integer.inplace_div(ten);
+            let rem = integer.inplace_div(&ten);
             let ch = chars[rem.as_u64() as usize];
             buff.insert(0, ch);
         }
@@ -248,7 +248,7 @@ impl<const PARTS: usize> BigInt<PARTS> {
         let ten = Self::from_u64(10);
         let mut val = *self;
         while !val.is_zero() {
-            let rem = val.inplace_div(ten);
+            let rem = val.inplace_div(&ten);
             buff.insert(0, digits[rem.as_u64() as usize]);
         }
 
@@ -310,7 +310,7 @@ fn test_bigint_to_decimal() {
     let mut num = BigInt::<100>::one();
     for i in 1..41 {
         let term = BigInt::<100>::from_u64(i);
-        let overflow = num.inplace_mul(term);
+        let overflow = num.inplace_mul(&term);
         assert!(!overflow);
     }
 
