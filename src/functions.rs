@@ -1,3 +1,5 @@
+
+
 use crate::RoundingMode;
 
 use super::float::Float;
@@ -550,7 +552,8 @@ impl<const EXPONENT: usize, const MANTISSA: usize, const PARTS: usize>
     }
 
     /// Reduce the range of 'x' with the identity:
-    /// ln(x) = ln(sqrt(x)^2) = 2 * ln(sqrt(x))
+    /// ln(x) = ln(sqrt(x)^2) = 2 * ln(sqrt(x)) and
+    /// ln(x) = -ln(1/x)
     fn log_range_reduce(x: Self) -> Self {
         let up = Self::from_f64(1.001);
         let one = Self::from_u64(1);
@@ -574,8 +577,8 @@ impl<const EXPONENT: usize, const MANTISSA: usize, const PARTS: usize>
         // by Henrik Vestermark.
 
         // Handle all of the special cases:
-        if !self.is_normal() {
-            return Self::zero(self.get_sign());
+        if !self.is_normal() || self.is_negative() {
+            return Self::nan(self.get_sign());
         }
 
         Self::log_range_reduce(*self)
@@ -602,4 +605,70 @@ fn test_log() {
         let rhs = x.ln();
         assert_eq!(lhs, rhs);
     }
+}
+
+impl<const EXPONENT: usize, const MANTISSA: usize, const PARTS: usize>
+    Float<EXPONENT, MANTISSA, PARTS>
+{
+    /// Computes the taylor series:
+    /// exp(x) = 1 + x/1! + x^2/2! + x^3/3! ...
+    fn exp_taylor(x: Self) -> Self {
+        use crate::BigInt;
+        let mut top = Self::one(false);
+        let mut bottom: BigInt<PARTS> = BigInt::one();
+
+        let mut sum = Self::zero(false);
+        let mut prev = Self::one(true);
+        for k in 1..50 {
+            if prev == sum {
+                break; // Stop if we are not making progress.
+            }
+            prev = sum;
+
+            let elem = top / Self::from_bigint(bottom);
+            sum = sum + elem;
+
+            // Prepare the next iteration.
+            bottom = bottom * BigInt::from_u64(k);
+            top = top * x;
+        }
+
+        sum
+    }
+
+    /// Reduce the range of 'x' with the identity:
+    /// e^x = (e^(x/2))^2
+    fn exp_range_reduce(x: Self) -> Self {
+        let one = Self::from_u64(1);
+
+        if x > one {
+            let sx = x.scale(-3, RoundingMode::Zero);
+            let esx = Self::exp_range_reduce(sx);
+            return esx.sqr().sqr().sqr();
+        }
+
+        Self::exp_taylor(x)
+    }
+
+    /// Computes exponential function `e^self`.
+    pub fn exp(&self) -> Self {
+        // Handle all of the special cases:
+        if !self.is_normal() {
+            return Self::nan(self.get_sign());
+        }
+
+        // Handle the negative values.
+        if self.is_negative() {
+            let one = Self::one(false);
+            return one / self.neg().exp();
+        }
+
+        Self::exp_range_reduce(*self)
+    }
+}
+
+#[test]
+fn test_exp() {
+    use super::FP128;
+    assert_eq!(FP128::from_f64(2.51).exp().as_f64(), 12.30493006051041);
 }
