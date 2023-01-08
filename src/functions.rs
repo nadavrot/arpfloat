@@ -669,4 +669,13 @@ impl<const EXPONENT: usize, const MANTISSA: usize, const PARTS: usize>
 fn test_exp() {
     use super::FP128;
     assert_eq!(FP128::from_f64(2.51).exp().as_f64(), 12.30493006051041);
+
+    for x in [
+        0.000003, 0.001, 0.12, 0.13, 0.5, 1.2, 2.3, 4.5, 9.8, 5.0, 11.2, 15.2,
+        25.0, 34.001, 54., 89.1, 91.2, 102.2, 150., 192.4, 212., 256., 102.3,
+    ] {
+        let lhs = FP128::from_f64(x).exp().as_f64();
+        let rhs = x.exp();
+        assert_eq!(lhs, rhs);
+    }
 }
