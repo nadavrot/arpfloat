@@ -7,7 +7,7 @@ use core::cmp::Ordering;
 use core::fmt::Display;
 
 // Use a bigint for the decimal conversions.
-type BigNum = BigInt<50>;
+type BigNum = BigInt;
 
 impl<const EXPONENT: usize, const MANTISSA: usize, const PARTS: usize>
     Float<EXPONENT, MANTISSA, PARTS>
@@ -21,7 +21,7 @@ impl<const EXPONENT: usize, const MANTISSA: usize, const PARTS: usize>
         // See Ryu: Fast Float-to-String Conversion -- Ulf Adams.
         // https://youtu.be/kw-U6smcLzk?t=681
         let mut exp = self.get_exp() - MANTISSA as i64;
-        let mut mantissa: BigNum = self.get_mantissa().cast();
+        let mut mantissa: BigNum = self.get_mantissa();
 
         match exp.cmp(&0) {
             Ordering::Less => {
@@ -34,8 +34,7 @@ impl<const EXPONENT: usize, const MANTISSA: usize, const PARTS: usize>
                 // our decimal number: nnnnnnn * 10^-e.
                 let five = BigInt::from_u64(5);
                 let e5 = five.powi((-exp) as u64);
-                let overflow = mantissa.inplace_mul(&e5);
-                debug_assert!(!overflow);
+                mantissa.inplace_mul(&e5);
                 exp = -exp;
             }
             Ordering::Equal | Ordering::Greater => {
@@ -232,7 +231,7 @@ fn test_decimal_accuracy_for_type() {
     assert_eq!(FP256::get_decimal_accuracy(), 73);
 }
 
-impl<const PARTS: usize> BigInt<PARTS> {
+impl BigInt {
     /// Prints the bigint as a decimal number.
     pub fn as_decimal(&self) -> String {
         use alloc::vec::Vec;
@@ -256,7 +255,7 @@ impl<const PARTS: usize> BigInt<PARTS> {
     pub fn as_str(&self) -> String {
         let mut sb = String::new();
         let mut first = true;
-        for i in 0..PARTS {
+        for i in 0..self.len() {
             let mut part = self.get_part(i);
             // Don't print leading zeros in empty parts of the bigint.
             if first && part == 0 {
@@ -292,7 +291,7 @@ impl<const PARTS: usize> BigInt<PARTS> {
 #[test]
 fn test_bigint_to_string() {
     let val = 0b101110011010011111010101011110000000101011110101;
-    let mut bi = BigInt::<2>::from_u64(val);
+    let mut bi = BigInt::from_u64(val);
     bi.shift_left(32);
     assert_eq!(
         bi.as_str(),
@@ -305,11 +304,10 @@ fn test_bigint_to_string() {
 #[cfg(feature = "std")]
 #[test]
 fn test_bigint_to_decimal() {
-    let mut num = BigInt::<100>::one();
+    let mut num = BigInt::one();
     for i in 1..41 {
-        let term = BigInt::<100>::from_u64(i);
-        let overflow = num.inplace_mul(&term);
-        assert!(!overflow);
+        let term = BigInt::from_u64(i);
+        num.inplace_mul(&term);
     }
 
     assert_eq!(

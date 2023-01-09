@@ -44,7 +44,7 @@ pub struct Float<
     exp: i64,
     // The significand, including the implicit bit, aligned to the right.
     // Format [00000001xxxxxxx].
-    mantissa: BigInt<PARTS>,
+    mantissa: BigInt,
     // The kind of number this float represents.
     category: Category,
 }
@@ -53,7 +53,7 @@ impl<const EXPONENT: usize, const MANTISSA: usize, const PARTS: usize>
     Float<EXPONENT, MANTISSA, PARTS>
 {
     /// Create a new normal floating point number.
-    pub fn new(sign: bool, exp: i64, mantissa: BigInt<PARTS>) -> Self {
+    pub fn new(sign: bool, exp: i64, mantissa: BigInt) -> Self {
         if mantissa.is_zero() {
             return Float::zero(sign);
         }
@@ -69,7 +69,7 @@ impl<const EXPONENT: usize, const MANTISSA: usize, const PARTS: usize>
     pub fn raw(
         sign: bool,
         exp: i64,
-        mantissa: BigInt<PARTS>,
+        mantissa: BigInt,
         category: Category,
     ) -> Self {
         Float {
@@ -169,7 +169,7 @@ impl<const EXPONENT: usize, const MANTISSA: usize, const PARTS: usize>
     }
 
     /// Returns the mantissa of the float.
-    pub fn get_mantissa(&self) -> BigInt<PARTS> {
+    pub fn get_mantissa(&self) -> BigInt {
         self.mantissa.clone()
     }
 
@@ -257,10 +257,10 @@ pub type FP128 = new_float_type!(15, 112);
 pub type FP256 = new_float_type!(19, 236);
 
 //// Shift `val` by `bits`, and report the loss.
-pub(crate) fn shift_right_with_loss<const P: usize>(
-    val: &BigInt<P>,
+pub(crate) fn shift_right_with_loss(
+    val: &BigInt,
     bits: u64,
-) -> (BigInt<P>, LossFraction) {
+) -> (BigInt, LossFraction) {
     let mut val = val.clone();
     let loss = val.get_loss_kind_for_bit(bits as usize);
     val.shift_right(bits as usize);
@@ -282,19 +282,19 @@ fn combine_loss_fraction(msb: LossFraction, lsb: LossFraction) -> LossFraction {
 
 #[test]
 fn shift_right_fraction() {
-    let x: BigInt<4> = BigInt::from_u64(0b10000000);
+    let x: BigInt = BigInt::from_u64(0b10000000);
     let res = shift_right_with_loss(&x, 3);
     assert!(res.1.is_exactly_zero());
 
-    let x: BigInt<4> = BigInt::from_u64(0b10000111);
+    let x: BigInt = BigInt::from_u64(0b10000111);
     let res = shift_right_with_loss(&x, 3);
     assert!(res.1.is_mt_half());
 
-    let x: BigInt<4> = BigInt::from_u64(0b10000100);
+    let x: BigInt = BigInt::from_u64(0b10000100);
     let res = shift_right_with_loss(&x, 3);
     assert!(res.1.is_exactly_half());
 
-    let x: BigInt<4> = BigInt::from_u64(0b10000001);
+    let x: BigInt = BigInt::from_u64(0b10000001);
     let res = shift_right_with_loss(&x, 3);
     assert!(res.1.is_lt_half());
 }

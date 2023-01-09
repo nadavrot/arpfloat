@@ -365,7 +365,7 @@ impl<const EXPONENT: usize, const MANTISSA: usize, const PARTS: usize>
 
         let mut neg = false;
         let mut top = x.clone();
-        let mut bottom: BigInt<PARTS> = BigInt::one();
+        let mut bottom = BigInt::one();
         let mut sum = Self::zero(false);
         let x2 = x.sqr();
         let mut prev = Self::one(true);
@@ -375,7 +375,7 @@ impl<const EXPONENT: usize, const MANTISSA: usize, const PARTS: usize>
             }
             prev = sum.clone();
             // Update sum.
-            let elem = &top / &Self::from_bigint(&bottom);
+            let elem = &top / &Self::from_bigint(bottom.clone());
             sum = if neg { sum - elem } else { sum + elem };
 
             // Prepare the next element.
@@ -624,7 +624,7 @@ impl<const EXPONENT: usize, const MANTISSA: usize, const PARTS: usize>
     fn exp_taylor(x: Self) -> Self {
         use crate::BigInt;
         let mut top = Self::one(false);
-        let mut bottom: BigInt<PARTS> = BigInt::one();
+        let mut bottom = BigInt::one();
 
         let mut sum = Self::zero(false);
         let mut prev = Self::one(true);
@@ -634,7 +634,7 @@ impl<const EXPONENT: usize, const MANTISSA: usize, const PARTS: usize>
             }
             prev = sum.clone();
 
-            let elem = &top / &Self::from_bigint(&bottom);
+            let elem = &top / &Self::from_bigint(bottom.clone());
             sum = sum + elem;
 
             // Prepare the next iteration.

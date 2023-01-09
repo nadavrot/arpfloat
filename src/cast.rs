@@ -11,13 +11,13 @@ impl<const EXPONENT: usize, const MANTISSA: usize, const PARTS: usize>
     /// Load the integer `val` into the float. Notice that the number may
     /// overflow, or rounded to the nearest even integer.
     pub fn from_u64(val: u64) -> Self {
-        Self::from_bigint::<PARTS>(&BigInt::from_u64(val))
+        Self::from_bigint(BigInt::from_u64(val))
     }
 
     /// Load the big int `val` into the float. Notice that the number may
     /// overflow, or rounded to the nearest even integer.
-    pub fn from_bigint<const P: usize>(val: &BigInt<P>) -> Self {
-        let mut a = Self::new(false, MANTISSA as i64, val.cast());
+    pub fn from_bigint(val: BigInt) -> Self {
+        let mut a = Self::new(false, MANTISSA as i64, val);
         a.normalize(RoundingMode::NearestTiesToEven, LossFraction::ExactlyZero);
         a
     }
@@ -128,7 +128,7 @@ impl<const EXPONENT: usize, const MANTISSA: usize, const PARTS: usize>
         }
     }
 
-    fn convert_normal_to_integer(&self, rm: RoundingMode) -> BigInt<PARTS> {
+    fn convert_normal_to_integer(&self, rm: RoundingMode) -> BigInt {
         // We are converting to integer, so set the center point of the exponent
         // to the lsb instead of the msb.
         let i_exp = self.get_exp() - MANTISSA as i64;
@@ -137,9 +137,8 @@ impl<const EXPONENT: usize, const MANTISSA: usize, const PARTS: usize>
                 &self.get_mantissa(),
                 -i_exp as u64,
             );
-
             if self.need_round_away_from_zero(rm, loss) {
-                let _ = m.inplace_add(&BigInt::one());
+                m.inplace_add(&BigInt::one());
             }
             m
         } else {
@@ -199,7 +198,7 @@ impl<const EXPONENT: usize, const MANTISSA: usize, const PARTS: usize>
         let mut x = Float::<E, M, P>::raw(
             temp.get_sign(),
             temp.get_exp() - exp_delta,
-            temp.get_mantissa().cast(),
+            temp.get_mantissa(),
             temp.get_category(),
         );
         // Don't normalize if this is a nop conversion.

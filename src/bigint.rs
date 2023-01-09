@@ -2,6 +2,9 @@ extern crate alloc;
 
 use core::cmp::Ordering;
 use core::ops::{Add, Div, Mul, Sub};
+use std::println;
+
+use alloc::vec::Vec;
 
 /// Reports the kind of values that are lost when we shift right bits. In some
 /// context this used as the two guard bits.
@@ -45,14 +48,14 @@ impl LossFraction {
 /// This is a fixed-size big int implementation that's used to represent the
 /// significand part of the floating point number.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct BigInt<const PARTS: usize> {
-    parts: [u64; PARTS],
+pub struct BigInt {
+    parts: Vec<u64>,
 }
 
-impl<const PARTS: usize> BigInt<PARTS> {
+impl BigInt {
     /// Create a new zero big int number.
     pub fn zero() -> Self {
-        BigInt { parts: [0; PARTS] }
+        BigInt::from_u64(0)
     }
 
     /// Create a new number with the value 1.
@@ -81,22 +84,26 @@ impl<const PARTS: usize> BigInt<PARTS> {
 
     /// Create a number and set the lowest 64 bits to `val`.
     pub fn from_u64(val: u64) -> Self {
-        let mut bi = BigInt { parts: [0; PARTS] };
-        bi.parts[0] = val;
-        bi
+        let mut vec = Vec::new();
+        vec.push(val);
+        BigInt { parts: vec }
     }
 
     /// Create a number and set the lowest 128 bits to `val`.
     pub fn from_u128(val: u128) -> Self {
-        let mut bi = BigInt { parts: [0; PARTS] };
-        bi.parts[0] = val as u64;
-        bi.parts[1] = (val >> 64) as u64;
-        bi
+        let mut vec = Vec::new();
+        vec.push(val as u64);
+        vec.push((val >> 64) as u64);
+        BigInt { parts: vec }
+    }
+
+    pub fn len(&self) -> usize {
+        self.parts.len()
     }
 
     /// Returns the lowest 64 bits.
     pub fn as_u64(&self) -> u64 {
-        for i in 1..PARTS {
+        for i in 1..self.len() {
             debug_assert_eq!(self.parts[i], 0);
         }
         self.parts[0]
@@ -104,8 +111,8 @@ impl<const PARTS: usize> BigInt<PARTS> {
 
     /// Returns the lowest 64 bits.
     pub fn as_u128(&self) -> u128 {
-        if PARTS >= 2 {
-            for i in 2..PARTS {
+        if self.len() >= 2 {
+            for i in 2..self.len() {
                 debug_assert_eq!(self.parts[i], 0);
             }
             (self.parts[0] as u128) + ((self.parts[1] as u128) << 64)
@@ -114,24 +121,10 @@ impl<const PARTS: usize> BigInt<PARTS> {
         }
     }
 
-    /// Convert this instance to a smaller number. Notice that this may truncate
-    /// the number.
-    pub fn cast<const P: usize>(&self) -> BigInt<P> {
-        let mut n = BigInt::<P>::zero();
-        let to = PARTS.min(P);
-        for i in to..PARTS {
-            debug_assert_eq!(self.parts[i], 0, "losing information");
-        }
-        for i in 0..to {
-            n.parts[i] = self.parts[i];
-        }
-        n
-    }
-
     /// \return true if the number is equal to zero.
     pub fn is_zero(&self) -> bool {
-        for elem in self.parts {
-            if elem != 0 {
+        for elem in self.parts.iter() {
+            if *elem != 0 {
                 return false;
             }
         }
@@ -152,14 +145,15 @@ impl<const PARTS: usize> BigInt<PARTS> {
     pub fn flip_bit(&mut self, bit_num: usize) {
         let which_word = bit_num / u64::BITS as usize;
         let bit_in_word = bit_num % u64::BITS as usize;
-        debug_assert!(which_word < PARTS, "Bit out of bounds");
+        self.grow(which_word + 1);
+        debug_assert!(which_word < self.len(), "Bit out of bounds");
         self.parts[which_word] ^= 1 << bit_in_word;
     }
 
     /// Zero out all of the bits above `bits`.
     pub fn mask(&mut self, bits: usize) {
         let mut bits = bits;
-        for i in 0..PARTS {
+        for i in 0..self.len() {
             if bits >= 64 {
                 bits -= 64;
                 continue;
@@ -181,7 +175,7 @@ impl<const PARTS: usize> BigInt<PARTS> {
         if self.is_zero() {
             return LossFraction::ExactlyZero;
         }
-        if bit > PARTS * 64 {
+        if bit > self.len() * 64 {
             return LossFraction::LessThanHalf;
         }
         let mut a = self.clone();
@@ -201,7 +195,7 @@ impl<const PARTS: usize> BigInt<PARTS> {
     /// using 1-based counting (the first bit is 1, and zero means no bits are
     /// set).
     pub fn msb_index(&self) -> usize {
-        for i in (0..PARTS).rev() {
+        for i in (0..self.len()).rev() {
             let part = self.parts[i];
             if part != 0 {
                 let idx = 64 - part.leading_zeros() as usize;
@@ -215,7 +209,7 @@ impl<const PARTS: usize> BigInt<PARTS> {
     ///  be a zero.
     pub fn trailing_zeros(&self) -> usize {
         debug_assert!(!self.is_zero());
-        for i in 0..PARTS {
+        for i in 0..self.len() {
             let part = self.parts[i];
             if part != 0 {
                 let idx = part.trailing_zeros() as usize;
@@ -225,48 +219,86 @@ impl<const PARTS: usize> BigInt<PARTS> {
         panic!("Expected a non-zero number");
     }
 
-    pub fn from_parts(parts: &[u64; PARTS]) -> Self {
-        BigInt { parts: *parts }
+    pub fn from_parts(parts: &[u64]) -> Self {
+        let parts: Vec<u64> = parts.to_vec();
+        BigInt { parts }
+    }
+
+    pub fn grow(&mut self, size: usize) {
+        for _ in self.len()..size {
+            self.parts.push(0);
+        }
+    }
+
+    /// Remove the leading zeros from the bitvector.
+    fn shrink(&mut self) {
+        while self.len() > 2 && self.parts[self.len()-1] == 0 {
+            self.parts.pop();
+        }
+        
     }
 
     /// Add `rhs` to self, and return true if the operation overflowed.
-    #[must_use]
-    pub fn inplace_add(&mut self, rhs: &Self) -> bool {
+    pub fn inplace_add(&mut self, rhs: &Self) {
+        self.grow(rhs.len());
         let mut carry: bool = false;
-        for i in 0..PARTS {
+        for i in 0..rhs.len() {
             let first = self.parts[i].overflowing_add(rhs.parts[i]);
             let second = first.0.overflowing_add(carry as u64);
             carry = first.1 || second.1;
             self.parts[i] = second.0;
         }
-        carry
+        // Continue to propagate the carry flag.
+        for i in rhs.len()..self.len() {
+            let second = self.parts[i].overflowing_add(carry as u64);
+            carry = second.1;
+            self.parts[i] = second.0;
+        }
+        if carry {
+            self.parts.push(1);
+        }
+        self.shrink()
     }
 
     /// Add `rhs` to self, and return true if the operation overflowed (borrow).
     #[must_use]
     pub fn inplace_sub(&mut self, rhs: &Self) -> bool {
+        self.grow(rhs.len());
         let mut borrow: bool = false;
-        for i in 0..PARTS {
+        // Do the part of the vectors that both sides have.
+        for i in 0..rhs.len() {
             let first = self.parts[i].overflowing_sub(rhs.parts[i]);
             let second = first.0.overflowing_sub(borrow as u64);
             borrow = first.1 || second.1;
             self.parts[i] = second.0;
         }
+        // Propagate the carry bit.
+        for i in rhs.len()..self.len() {
+            let first = self.parts[i];
+            let second = first.overflowing_sub(borrow as u64);
+            borrow = second.1;
+            self.parts[i] = second.0;
+        }
+        self.shrink();
         borrow
     }
 
-    /// Multiply `rhs` to self, and return true if the operation overflowed.
-    #[must_use]
-    pub fn inplace_mul(&mut self, rhs: &Self) -> bool {
-        /// The parameter `P2` is here to work around a limitation in the
-        /// rust generic system. P2 needs to be greater or equal to PARTS*2.
-        const P2: usize = 200;
-        debug_assert!(P2 >= PARTS * 2);
-        let mut parts: [u64; P2] = [0; P2];
-        let mut carries: [u64; P2] = [0; P2];
+    fn zeros(size: usize) -> Vec<u64> {
+        let mut zero_vec: Vec<u64> = Vec::with_capacity(size);
+        for _ in 0..size {
+            zero_vec.push(0);
+        }
+        zero_vec
+    }
 
-        for i in 0..PARTS {
-            for j in 0..PARTS {
+    /// Multiply `rhs` to self, and return true if the operation overflowed.
+    pub fn inplace_mul(&mut self, rhs: &Self) {
+        let size = self.len() + rhs.len() + 1;
+        let mut parts = Self::zeros(size);
+        let mut carries = Self::zeros(size);
+
+        for i in 0..self.len() {
+            for j in 0..rhs.len() {
                 let pi = self.parts[i] as u128;
                 let pij = pi * rhs.parts[j] as u128;
 
@@ -278,18 +310,15 @@ impl<const PARTS: usize> BigInt<PARTS> {
                 carries[i + j + 1] += add1.1 as u64;
             }
         }
-
+        self.grow(size);
         let mut carry: u64 = 0;
-        for i in 0..PARTS {
+        for i in 0..size {
             let add0 = parts[i].overflowing_add(carry);
             self.parts[i] = add0.0;
             carry = add0.1 as u64 + carries[i];
         }
-        for i in PARTS..P2 {
-            carry |= carries[i] | parts[i];
-        }
-
-        carry > 0
+        self.shrink();
+        assert!(carry == 0);
     }
 
     /// Divide self by `divisor`, and return the reminder.
@@ -302,14 +331,8 @@ impl<const PARTS: usize> BigInt<PARTS> {
         let divisor_msb = divisor.msb_index();
         assert_ne!(divisor_msb, 0, "division by zero");
 
-        if divisor_msb > dividend_msb {
-            let ret = self.clone();
-            *self = Self::zero();
-            return ret;
-        }
-
         // Single word division.
-        if divisor_msb < 65 && dividend_msb < 65 {
+        if self.parts.len() == 1 && divisor.parts.len() == 1 {
             let a = dividend.get_part(0);
             let b = divisor.get_part(0);
             let res = a / b;
@@ -318,30 +341,11 @@ impl<const PARTS: usize> BigInt<PARTS> {
             return Self::from_u64(rem);
         }
 
-        // This is a fast path for the case where we know that the active bits
-        // in the word are smaller than the current size. In this case we call
-        // the implementation that uses fewer parts.
-        macro_rules! delegate_small_div {
-            ($num_parts:expr) => {
-                let bigint_size_in_bits = $num_parts * 64;
-                if PARTS > $num_parts
-                    && dividend_msb < bigint_size_in_bits
-                    && divisor_msb < bigint_size_in_bits
-                {
-                    let mut a4: BigInt<$num_parts> = dividend.cast();
-                    let b4: BigInt<$num_parts> = divisor.cast();
-                    let rem = a4.inplace_div(&b4);
-                    *self = a4.cast();
-                    return rem.cast();
-                }
-            };
+        if divisor_msb > dividend_msb {
+            let ret = self.clone();
+            *self = Self::zero();
+            return ret;
         }
-        delegate_small_div!(2);
-        delegate_small_div!(4);
-        delegate_small_div!(8);
-        delegate_small_div!(16);
-        delegate_small_div!(32);
-        delegate_small_div!(64);
 
         // Align the first bit of the divisor with the first bit of the
         // dividend.
@@ -358,6 +362,7 @@ impl<const PARTS: usize> BigInt<PARTS> {
         }
 
         *self = quotient;
+        self.shrink();
         dividend
     }
 
@@ -366,9 +371,13 @@ impl<const PARTS: usize> BigInt<PARTS> {
         let words_to_shift = bits / u64::BITS as usize;
         let bits_in_word = bits % u64::BITS as usize;
 
+        for _ in 0..words_to_shift+1 {
+            self.parts.push(0);
+        }
+
         // If we only need to move blocks.
         if bits_in_word == 0 {
-            for i in (0..PARTS).rev() {
+            for i in (0..self.len()).rev() {
                 self.parts[i] = if i >= words_to_shift {
                     self.parts[i - words_to_shift]
                 } else {
@@ -378,7 +387,7 @@ impl<const PARTS: usize> BigInt<PARTS> {
             return;
         }
 
-        for i in (0..PARTS).rev() {
+        for i in (0..self.len()).rev() {
             let left_val = if i >= words_to_shift {
                 self.parts[i - words_to_shift]
             } else {
@@ -402,23 +411,24 @@ impl<const PARTS: usize> BigInt<PARTS> {
 
         // If we only need to move blocks.
         if bits_in_word == 0 {
-            for i in 0..PARTS {
-                self.parts[i] = if i + words_to_shift < PARTS {
+            for i in 0..self.len() {
+                self.parts[i] = if i + words_to_shift < self.len() {
                     self.parts[i + words_to_shift]
                 } else {
                     0
                 };
             }
+            self.shrink();
             return;
         }
 
-        for i in 0..PARTS {
-            let left_val = if i + words_to_shift < PARTS {
+        for i in 0..self.len() {
+            let left_val = if i + words_to_shift < self.len() {
                 self.parts[i + words_to_shift]
             } else {
                 0
             };
-            let right_val = if i + 1 + words_to_shift < PARTS {
+            let right_val = if i + 1 + words_to_shift < self.len() {
                 self.parts[i + 1 + words_to_shift]
             } else {
                 0
@@ -427,6 +437,7 @@ impl<const PARTS: usize> BigInt<PARTS> {
             let left = left_val >> bits_in_word;
             self.parts[i] = left | right;
         }
+        self.shrink();
     }
 
     /// \return raise this number to the power of `exp`.
@@ -435,15 +446,13 @@ impl<const PARTS: usize> BigInt<PARTS> {
         let mut base = self.clone();
         loop {
             if exp & 0x1 == 1 {
-                let overflow = v.inplace_mul(&base);
-                debug_assert!(!overflow)
+                v.inplace_mul(&base);
             }
             exp >>= 1;
             if exp == 0 {
                 break;
             }
-            let overflow = base.inplace_mul(&base.clone());
-            debug_assert!(!overflow)
+            base.inplace_mul(&base.clone());
         }
         v
     }
@@ -457,7 +466,7 @@ impl<const PARTS: usize> BigInt<PARTS> {
     pub fn dump(&self) {
         use std::{print, println};
         print!("[");
-        for i in (0..PARTS).rev() {
+        for i in (0..self.len()).rev() {
             let width = u64::BITS as usize;
             print!("|{:0width$b}", self.parts[i]);
         }
@@ -465,7 +474,7 @@ impl<const PARTS: usize> BigInt<PARTS> {
     }
 }
 
-impl<const PARTS: usize> Default for BigInt<PARTS> {
+impl Default for BigInt {
     fn default() -> Self {
         Self::zero()
     }
@@ -475,14 +484,14 @@ impl<const PARTS: usize> Default for BigInt<PARTS> {
 fn test_powi5() {
     let lookup = [1, 5, 25, 125, 625, 3125, 15625, 78125];
     for (i, val) in lookup.iter().enumerate() {
-        let five = BigInt::<4>::from_u64(5);
+        let five = BigInt::from_u64(5);
         assert_eq!(five.powi(i as u64).as_u64(), *val);
     }
 }
 
 #[test]
 fn test_shl() {
-    let mut x = BigInt::<4>::from_u64(0xff00ff);
+    let mut x = BigInt::from_u64(0xff00ff);
     assert_eq!(x.get_part(0), 0xff00ff);
     x.shift_left(17);
     assert_eq!(x.get_part(0), 0x1fe01fe0000);
@@ -494,7 +503,7 @@ fn test_shl() {
 
 #[test]
 fn test_shr() {
-    let mut x = BigInt::<4>::from_u64(0xff00ff);
+    let mut x = BigInt::from_u64(0xff00ff);
     x.shift_left(128);
     assert_eq!(x.get_part(2), 0xff00ff);
     x.shift_right(17);
@@ -506,24 +515,33 @@ fn test_shr() {
 }
 
 #[test]
+fn test_mul_basic() {
+    let mut x = BigInt::from_u64(0xffff_ffff_ffff_ffff);
+    let y = BigInt::from_u64(25);    
+    x.inplace_mul(&x.clone());
+    x.inplace_mul(&y);
+    assert_eq!(x.get_part(0), 0x19);
+    assert_eq!(x.get_part(1), 0xffff_ffff_ffff_ffce);
+    assert_eq!(x.get_part(2), 0x18);
+}
+
+#[test]
 fn test_add_basic() {
-    let mut x = BigInt::<2>::from_u64(0xffffffff00000000);
-    let y = BigInt::<2>::from_u64(0xffffffff);
-    let z = BigInt::<2>::from_u64(0xf);
-    let c1 = x.inplace_add(&y);
-    assert!(!c1);
+    let mut x = BigInt::from_u64(0xffffffff00000000);
+    let y = BigInt::from_u64(0xffffffff);
+    let z = BigInt::from_u64(0xf);
+    x.inplace_add(&y);
     assert_eq!(x.get_part(0), 0xffffffffffffffff);
-    let c2 = x.inplace_add(&z);
-    assert!(!c2);
+    x.inplace_add(&z);
     assert_eq!(x.get_part(0), 0xe);
     assert_eq!(x.get_part(1), 0x1);
 }
 
 #[test]
 fn test_div_basic() {
-    let mut x1 = BigInt::<2>::from_u64(49);
-    let mut x2 = BigInt::<2>::from_u64(703);
-    let y = BigInt::<2>::from_u64(7);
+    let mut x1 = BigInt::from_u64(49);
+    let mut x2 = BigInt::from_u64(703);
+    let y = BigInt::from_u64(7);
 
     let rem = x1.inplace_div(&y);
     assert_eq!(x1.as_u64(), 7);
@@ -536,8 +554,8 @@ fn test_div_basic() {
 
 #[test]
 fn test_div_10() {
-    let mut x1 = BigInt::<2>::from_u64(19940521);
-    let ten = BigInt::<2>::from_u64(10);
+    let mut x1 = BigInt::from_u64(19940521);
+    let ten = BigInt::from_u64(10);
     assert_eq!(x1.inplace_div(&ten).as_u64(), 1);
     assert_eq!(x1.inplace_div(&ten).as_u64(), 2);
     assert_eq!(x1.inplace_div(&ten).as_u64(), 5);
@@ -574,17 +592,34 @@ fn test_with_random_values(
 #[test]
 fn test_sub_basic() {
     // Check a single overflowing sub operation.
-    let mut x = BigInt::<2>::from_parts(&[0x0, 0x1]);
-    let y = BigInt::<2>::from_u64(0x1);
+    let mut x = BigInt::from_parts(&[0x0, 0x1, 0]);
+    let y = BigInt::from_u64(0x1);
     let c1 = x.inplace_sub(&y);
     assert!(!c1);
     assert_eq!(x.get_part(0), 0xffffffffffffffff);
     assert_eq!(x.get_part(1), 0);
+
+
+    let mut x = BigInt::from_parts(&[0x1, 0x1]);
+    let y = BigInt::from_parts(&[0x0, 0x1, 0x0]);
+    let c1 = x.inplace_sub(&y);
+    assert!(!c1);
+    assert_eq!(x.get_part(0), 0x1);
+    assert_eq!(x.get_part(1), 0);
+
+
+    let mut x = BigInt::from_parts(&[0x1, 0x1, 0x1]);
+    let y = BigInt::from_parts(&[0x0, 0x1, 0x0]);
+    let c1 = x.inplace_sub(&y);
+    assert!(!c1);
+    assert_eq!(x.get_part(0), 0x1);
+    assert_eq!(x.get_part(1), 0);
+    assert_eq!(x.get_part(2), 0x1);
 }
 
 #[test]
 fn test_mask_basic() {
-    let mut x = BigInt::<3>::from_parts(&[0b11111, 0b10101010101010, 0b111]);
+    let mut x = BigInt::from_parts(&[0b11111, 0b10101010101010, 0b111]);
     x.mask(69);
     assert_eq!(x.get_part(0), 0b11111); // No change
     assert_eq!(x.get_part(1), 0b01010); // Keep the bottom 5 bits.
@@ -609,26 +644,38 @@ fn test_basic_operations() {
     }
 
     fn test_sub(a: u128, b: u128) -> (u128, bool) {
-        let mut a = BigInt::<2>::from_u128(a);
-        let b = BigInt::<2>::from_u128(b);
+        let mut a = BigInt::from_u128(a);
+        let b = BigInt::from_u128(b);
         let c = a.inplace_sub(&b);
         (a.as_u128(), c)
     }
     fn test_add(a: u128, b: u128) -> (u128, bool) {
-        let mut a = BigInt::<2>::from_u128(a);
-        let b = BigInt::<2>::from_u128(b);
-        let c = a.inplace_add(&b);
-        (a.as_u128(), c)
+        let mut a = BigInt::from_u128(a);
+        let b = BigInt::from_u128(b);
+        let mut carry = false;
+        a.inplace_add(&b);
+        if a.len() > 2 {
+            carry = true;
+            a.parts[2] = 0;
+        }
+
+        (a.as_u128(), carry)
     }
     fn test_mul(a: u128, b: u128) -> (u128, bool) {
-        let mut a = BigInt::<2>::from_u128(a);
-        let b = BigInt::<2>::from_u128(b);
-        let c = a.inplace_mul(&b);
-        (a.as_u128(), c)
+        let mut a = BigInt::from_u128(a);
+        let b = BigInt::from_u128(b);
+        let mut carry = false;
+        a.inplace_mul(&b);
+        if a.len() > 2 {
+            carry = true;
+            a.parts[2] = 0;
+            a.parts[3] = 0;
+        }
+        (a.as_u128(), carry)
     }
     fn test_div(a: u128, b: u128) -> (u128, bool) {
-        let mut a = BigInt::<2>::from_u128(a);
-        let b = BigInt::<2>::from_u128(b);
+        let mut a = BigInt::from_u128(a);
+        let b = BigInt::from_u128(b);
         a.inplace_div(&b);
         (a.as_u128(), false)
     }
@@ -644,8 +691,8 @@ fn test_basic_operations() {
         )
     }
     fn test_cmp(a: u128, b: u128) -> (u128, bool) {
-        let a = BigInt::<2>::from_u128(a);
-        let b = BigInt::<2>::from_u128(b);
+        let a = BigInt::from_u128(a);
+        let b = BigInt::from_u128(b);
 
         (
             match a.cmp(&b) {
@@ -666,21 +713,21 @@ fn test_basic_operations() {
 
 #[test]
 fn test_msb() {
-    let x = BigInt::<5>::from_u64(0xffffffff00000000);
+    let x = BigInt::from_u64(0xffffffff00000000);
     assert_eq!(x.msb_index(), 64);
 
-    let x = BigInt::<5>::from_u64(0x0);
+    let x = BigInt::from_u64(0x0);
     assert_eq!(x.msb_index(), 0);
 
-    let x = BigInt::<5>::from_u64(0x1);
+    let x = BigInt::from_u64(0x1);
     assert_eq!(x.msb_index(), 1);
 
-    let mut x = BigInt::<5>::from_u64(0x1);
+    let mut x = BigInt::from_u64(0x1);
     x.shift_left(189);
     assert_eq!(x.msb_index(), 189 + 1);
 
     for i in 0..256 {
-        let mut x = BigInt::<5>::from_u64(0x1);
+        let mut x = BigInt::from_u64(0x1);
         x.shift_left(i);
         assert_eq!(x.msb_index(), i + 1);
     }
@@ -688,35 +735,50 @@ fn test_msb() {
 
 #[test]
 fn test_trailing_zero() {
-    let x = BigInt::<5>::from_u64(0xffffffff00000000);
+    let x = BigInt::from_u64(0xffffffff00000000);
     assert_eq!(x.trailing_zeros(), 32);
 
-    let x = BigInt::<5>::from_u64(0x1);
+    let x = BigInt::from_u64(0x1);
     assert_eq!(x.trailing_zeros(), 0);
 
-    let x = BigInt::<5>::from_u64(0x8);
+    let x = BigInt::from_u64(0x8);
     assert_eq!(x.trailing_zeros(), 3);
 
-    let mut x = BigInt::<5>::from_u64(0x1);
+    let mut x = BigInt::from_u64(0x1);
     x.shift_left(189);
     assert_eq!(x.trailing_zeros(), 189);
 
     for i in 0..256 {
-        let mut x = BigInt::<5>::from_u64(0x1);
+        let mut x = BigInt::from_u64(0x1);
         x.shift_left(i);
         assert_eq!(x.trailing_zeros(), i);
     }
 }
 
-impl<const PARTS: usize> PartialOrd for BigInt<PARTS> {
+impl PartialOrd for BigInt {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         Some(self.cmp(other))
     }
 }
-impl<const PARTS: usize> Ord for BigInt<PARTS> {
+impl Ord for BigInt {
     fn cmp(&self, other: &Self) -> Ordering {
+        // This part word is longer.
+        if self.len() > other.len()
+            && self.parts[other.len()..].iter().any(|&x| x != 0)
+        {
+            return Ordering::Greater;
+        }
+
+        // The other word is longer.
+        if other.len() > self.len()
+            && other.parts[self.len()..].iter().any(|&x| x != 0)
+        {
+            return Ordering::Less;
+        }
+        let same_len = other.len().min(self.len());
+
         // Compare all of the digits, from MSB to LSB.
-        for i in (0..PARTS).rev() {
+        for i in (0..same_len).rev() {
             match self.parts[i].cmp(&other.parts[i]) {
                 Ordering::Less => return Ordering::Less,
                 Ordering::Equal => {}
@@ -732,7 +794,7 @@ macro_rules! declare_operator {
      $func_name:ident,
      $func_impl_name:ident) => {
         // Self + Self
-        impl<const PARTS: usize> $trait_name for BigInt<PARTS> {
+        impl $trait_name for BigInt {
             type Output = Self;
 
             fn $func_name(self, rhs: Self) -> Self::Output {
@@ -741,7 +803,7 @@ macro_rules! declare_operator {
         }
 
         // Self + &Self -> Self
-        impl<const PARTS: usize> $trait_name<&Self> for BigInt<PARTS> {
+        impl $trait_name<&Self> for BigInt {
             type Output = Self;
             fn $func_name(self, rhs: &Self) -> Self::Output {
                 let mut n = self;
@@ -751,8 +813,8 @@ macro_rules! declare_operator {
         }
 
         // &Self + &Self -> Self
-        impl<const PARTS: usize> $trait_name<Self> for &BigInt<PARTS> {
-            type Output = BigInt<PARTS>;
+        impl $trait_name<Self> for &BigInt {
+            type Output = BigInt;
             fn $func_name(self, rhs: Self) -> Self::Output {
                 let mut n = self.clone();
                 let _ = n.$func_impl_name(rhs);
@@ -761,7 +823,7 @@ macro_rules! declare_operator {
         }
 
         // &Self + u64 -> Self
-        impl<const PARTS: usize> $trait_name<u64> for BigInt<PARTS> {
+        impl $trait_name<u64> for BigInt {
             type Output = Self;
             fn $func_name(self, rhs: u64) -> Self::Output {
                 let mut n = self;
@@ -779,7 +841,7 @@ declare_operator!(Div, div, inplace_div);
 
 #[test]
 fn test_bigint_operators() {
-    type BI = BigInt<2>;
+    type BI = BigInt;
     let x = BI::from_u64(10);
     let y = BI::from_u64(1);
 
@@ -790,7 +852,7 @@ fn test_bigint_operators() {
 
 #[test]
 fn test_all1s_ctor() {
-    type BI = BigInt<2>;
+    type BI = BigInt;
     let v0 = BI::all1s(0);
     let v1 = BI::all1s(1);
     let v2 = BI::all1s(5);
@@ -804,7 +866,7 @@ fn test_all1s_ctor() {
 
 #[test]
 fn test_flip_bit() {
-    type BI = BigInt<2>;
+    type BI = BigInt;
 
     {
         let mut v0 = BI::zero();
@@ -834,14 +896,14 @@ fn test_flip_bit() {
 fn test_mul_div_encode_decode() {
     use alloc::vec::Vec;
     // Take a string of symbols and encode them into one large number.
-    const P: usize = 10;
     const BASE: u64 = 5;
-    type BI = BigInt<P>;
+    type BI = BigInt;
     let base = BI::from_u64(BASE);
     let mut bitstream = BI::from_u64(0);
     let mut message: Vec<u64> = Vec::new();
 
     // We can fit this many digits in the bignum without overflowing.
+    // Generate a random message.
     for i in 0..275 {
         message.push(((i + 6) * 17) % BASE);
     }
@@ -849,10 +911,8 @@ fn test_mul_div_encode_decode() {
     // Encode the message.
     for letter in &message {
         let letter = BI::from_u64(*letter);
-        let overflow = bitstream.inplace_mul(&base);
-        assert!(!overflow);
-        let overflow = bitstream.inplace_add(&letter);
-        assert!(!overflow);
+        bitstream.inplace_mul(&base);
+        bitstream.inplace_add(&letter);
     }
 
     let len = message.len();
