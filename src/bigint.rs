@@ -47,7 +47,7 @@ impl LossFraction {
 }
 /// This is a fixed-size big int implementation that's used to represent the
 /// significand part of the floating point number.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone)]
 pub struct BigInt {
     parts: Vec<u64>,
 }
@@ -754,7 +754,13 @@ fn test_trailing_zero() {
         assert_eq!(x.trailing_zeros(), i);
     }
 }
+impl Eq for BigInt {}
 
+impl PartialEq for BigInt {
+    fn eq(&self, other: &BigInt) -> bool {
+        self.cmp(other).is_eq()
+    }
+}
 impl PartialOrd for BigInt {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         Some(self.cmp(other))
