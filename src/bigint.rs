@@ -275,10 +275,9 @@ impl BigInt {
         }
         // Propagate the carry bit.
         for i in rhs.len()..self.len() {
-            let first = self.parts[i];
-            let second = first.overflowing_sub(borrow as u64);
-            borrow = second.1;
+            let second = self.parts[i].overflowing_sub(borrow as u64);
             self.parts[i] = second.0;
+            borrow = second.1;
         }
         self.shrink();
         borrow
@@ -352,7 +351,8 @@ impl BigInt {
         // Perform the long division.
         for i in (0..bits + 1).rev() {
             if dividend >= divisor {
-                dividend = dividend - &divisor;
+                let overflow = dividend.inplace_sub(&divisor);
+                debug_assert!(!overflow);
                 quotient.flip_bit(i);
             }
             divisor.shift_right(1);
