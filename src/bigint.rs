@@ -351,7 +351,7 @@ impl<const PARTS: usize> BigInt<PARTS> {
         // Perform the long division.
         for i in (0..bits + 1).rev() {
             if dividend >= divisor {
-                dividend = dividend.clone() - &divisor;
+                dividend = dividend - &divisor;
                 quotient.flip_bit(i);
             }
             divisor.shift_right(1);
@@ -727,75 +727,65 @@ impl<const PARTS: usize> Ord for BigInt<PARTS> {
     }
 }
 
-impl<const PARTS: usize> Add for BigInt<PARTS> {
-    type Output = Self;
+macro_rules! declare_operator {
+    ($trait_name:ident,
+     $func_name:ident,
+     $func_impl_name:ident) => {
+        // Self + Self
+        impl<const PARTS: usize> $trait_name for BigInt<PARTS> {
+            type Output = Self;
 
-    fn add(self, rhs: Self) -> Self::Output {
-        self.add(&rhs)
-    }
-}
-impl<const PARTS: usize> Add<&Self> for BigInt<PARTS> {
-    type Output = Self;
+            fn $func_name(self, rhs: Self) -> Self::Output {
+                self.$func_name(&rhs)
+            }
+        }
 
-    fn add(self, rhs: &Self) -> Self::Output {
-        let mut n = self;
-        let _ = n.inplace_add(rhs);
-        n
-    }
-}
-impl<const PARTS: usize> Sub for BigInt<PARTS> {
-    type Output = Self;
+        // Self + &Self -> Self
+        impl<const PARTS: usize> $trait_name<&Self> for BigInt<PARTS> {
+            type Output = Self;
+            fn $func_name(self, rhs: &Self) -> Self::Output {
+                let mut n = self;
+                let _ = n.$func_impl_name(rhs);
+                n
+            }
+        }
 
-    fn sub(self, rhs: Self) -> Self::Output {
-        self.sub(&rhs)
-    }
-}
-impl<const PARTS: usize> Sub<&Self> for BigInt<PARTS> {
-    type Output = Self;
+        // &Self + &Self -> Self
+        impl<const PARTS: usize> $trait_name<Self> for &BigInt<PARTS> {
+            type Output = BigInt<PARTS>;
+            fn $func_name(self, rhs: Self) -> Self::Output {
+                let mut n = self.clone();
+                let _ = n.$func_impl_name(rhs);
+                n
+            }
+        }
 
-    fn sub(self, rhs: &Self) -> Self::Output {
-        let mut n = self;
-        let _ = n.inplace_sub(rhs);
-        n
-    }
+        // &Self + u64 -> Self
+        impl<const PARTS: usize> $trait_name<u64> for BigInt<PARTS> {
+            type Output = Self;
+            fn $func_name(self, rhs: u64) -> Self::Output {
+                let mut n = self;
+                let _ = n.$func_impl_name(&Self::from_u64(rhs));
+                n
+            }
+        }
+    };
 }
-impl<const PARTS: usize> Mul for BigInt<PARTS> {
-    type Output = Self;
 
-    fn mul(self, rhs: Self) -> Self::Output {
-        self.mul(&rhs)
-    }
-}
-impl<const PARTS: usize> Mul<&Self> for BigInt<PARTS> {
-    type Output = Self;
-
-    fn mul(self, rhs: &Self) -> Self::Output {
-        let mut n = self;
-        let overflow = n.inplace_mul(rhs);
-        debug_assert!(!overflow);
-        n
-    }
-}
-impl<const PARTS: usize> Div for BigInt<PARTS> {
-    type Output = Self;
-
-    fn div(self, rhs: Self) -> Self::Output {
-        let mut n = self;
-        n.inplace_div(&rhs);
-        n
-    }
-}
+declare_operator!(Add, add, inplace_add);
+declare_operator!(Sub, sub, inplace_sub);
+declare_operator!(Mul, mul, inplace_mul);
+declare_operator!(Div, div, inplace_div);
 
 #[test]
 fn test_bigint_operators() {
     type BI = BigInt<2>;
     let x = BI::from_u64(10);
     let y = BI::from_u64(1);
-    let two = BI::from_u64(2);
 
-    let c = ((x.clone() - &y) * x) / two;
+    let c = ((&x - &y) * x) / 2;
     assert_eq!(c.as_u64(), 45);
-    assert_eq!((y.clone() + &y).as_u64(), 2);
+    assert_eq!((&y + &y).as_u64(), 2);
 }
 
 #[test]
