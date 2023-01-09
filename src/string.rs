@@ -6,14 +6,11 @@ use alloc::string::{String, ToString};
 use core::cmp::Ordering;
 use core::fmt::Display;
 
-// Use a bigint for the decimal conversions.
-type BigNum = BigInt;
-
 impl<const EXPONENT: usize, const MANTISSA: usize, const PARTS: usize>
     Float<EXPONENT, MANTISSA, PARTS>
 {
     /// Convert the number into a large integer, and a base-10 exponent.
-    fn convert_to_integer(&self) -> (BigNum, i64) {
+    fn convert_to_integer(&self) -> (BigInt, i64) {
         // The natural representation of numbers is 1.mmmmmmm, where the
         // mantissa is aligned to the MSB. In this method we convert the numbers
         // into integers, that start at bit zero, so we use exponent that refers
@@ -21,7 +18,7 @@ impl<const EXPONENT: usize, const MANTISSA: usize, const PARTS: usize>
         // See Ryu: Fast Float-to-String Conversion -- Ulf Adams.
         // https://youtu.be/kw-U6smcLzk?t=681
         let mut exp = self.get_exp() - MANTISSA as i64;
-        let mut mantissa: BigNum = self.get_mantissa();
+        let mut mantissa: BigInt = self.get_mantissa();
 
         match exp.cmp(&0) {
             Ordering::Less => {
@@ -61,7 +58,7 @@ impl<const EXPONENT: usize, const MANTISSA: usize, const PARTS: usize>
 
     /// Reduce a number in the representation mmmmm * e^10, to fewer bits in
     /// 'm', based on the max possible digits in the mantissa.
-    fn reduce_printed_integer_length(integer: &mut BigNum, exp: &mut i64) {
+    fn reduce_printed_integer_length(integer: &mut BigInt, exp: &mut i64) {
         let bits = integer.msb_index();
         if bits <= MANTISSA {
             return;
@@ -85,7 +82,7 @@ impl<const EXPONENT: usize, const MANTISSA: usize, const PARTS: usize>
         use alloc::vec::Vec;
         let (mut integer, mut exp) = self.convert_to_integer();
         let mut buff = Vec::new();
-        let ten = BigNum::from_u64(10);
+        let ten = BigInt::from_u64(10);
 
         Self::reduce_printed_integer_length(&mut integer, &mut exp);
 
@@ -171,7 +168,7 @@ fn test_fuzz_printing() {
 
     let mut lfsr = utils::Lfsr::new();
 
-    for _ in 0..50 {
+    for _ in 0..500 {
         let v0 = lfsr.get64();
         let f0 = f64::from_bits(v0);
         let fp0 = FP64::from_f64(f0);

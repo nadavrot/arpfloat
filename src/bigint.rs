@@ -2,7 +2,6 @@ extern crate alloc;
 
 use core::cmp::Ordering;
 use core::ops::{Add, Div, Mul, Sub};
-use std::println;
 
 use alloc::vec::Vec;
 
@@ -84,21 +83,24 @@ impl BigInt {
 
     /// Create a number and set the lowest 64 bits to `val`.
     pub fn from_u64(val: u64) -> Self {
-        let mut vec = Vec::new();
-        vec.push(val);
+        let vec = Vec::from([val]);
         BigInt { parts: vec }
     }
 
     /// Create a number and set the lowest 128 bits to `val`.
     pub fn from_u128(val: u128) -> Self {
-        let mut vec = Vec::new();
-        vec.push(val as u64);
-        vec.push((val >> 64) as u64);
+        let a = val as u64;
+        let b = (val >> 64) as u64;
+        let vec = Vec::from([a, b]);
         BigInt { parts: vec }
     }
 
     pub fn len(&self) -> usize {
         self.parts.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.parts.is_empty()
     }
 
     /// Returns the lowest 64 bits.
@@ -232,10 +234,9 @@ impl BigInt {
 
     /// Remove the leading zeros from the bitvector.
     fn shrink(&mut self) {
-        while self.len() > 2 && self.parts[self.len()-1] == 0 {
+        while self.len() > 2 && self.parts[self.len() - 1] == 0 {
             self.parts.pop();
         }
-        
     }
 
     /// Add `rhs` to self, and return true if the operation overflowed.
@@ -284,11 +285,7 @@ impl BigInt {
     }
 
     fn zeros(size: usize) -> Vec<u64> {
-        let mut zero_vec: Vec<u64> = Vec::with_capacity(size);
-        for _ in 0..size {
-            zero_vec.push(0);
-        }
-        zero_vec
+        core::iter::repeat(0).take(size).collect()
     }
 
     /// Multiply `rhs` to self, and return true if the operation overflowed.
@@ -371,7 +368,7 @@ impl BigInt {
         let words_to_shift = bits / u64::BITS as usize;
         let bits_in_word = bits % u64::BITS as usize;
 
-        for _ in 0..words_to_shift+1 {
+        for _ in 0..words_to_shift + 1 {
             self.parts.push(0);
         }
 
@@ -517,7 +514,7 @@ fn test_shr() {
 #[test]
 fn test_mul_basic() {
     let mut x = BigInt::from_u64(0xffff_ffff_ffff_ffff);
-    let y = BigInt::from_u64(25);    
+    let y = BigInt::from_u64(25);
     x.inplace_mul(&x.clone());
     x.inplace_mul(&y);
     assert_eq!(x.get_part(0), 0x19);
@@ -599,14 +596,12 @@ fn test_sub_basic() {
     assert_eq!(x.get_part(0), 0xffffffffffffffff);
     assert_eq!(x.get_part(1), 0);
 
-
     let mut x = BigInt::from_parts(&[0x1, 0x1]);
     let y = BigInt::from_parts(&[0x0, 0x1, 0x0]);
     let c1 = x.inplace_sub(&y);
     assert!(!c1);
     assert_eq!(x.get_part(0), 0x1);
     assert_eq!(x.get_part(1), 0);
-
 
     let mut x = BigInt::from_parts(&[0x1, 0x1, 0x1]);
     let y = BigInt::from_parts(&[0x0, 0x1, 0x0]);
