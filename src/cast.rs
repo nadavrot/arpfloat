@@ -1,5 +1,3 @@
-use std::println;
-
 use crate::float::Semantics;
 use crate::FP128;
 
@@ -237,7 +235,6 @@ impl Float {
                 exp = 0;
             }
             Category::Normal => {
-                println!("{} - {}", self.get_exp(), self.get_bias());
                 exp = (self.get_exp() + self.get_bias()) as u64;
                 debug_assert!(exp > 0);
                 let m = self.get_mantissa().as_u64();
@@ -270,9 +267,7 @@ impl Float {
     // rounded to the nearest even (see cast and cast_with_rm).
     pub fn as_f64(&self) -> f64 {
         let b = self.cast(FP64);
-        b.dump();
         let bits = b.as_native_float();
-        println!("{} {:x}", bits, bits);
         f64::from_bits(bits)
     }
 

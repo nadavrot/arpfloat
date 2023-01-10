@@ -1,5 +1,3 @@
-use std::println;
-
 use crate::{float::Semantics, RoundingMode};
 
 use super::float::Float;
@@ -195,6 +193,12 @@ impl Float {
     /// Fast Multiple-Precision Evaluation of Elementary Functions
     /// by Richard P. Brent.
     pub fn pi(sem: Semantics) -> Self {
+        // Increase the precision, because the arithmetic operations below
+        // require rounding, so if we want to get the accurate results we need
+        // to operate with increased precision.
+        let orig_sem = sem;
+        let sem = sem.increase_precision(10);
+
         let one = Self::from_i64(sem, 1);
         let two = Self::from_i64(sem, 2);
         let four = Self::from_i64(sem, 4);
@@ -211,11 +215,14 @@ impl Float {
             t = &t - (&x * (&a - &y).sqr());
             x = &x * 2;
         }
-        a.sqr() / t
+        (a.sqr() / t).cast(orig_sem)
     }
 
     /// Computes e using Euler's continued fraction, which is a simple series.
     pub fn e(sem: Semantics) -> Self {
+        let orig_sem = sem;
+        let sem = sem.increase_precision(10);
+
         let one = Self::from_i64(sem, 1);
         let mut term = one.clone();
         let iterations: i64 = (sem.get_exponent_len() * 2) as i64;
@@ -224,23 +231,24 @@ impl Float {
             term = &v + &v / &term;
         }
 
-        one / term + 2
+        (one / term + 2).cast(orig_sem)
     }
 }
 
 #[cfg(feature = "std")]
 #[test]
 fn test_pi() {
-    use crate::FP128;
-    assert_eq!(Float::pi(FP128).as_f64(), std::f64::consts::PI);
+    use crate::FP64;
+    assert_eq!(Float::pi(FP64).as_f64(), std::f64::consts::PI);
 }
 
 #[cfg(feature = "std")]
 #[test]
 fn test_e() {
-    use super::FP128;
-    assert_eq!(Float::e(FP128).as_f64(), std::f64::consts::E);
-    assert_eq!(Float::e(FP128).as_f32(), std::f32::consts::E);
+    use super::FP32;
+    use super::FP64;
+    assert_eq!(Float::e(FP64).as_f64(), std::f64::consts::E);
+    assert_eq!(Float::e(FP32).as_f32(), std::f32::consts::E);
 }
 
 impl Float {
@@ -574,7 +582,6 @@ impl Float {
         let one = Self::from_u64(sem, 1);
 
         if x > &up {
-            println!("{}", x);
             let two = Self::from_u64(sem, 2);
             let sx = x.sqrt();
             return two * Self::log_range_reduce(&sx);

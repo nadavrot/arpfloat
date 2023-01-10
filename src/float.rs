@@ -43,6 +43,12 @@ impl Semantics {
         self.exponent
     }
 
+    /// Create a new float semantics with increased precision with 'more'
+    /// additional digits.
+    pub fn increase_precision(&self, more: usize) -> Semantics {
+        Semantics::new(self.exponent, self.precision + more)
+    }
+
     /// Returns the exponent bias for the number, as a positive number.
     /// https://en.wikipedia.org/wiki/IEEE_754#Basic_and_interchange_formats
     pub(crate) fn get_bias(&self) -> i64 {
