@@ -684,6 +684,27 @@ macro_rules! declare_operator {
                 )
             }
         }
+
+        // &Self + Self
+        impl<
+                const EXPONENT: usize,
+                const MANTISSA: usize,
+                const PARTS: usize,
+            > $trait_name<Float<EXPONENT, MANTISSA, PARTS>>
+            for &Float<EXPONENT, MANTISSA, PARTS>
+        {
+            type Output = Float<EXPONENT, MANTISSA, PARTS>;
+            fn $func_name(
+                self,
+                rhs: Float<EXPONENT, MANTISSA, PARTS>,
+            ) -> Self::Output {
+                Self::Output::$func_impl_name(
+                    &self,
+                    &rhs,
+                    RoundingMode::NearestTiesToEven,
+                )
+            }
+        }
     };
 }
 
