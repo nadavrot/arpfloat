@@ -1,8 +1,7 @@
-use arpfloat::{FP256, Float};
+use arpfloat::{Float, FP256};
 
 ///! Calculate the value of PI using the Chudnovsky_algorithm.
 ///!  cargo run --example calc_pi --release
-
 
 fn main() {
     // https://en.wikipedia.org/wiki/Chudnovsky_algorithm

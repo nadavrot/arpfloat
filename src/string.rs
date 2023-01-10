@@ -6,9 +6,7 @@ use alloc::string::{String, ToString};
 use core::cmp::Ordering;
 use core::fmt::Display;
 
-impl
-    Float
-{
+impl Float {
     /// Convert the number into a large integer, and a base-10 exponent.
     fn convert_to_integer(&self) -> (BigInt, i64) {
         // The natural representation of numbers is 1.mmmmmmm, where the
@@ -58,7 +56,11 @@ impl
 
     /// Reduce a number in the representation mmmmm * e^10, to fewer bits in
     /// 'm', based on the max possible digits in the mantissa.
-    fn reduce_printed_integer_length(&self, integer: &mut BigInt, exp: &mut i64) {
+    fn reduce_printed_integer_length(
+        &self,
+        integer: &mut BigInt,
+        exp: &mut i64,
+    ) {
         let bits = integer.msb_index();
         if bits <= self.MANTISSA() {
             return;
@@ -125,9 +127,7 @@ impl
         result
     }
 }
-impl Display
-    for Float
-{
+impl Display for Float {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         write!(f, "{}", self.convert_to_string())
     }
@@ -164,7 +164,6 @@ fn test_convert_to_string() {
 #[test]
 fn test_fuzz_printing() {
     use crate::utils;
-    use crate::FP64;
 
     let mut lfsr = utils::Lfsr::new();
 
@@ -179,9 +178,8 @@ fn test_fuzz_printing() {
 #[cfg(feature = "std")]
 #[test]
 fn test_print_sqrt() {
-    
-    use std::println;
     use crate::FP64;
+    use std::println;
 
     // Use Newton-Raphson to find the square root of 5.
     let n = Float::from_u64(FP64, 5);
@@ -199,7 +197,6 @@ fn test_print_sqrt() {
 fn test_readme_example() {
     use std::println;
     // Create a new type: 15 bits exponent, 112 significand.
-    
 
     // Use Newton-Raphson to find the square root of 5.
     let n = Float::from_u64(FP128, 5);
@@ -211,7 +208,7 @@ fn test_readme_example() {
     println!("fp128: {}", x);
     println!("fp64:  {}", x.as_f64());
 
-    use crate::{FP16, FP128};
+    use crate::{FP128, FP16};
     let fp = Float::from_i64(FP16, 15);
     fp.dump();
 }

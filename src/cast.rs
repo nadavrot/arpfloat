@@ -1,7 +1,7 @@
 use std::println;
 
-use crate::FP128;
 use crate::float::Semantics;
+use crate::FP128;
 
 use super::bigint::BigInt;
 use super::bigint::LossFraction;
@@ -10,8 +10,7 @@ use super::float::{Float, RoundingMode, FP32, FP64};
 use super::utils;
 use super::utils::mask;
 
-impl Float
-{
+impl Float {
     /// Load the integer `val` into the float. Notice that the number may
     /// overflow, or rounded to the nearest even integer.
     pub fn from_u64(sem: Semantics, val: u64) -> Self {
@@ -122,7 +121,7 @@ impl Float
         let (mut m, loss) =
             shift_right_with_loss(&self.get_mantissa(), trim as u64);
         m.shift_left(trim);
-        let t = Self::new(sem,self.get_sign(), self.get_exp(), m);
+        let t = Self::new(sem, self.get_sign(), self.get_exp(), m);
 
         if loss.is_lt_half() {
             t
@@ -155,7 +154,8 @@ impl Float
 
     fn from_bits(sem: Semantics, float: u64) -> Self {
         // Extract the biased exponent (wipe the sign and mantissa).
-        let biased_exp = ((float >> sem.MANTISSA()) & mask(sem.EXPONENT()) as u64) as i64;
+        let biased_exp =
+            ((float >> sem.MANTISSA()) & mask(sem.EXPONENT()) as u64) as i64;
         // Wipe the original exponent and mantissa.
         let sign = (float >> (sem.EXPONENT() + sem.MANTISSA())) & 1;
         // Wipe the sign and exponent.
@@ -186,11 +186,7 @@ impl Float
     }
 
     /// Cast to another float using the rounding mode `rm`.
-    pub fn cast_with_rm(
-        &self,
-        to: Semantics,
-        rm: RoundingMode,
-    ) -> Float {
+    pub fn cast_with_rm(&self, to: Semantics, rm: RoundingMode) -> Float {
         let mut loss = LossFraction::ExactlyZero;
         let exp_delta = self.MANTISSA() as i64 - to.MANTISSA() as i64;
         let mut temp = self.clone();
@@ -202,14 +198,15 @@ impl Float
         }
 
         let mut x = Float::raw(
-            to, 
+            to,
             temp.get_sign(),
             temp.get_exp() - exp_delta,
             temp.get_mantissa(),
             temp.get_category(),
         );
         // Don't normalize if this is a nop conversion.
-        if to.EXPONENT() != self.EXPONENT() && to.MANTISSA() != self.MANTISSA() {
+        if to.EXPONENT() != self.EXPONENT() && to.MANTISSA() != self.MANTISSA()
+        {
             x.normalize(rm, loss);
         }
         x
@@ -237,7 +234,7 @@ impl Float
                 exp = 0;
             }
             Category::Normal => {
-                println!("{} - {}", self.get_exp() , self.get_bias());
+                println!("{} - {}", self.get_exp(), self.get_bias());
                 exp = (self.get_exp() + self.get_bias()) as u64;
                 debug_assert!(exp > 0);
                 let m = self.get_mantissa().as_u64();

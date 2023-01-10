@@ -40,7 +40,7 @@ impl Semantics {
     /// Returns the exponent bias for the number, as a positive number.
     /// https://en.wikipedia.org/wiki/IEEE_754#Basic_and_interchange_formats
     pub(crate) fn get_bias(&self) -> i64 {
-        let e = self.EXPONENT() as usize;
+        let e = self.EXPONENT();
         ((1u64 << (e - 1)) - 1) as i64
     }
 }

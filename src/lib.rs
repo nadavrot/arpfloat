@@ -8,7 +8,7 @@
 //!```
 //!  use arpfloat::Float;
 //!  use arpfloat::FP128;
-//! 
+//!
 //!  // Use Newton-Raphson to find the square root of 5.
 //!  let n = Float::from_u64(FP128, 5);
 //!

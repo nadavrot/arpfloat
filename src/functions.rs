@@ -142,7 +142,6 @@ fn test_sqrt() {
 #[test]
 fn test_min_max() {
     use super::utils;
-    use super::FP64;
 
     fn check(v0: f64, v1: f64) {
         // Min.
@@ -181,7 +180,7 @@ fn test_min_max() {
 #[test]
 fn test_abs() {
     use super::utils;
-    use super::FP64;
+
     for v in utils::get_special_test_values() {
         if !v.is_nan() {
             assert_eq!(Float::from_f64(v).abs().as_f64(), v.abs());
@@ -239,7 +238,7 @@ fn test_pi() {
 #[cfg(feature = "std")]
 #[test]
 fn test_e() {
-    use super::{FP128, FP32};
+    use super::FP128;
     assert_eq!(Float::e(FP128).as_f64(), std::f64::consts::E);
     assert_eq!(Float::e(FP128).as_f32(), std::f32::consts::E);
 }
@@ -322,7 +321,7 @@ fn test_scale() {
 fn test_rem() {
     use super::utils;
     use super::utils::Lfsr;
-    use super::FP64;
+
     use core::ops::Rem;
 
     fn check_two_numbers(v0: f64, v1: f64) {
@@ -474,7 +473,10 @@ fn test_sin_known_value() {
     // mp.sin(801./10000)
     let res = Float::from_f64(801. / 10000.).cast(FP128).sin().to_string();
     assert_eq!(res, ".08001437374006335063004091256546517");
-    let res = Float::from_f64(90210. / 10000.).cast(FP128).sin().to_string();
+    let res = Float::from_f64(90210. / 10000.)
+        .cast(FP128)
+        .sin()
+        .to_string();
     assert_eq!(res, ".3928952872542333310202066837055861");
     let res = Float::from_f64(95051.).cast(FP128).sin().to_string();
     assert_eq!(res, "-.8559198239971502543265812323548967");
@@ -515,7 +517,7 @@ fn test_sin() {
 
 impl Float {
     /// Compute log(2).
-    pub fn ln2(sem : Semantics) -> Self {
+    pub fn ln2(sem: Semantics) -> Self {
         // Represent log(2) using the sum 1/k*2^k
         let one = Self::one(sem, false);
         let mut sum = Self::zero(sem, false);
@@ -623,9 +625,7 @@ fn test_log() {
     }
 }
 
-impl
-    Float
-{
+impl Float {
     /// Computes the taylor series:
     /// exp(x) = 1 + x/1! + x^2/2! + x^3/3! ...
     fn exp_taylor(x: &Self) -> Self {
@@ -691,7 +691,10 @@ impl
 #[test]
 fn test_exp() {
     use super::FP128;
-    assert_eq!(Float::from_f64(2.51).cast(FP128).exp().as_f64(), 12.30493006051041);
+    assert_eq!(
+        Float::from_f64(2.51).cast(FP128).exp().as_f64(),
+        12.30493006051041
+    );
 
     for x in [
         0.000003, 0.001, 0.12, 0.13, 0.5, 1.2, 2.3, 4.5, 9.8, 5.0, 11.2, 15.2,

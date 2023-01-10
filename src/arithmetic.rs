@@ -149,8 +149,6 @@ fn test_add() {
 
 #[test]
 fn test_addition() {
-    use super::float::FP64;
-
     fn add_helper(a: f64, b: f64) -> f64 {
         let a = Float::from_f64(a);
         let b = Float::from_f64(b);
@@ -210,8 +208,6 @@ fn test_addition_large_numbers() {
 
 #[test]
 fn add_denormals() {
-    use super::float::FP64;
-
     let v0 = f64::from_bits(0x0000_0000_0010_0010);
     let v1 = f64::from_bits(0x0000_0000_1001_0010);
     let v2 = f64::from_bits(0x1000_0000_0001_0010);
@@ -248,8 +244,6 @@ fn add_special_values() {
     // Test the addition of various irregular values.
     let values = utils::get_special_test_values();
 
-    use super::float::FP64;
-
     fn add_f64(a: f64, b: f64) -> f64 {
         let a = Float::from_f64(a);
         let b = Float::from_f64(b);
@@ -275,7 +269,6 @@ fn add_special_values() {
 #[test]
 fn test_add_random_vals() {
     use crate::utils;
-    use crate::FP64;
 
     let mut lfsr = utils::Lfsr::new();
 
@@ -334,7 +327,9 @@ impl Float {
         match (a.get_category(), b.get_category()) {
             (Category::Zero, Category::NaN)
             | (Category::Normal, Category::NaN)
-            | (Category::Infinity, Category::NaN) => Self::nan(sem, b.get_sign()),
+            | (Category::Infinity, Category::NaN) => {
+                Self::nan(sem, b.get_sign())
+            }
             (Category::NaN, Category::Infinity)
             | (Category::NaN, Category::NaN)
             | (Category::NaN, Category::Normal)
@@ -393,8 +388,6 @@ impl Float {
 
 #[test]
 fn test_mul_simple() {
-    use super::float::FP64;
-
     let a: f64 = -24.0;
     let b: f64 = 0.1;
 
@@ -411,7 +404,6 @@ fn test_mul_simple() {
 fn mul_regular_values() {
     // Test the addition of regular values.
     let values = [-5.0, 0., -0., 24., 1., 11., 10000., 256., 0.1, 3., 17.5];
-    use super::float::FP64;
 
     fn mul_f64(a: f64, b: f64) -> f64 {
         let a = Float::from_f64(a);
@@ -439,8 +431,6 @@ fn test_mul_special_values() {
     // Test the multiplication of various irregular values.
     let values = utils::get_special_test_values();
 
-    use super::float::FP64;
-
     fn mul_f64(a: f64, b: f64) -> f64 {
         let a = Float::from_f64(a);
         let b = Float::from_f64(b);
@@ -465,7 +455,7 @@ fn test_mul_special_values() {
 #[test]
 fn test_mul_random_vals() {
     use super::utils;
-    use crate::FP64;
+
     let mut lfsr = utils::Lfsr::new();
 
     fn mul_f64(a: f64, b: f64) -> f64 {
@@ -494,9 +484,7 @@ fn test_mul_random_vals() {
     }
 }
 
-impl
-    Float
-{
+impl Float {
     /// Compute a/b, with the rounding mode `rm`.
     pub fn div_with_rm(a: &Self, b: &Self, rm: RoundingMode) -> Self {
         let sem = a.get_semantics();
@@ -579,8 +567,6 @@ impl
 
 #[test]
 fn test_div_simple() {
-    use super::float::FP64;
-
     let a: f64 = 1.0;
     let b: f64 = 7.0;
 
@@ -600,8 +586,6 @@ fn test_div_special_values() {
 
     // Test the multiplication of various irregular values.
     let values = utils::get_special_test_values();
-
-    use super::float::FP64;
 
     fn div_f64(a: f64, b: f64) -> f64 {
         let a = Float::from_f64(a);
@@ -629,8 +613,7 @@ macro_rules! declare_operator {
      $func_name:ident,
      $func_impl_name:ident) => {
         // Self + Self
-        impl $trait_name for Float
-        {
+        impl $trait_name for Float {
             type Output = Self;
             fn $func_name(self, rhs: Self) -> Self {
                 Self::$func_impl_name(
@@ -642,8 +625,7 @@ macro_rules! declare_operator {
         }
 
         // Self + u64
-        impl  $trait_name<u64> for Float
-        {
+        impl $trait_name<u64> for Float {
             type Output = Self;
             fn $func_name(self, rhs: u64) -> Self {
                 Self::$func_impl_name(
@@ -654,9 +636,8 @@ macro_rules! declare_operator {
             }
         }
         // &Self + &Self
-        impl  $trait_name<Self> for &Float 
-        {
-            type Output = Float ;
+        impl $trait_name<Self> for &Float {
+            type Output = Float;
             fn $func_name(self, rhs: Self) -> Self::Output {
                 Self::Output::$func_impl_name(
                     &self,
@@ -666,9 +647,8 @@ macro_rules! declare_operator {
             }
         }
         // &Self + u64
-        impl  $trait_name<u64> for &Float 
-        {
-            type Output = Float ;
+        impl $trait_name<u64> for &Float {
+            type Output = Float;
             fn $func_name(self, rhs: u64) -> Self::Output {
                 Self::Output::$func_impl_name(
                     &self,
@@ -679,14 +659,9 @@ macro_rules! declare_operator {
         }
 
         // &Self + Self
-        impl  $trait_name<Float>
-            for &Float 
-        {
-            type Output = Float ;
-            fn $func_name(
-                self,
-                rhs: Float ,
-            ) -> Self::Output {
+        impl $trait_name<Float> for &Float {
+            type Output = Float;
+            fn $func_name(self, rhs: Float) -> Self::Output {
                 Self::Output::$func_impl_name(
                     &self,
                     &rhs,
