@@ -3,9 +3,6 @@ use super::bigint::BigInt;
 use super::bigint::LossFraction;
 use core::cmp::Ordering;
 
-#[cfg(feature = "std")]
-use std::println;
-
 /// Defines the supported rounding modes.
 /// See IEEE754-2019 Section 4.3 Rounding-direction attributes
 #[derive(Debug, Clone, Copy)]
@@ -203,6 +200,7 @@ impl<const EXPONENT: usize, const MANTISSA: usize, const PARTS: usize>
     /// Prints the number using the internal representation.
     #[cfg(feature = "std")]
     pub fn dump(&self) {
+        use std::println;
         let sign = if self.sign { "-" } else { "+" };
         match self.category {
             Category::NaN => {
@@ -528,6 +526,7 @@ impl<const EXPONENT: usize, const MANTISSA: usize, const PARTS: usize>
 #[test]
 fn test_comparisons() {
     use super::utils;
+    use std::println;
 
     // Compare a bunch of special values, using the <,>,== operators and check
     // that they match the comparison on doubles.
