@@ -7,13 +7,10 @@
 //!### Example
 //!```
 //!  use arpfloat::Float;
-//!  use arpfloat::new_float_type;
-//!
-//!  // Create a new type: 15 bits exponent, 112 significand.
-//!  type FP128 = new_float_type!(15, 112);
-//!
+//!  use arpfloat::FP128;
+//! 
 //!  // Use Newton-Raphson to find the square root of 5.
-//!  let n = FP128::from_u64(5);
+//!  let n = Float::from_u64(FP128, 5);
 //!
 //!  let mut x = n.clone();
 //!
@@ -37,17 +34,18 @@
 //!
 //!```
 //!    use arpfloat::{FP16, FP128, RoundingMode};
+//!    use arpfloat::Float;
 //!
-//!    let x = FP128::from_u64(1<<53);
-//!    let y = FP128::from_f64(1000.0);
-//!    let val = FP128::mul_with_rm(&x, &y, RoundingMode::NearestTiesToEven);
+//!    let x = Float::from_u64(FP128, 1<<53);
+//!    let y = Float::from_f64(1000.0).cast(FP128);
+//!    let val = Float::mul_with_rm(&x, &y, RoundingMode::NearestTiesToEven);
 //! ```
 //!
 //! View the internal representation of numbers:
 //! ```
-//!    use arpfloat::{FP16, FP128, RoundingMode};
+//!    use arpfloat::{Float, FP16, FP128, RoundingMode};
 //!
-//!    let fp = FP16::from_i64(15);
+//!    let fp = Float::from_i64(FP16, 15);
 //!    let m = fp.get_mantissa();
 //!
 //!    // Prints FP[+ E=+3 M=11110000000]
@@ -56,9 +54,9 @@
 //!
 //! Control the rounding mode for type conversion:
 //!```
-//!    use arpfloat::{FP16, FP32, RoundingMode};
-//!    let x = FP32::from_u64(2649);
-//!    let b : FP16 = x.cast_with_rm(RoundingMode::Zero);
+//!    use arpfloat::{FP16, FP32, RoundingMode, Float};
+//!    let x = Float::from_u64(FP32, 2649);
+//!    let b = x.cast_with_rm(FP16, RoundingMode::Zero);
 //!    println!("{}", b); // Prints 2648!
 //!```
 
@@ -66,17 +64,6 @@
 
 #[cfg(feature = "std")]
 extern crate std;
-
-/// Creates a new Float<> type with a specific number of bits for the exponent and mantissa.
-/// The macros selects the appropriate size for the underlying storage.
-#[macro_export]
-macro_rules! new_float_type {
-    ($exponent:expr, $mantissa:expr) => {
-        // Allocate twice as many bits for the mantissa, to allow to perform
-        // div/mul operations that require shifting of the mantissa to the left.
-        Float<$exponent, $mantissa, {($mantissa * 2) / 64 + 1}>
-    };
-}
 
 mod arithmetic;
 mod bigint;

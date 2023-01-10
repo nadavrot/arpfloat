@@ -6,9 +6,7 @@ use super::float::{shift_right_with_loss, Category, Float, RoundingMode};
 use core::cmp::Ordering;
 use core::ops::{Add, Div, Mul, Sub};
 
-impl<const EXPONENT: usize, const MANTISSA: usize, const PARTS: usize>
-    Float<EXPONENT, MANTISSA, PARTS>
-{
+impl Float {
     /// An inner function that performs the addition and subtraction of normal
     /// numbers (no NaN, Inf, Zeros).
     /// See Pg 247.  Chapter 8. Algorithms for the Five Basic Operations.
@@ -19,6 +17,7 @@ impl<const EXPONENT: usize, const MANTISSA: usize, const PARTS: usize>
         b: &Self,
         subtract: bool,
     ) -> (Self, LossFraction) {
+        let sem = a.get_semantics();
         let loss;
         let mut a = a.clone();
         let mut b = b.clone();
@@ -66,7 +65,10 @@ impl<const EXPONENT: usize, const MANTISSA: usize, const PARTS: usize>
                 // A >= B
                 ab_mantissa = a_mantissa - b_mantissa - c;
             }
-            (Self::new(sign, a.get_exp(), ab_mantissa), loss.invert())
+            (
+                Self::new(sem, sign, a.get_exp(), ab_mantissa),
+                loss.invert(),
+            )
         } else {
             // Handle the easy case of Add:
             let mut b = b.clone();
@@ -78,7 +80,7 @@ impl<const EXPONENT: usize, const MANTISSA: usize, const PARTS: usize>
             }
             debug_assert!(a.get_exp() == b.get_exp());
             let ab_mantissa = a.get_mantissa() + b.get_mantissa();
-            (Self::new(a.get_sign(), a.get_exp(), ab_mantissa), loss)
+            (Self::new(sem, a.get_sign(), a.get_exp(), ab_mantissa), loss)
         }
     }
 
@@ -92,6 +94,7 @@ impl<const EXPONENT: usize, const MANTISSA: usize, const PARTS: usize>
     }
 
     fn add_sub(a: &Self, b: &Self, subtract: bool, rm: RoundingMode) -> Self {
+        let sem = a.get_semantics();
         // Table 8.2: Specification of addition for positive floating-point
         // data. Pg 247.
         match (a.get_category(), b.get_category()) {
@@ -105,24 +108,26 @@ impl<const EXPONENT: usize, const MANTISSA: usize, const PARTS: usize>
 
             (Category::Zero, Category::NaN)
             | (Category::Normal, Category::NaN)
-            | (Category::Infinity, Category::NaN) => Self::nan(b.get_sign()),
+            | (Category::Infinity, Category::NaN) => {
+                Self::nan(sem, b.get_sign())
+            }
 
             (Category::Normal, Category::Infinity)
             | (Category::Zero, Category::Infinity) => {
-                Self::inf(b.get_sign() ^ subtract)
+                Self::inf(sem, b.get_sign() ^ subtract)
             }
 
             (Category::Zero, Category::Normal) => b.clone(),
 
             (Category::Zero, Category::Zero) => {
-                Self::zero(a.get_sign() && b.get_sign())
+                Self::zero(sem, a.get_sign() && b.get_sign())
             }
 
             (Category::Infinity, Category::Infinity) => {
                 if a.get_sign() ^ b.get_sign() ^ subtract {
-                    return Self::nan(a.get_sign() ^ b.get_sign());
+                    return Self::nan(sem, a.get_sign() ^ b.get_sign());
                 }
-                Self::inf(a.get_sign())
+                Self::inf(sem, a.get_sign())
             }
 
             (Category::Normal, Category::Normal) => {
@@ -137,9 +142,9 @@ impl<const EXPONENT: usize, const MANTISSA: usize, const PARTS: usize>
 #[test]
 fn test_add() {
     use super::float::FP64;
-    let a = FP64::from_u64(1);
-    let b = FP64::from_u64(2);
-    let _ = FP64::add(a, b);
+    let a = Float::from_u64(FP64, 1);
+    let b = Float::from_u64(FP64, 2);
+    let _ = Float::add(a, b);
 }
 
 #[test]
@@ -147,9 +152,9 @@ fn test_addition() {
     use super::float::FP64;
 
     fn add_helper(a: f64, b: f64) -> f64 {
-        let a = FP64::from_f64(a);
-        let b = FP64::from_f64(b);
-        let c = FP64::add(a, b);
+        let a = Float::from_f64(a);
+        let b = Float::from_f64(b);
+        let c = Float::add(a, b);
         c.as_f64()
     }
 
@@ -187,16 +192,16 @@ fn test_addition_large_numbers() {
     use super::float::FP64;
     let rm = RoundingMode::NearestTiesToEven;
 
-    let one = FP64::from_i64(1);
-    let mut a = FP64::from_i64(1);
+    let one = Float::from_i64(FP64, 1);
+    let mut a = Float::from_i64(FP64, 1);
 
-    while FP64::sub_with_rm(&FP64::add_with_rm(&a, &one, rm), &a, rm) == one {
-        a = FP64::add_with_rm(&a, &a, rm);
+    while Float::sub_with_rm(&Float::add_with_rm(&a, &one, rm), &a, rm) == one {
+        a = Float::add_with_rm(&a, &a, rm);
     }
 
     let mut b = one.clone();
-    while FP64::sub_with_rm(&FP64::add_with_rm(&a, &b, rm), &a, rm) != b {
-        b = FP64::add_with_rm(&b, &one, rm);
+    while Float::sub_with_rm(&Float::add_with_rm(&a, &b, rm), &a, rm) != b {
+        b = Float::add_with_rm(&b, &one, rm);
     }
 
     assert_eq!(a.as_f64(), 9007199254740992.);
@@ -212,14 +217,14 @@ fn add_denormals() {
     let v2 = f64::from_bits(0x1000_0000_0001_0010);
     assert_eq!(add_f64(v2, -v1), v2 - v1);
 
-    let a0 = FP64::from_f64(v0);
+    let a0 = Float::from_f64(v0);
     assert_eq!(a0.as_f64(), v0);
 
     fn add_f64(a: f64, b: f64) -> f64 {
-        let a0 = FP64::from_f64(a);
-        let b0 = FP64::from_f64(b);
+        let a0 = Float::from_f64(a);
+        let b0 = Float::from_f64(b);
         assert_eq!(a0.as_f64(), a);
-        FP64::add(a0, b0).as_f64()
+        Float::add(a0, b0).as_f64()
     }
 
     // Add and subtract denormals.
@@ -246,9 +251,9 @@ fn add_special_values() {
     use super::float::FP64;
 
     fn add_f64(a: f64, b: f64) -> f64 {
-        let a = FP64::from_f64(a);
-        let b = FP64::from_f64(b);
-        FP64::add(a, b).as_f64()
+        let a = Float::from_f64(a);
+        let b = Float::from_f64(b);
+        Float::add(a, b).as_f64()
     }
 
     for v0 in values {
@@ -278,9 +283,9 @@ fn test_add_random_vals() {
     let v1: u64 = 0xe4d91b16be9ae0c5;
 
     fn add_f64(a: f64, b: f64) -> f64 {
-        let a = FP64::from_f64(a);
-        let b = FP64::from_f64(b);
-        let k = FP64::add(a, b);
+        let a = Float::from_f64(a);
+        let b = Float::from_f64(b);
+        let k = Float::add(a, b);
         k.as_f64()
     }
 
@@ -318,11 +323,10 @@ fn test_add_random_vals() {
     }
 }
 
-impl<const EXPONENT: usize, const MANTISSA: usize, const PARTS: usize>
-    Float<EXPONENT, MANTISSA, PARTS>
-{
+impl Float {
     /// Compute a*b using the rounding mode `rm`.
     pub fn mul_with_rm(a: &Self, b: &Self, rm: RoundingMode) -> Self {
+        let sem = a.get_semantics();
         let sign = a.get_sign() ^ b.get_sign();
 
         // Table 8.4: Specification of multiplication for floating-point data of
@@ -330,20 +334,20 @@ impl<const EXPONENT: usize, const MANTISSA: usize, const PARTS: usize>
         match (a.get_category(), b.get_category()) {
             (Category::Zero, Category::NaN)
             | (Category::Normal, Category::NaN)
-            | (Category::Infinity, Category::NaN) => Self::nan(b.get_sign()),
+            | (Category::Infinity, Category::NaN) => Self::nan(sem, b.get_sign()),
             (Category::NaN, Category::Infinity)
             | (Category::NaN, Category::NaN)
             | (Category::NaN, Category::Normal)
-            | (Category::NaN, Category::Zero) => Self::nan(a.get_sign()),
+            | (Category::NaN, Category::Zero) => Self::nan(sem, a.get_sign()),
             (Category::Normal, Category::Infinity)
             | (Category::Infinity, Category::Normal)
-            | (Category::Infinity, Category::Infinity) => Self::inf(sign),
+            | (Category::Infinity, Category::Infinity) => Self::inf(sem, sign),
             (Category::Normal, Category::Zero)
             | (Category::Zero, Category::Normal)
-            | (Category::Zero, Category::Zero) => Self::zero(sign),
+            | (Category::Zero, Category::Zero) => Self::zero(sem, sign),
 
             (Category::Zero, Category::Infinity)
-            | (Category::Infinity, Category::Zero) => Self::nan(sign),
+            | (Category::Infinity, Category::Zero) => Self::nan(sem, sign),
 
             (Category::Normal, Category::Normal) => {
                 let (mut res, loss) = Self::mul_normals(a, b, sign);
@@ -355,6 +359,7 @@ impl<const EXPONENT: usize, const MANTISSA: usize, const PARTS: usize>
 
     /// See Pg 251. 8.4 Floating-Point Multiplication
     fn mul_normals(a: &Self, b: &Self, sign: bool) -> (Self, LossFraction) {
+        let sem = a.get_semantics();
         // We multiply digits in the format 1.xx * 2^(e), or mantissa * 2^(e+1).
         // When we multiply two 2^(e+1) numbers, we get:
         // log(2^(e_a+1)*2^(e_b+1)) = e_a + e_b + 2.
@@ -371,9 +376,9 @@ impl<const EXPONENT: usize, const MANTISSA: usize, const PARTS: usize>
         // The exponent is correct, but the bits are not in the right place.
         // Set the right exponent for where the bits are placed, and fix the
         // exponent below.
-        exp -= MANTISSA as i64;
+        exp -= sem.MANTISSA() as i64;
 
-        let precision = Self::get_precision();
+        let precision = a.get_precision();
         if first_non_zero > precision {
             let bits = first_non_zero - precision;
 
@@ -382,7 +387,7 @@ impl<const EXPONENT: usize, const MANTISSA: usize, const PARTS: usize>
             exp += bits as i64;
         }
 
-        (Self::new(sign, exp, ab_significand), loss)
+        (Self::new(sem, sign, exp, ab_significand), loss)
     }
 }
 
@@ -393,9 +398,9 @@ fn test_mul_simple() {
     let a: f64 = -24.0;
     let b: f64 = 0.1;
 
-    let af = FP64::from_f64(a);
-    let bf = FP64::from_f64(b);
-    let cf = FP64::mul(af, bf);
+    let af = Float::from_f64(a);
+    let bf = Float::from_f64(b);
+    let cf = Float::mul(af, bf);
 
     let r0 = cf.as_f64();
     let r1: f64 = a * b;
@@ -409,9 +414,9 @@ fn mul_regular_values() {
     use super::float::FP64;
 
     fn mul_f64(a: f64, b: f64) -> f64 {
-        let a = FP64::from_f64(a);
-        let b = FP64::from_f64(b);
-        FP64::mul(a, b).as_f64()
+        let a = Float::from_f64(a);
+        let b = Float::from_f64(b);
+        Float::mul(a, b).as_f64()
     }
 
     for v0 in values {
@@ -437,9 +442,9 @@ fn test_mul_special_values() {
     use super::float::FP64;
 
     fn mul_f64(a: f64, b: f64) -> f64 {
-        let a = FP64::from_f64(a);
-        let b = FP64::from_f64(b);
-        FP64::mul(a, b).as_f64()
+        let a = Float::from_f64(a);
+        let b = Float::from_f64(b);
+        Float::mul(a, b).as_f64()
     }
 
     for v0 in values {
@@ -464,9 +469,9 @@ fn test_mul_random_vals() {
     let mut lfsr = utils::Lfsr::new();
 
     fn mul_f64(a: f64, b: f64) -> f64 {
-        let a = FP64::from_f64(a);
-        let b = FP64::from_f64(b);
-        let k = FP64::mul(a, b);
+        let a = Float::from_f64(a);
+        let b = Float::from_f64(b);
+        let k = Float::mul(a, b);
         k.as_f64()
     }
 
@@ -489,23 +494,24 @@ fn test_mul_random_vals() {
     }
 }
 
-impl<const EXPONENT: usize, const MANTISSA: usize, const PARTS: usize>
-    Float<EXPONENT, MANTISSA, PARTS>
+impl
+    Float
 {
     /// Compute a/b, with the rounding mode `rm`.
     pub fn div_with_rm(a: &Self, b: &Self, rm: RoundingMode) -> Self {
+        let sem = a.get_semantics();
         let sign = a.get_sign() ^ b.get_sign();
         // Table 8.5: Special values for x/y - Page 263.
         match (a.get_category(), b.get_category()) {
             (Category::NaN, _)
             | (_, Category::NaN)
             | (Category::Zero, Category::Zero)
-            | (Category::Infinity, Category::Infinity) => Self::nan(sign),
+            | (Category::Infinity, Category::Infinity) => Self::nan(sem, sign),
 
-            (_, Category::Infinity) => Self::zero(sign),
-            (Category::Zero, _) => Self::zero(sign),
-            (_, Category::Zero) => Self::inf(sign),
-            (Category::Infinity, _) => Self::inf(sign),
+            (_, Category::Infinity) => Self::zero(sem, sign),
+            (Category::Zero, _) => Self::zero(sem, sign),
+            (_, Category::Zero) => Self::inf(sem, sign),
+            (Category::Infinity, _) => Self::inf(sem, sign),
             (Category::Normal, Category::Normal) => {
                 let (mut res, loss) = Self::div_normals(a, b);
                 res.normalize(rm, loss);
@@ -518,6 +524,8 @@ impl<const EXPONENT: usize, const MANTISSA: usize, const PARTS: usize>
     /// Page 262 8.6. Floating-Point Division.
     /// This implementation uses a regular integer division for the mantissa.
     fn div_normals(a: &Self, b: &Self) -> (Self, LossFraction) {
+        let sem = a.get_semantics();
+
         let mut a = a.clone();
         let mut b = b.clone();
         // Start by normalizing the dividend and divisor to the MSB.
@@ -542,7 +550,7 @@ impl<const EXPONENT: usize, const MANTISSA: usize, const PARTS: usize>
         // semantics need to be 1.xxxxx, but we perform integer division.
         // Shift the dividend to make sure that we generate the bits after
         // the period.
-        a_mantissa.shift_left(MANTISSA);
+        a_mantissa.shift_left(sem.MANTISSA());
         let reminder = a_mantissa.inplace_div(&b_mantissa);
 
         // Find 2 x reminder, to be able to compare to the reminder and figure
@@ -564,7 +572,7 @@ impl<const EXPONENT: usize, const MANTISSA: usize, const PARTS: usize>
             Ordering::Greater => LossFraction::MoreThanHalf,
         };
 
-        let x = Self::new(sign, exp, a_mantissa);
+        let x = Self::new(sem, sign, exp, a_mantissa);
         (x, loss)
     }
 }
@@ -576,9 +584,9 @@ fn test_div_simple() {
     let a: f64 = 1.0;
     let b: f64 = 7.0;
 
-    let af = FP64::from_f64(a);
-    let bf = FP64::from_f64(b);
-    let cf = FP64::div_with_rm(&af, &bf, RoundingMode::NearestTiesToEven);
+    let af = Float::from_f64(a);
+    let bf = Float::from_f64(b);
+    let cf = Float::div_with_rm(&af, &bf, RoundingMode::NearestTiesToEven);
 
     let r0 = cf.as_f64();
     let r1: f64 = a / b;
@@ -596,9 +604,9 @@ fn test_div_special_values() {
     use super::float::FP64;
 
     fn div_f64(a: f64, b: f64) -> f64 {
-        let a = FP64::from_f64(a);
-        let b = FP64::from_f64(b);
-        FP64::div_with_rm(&a, &b, RoundingMode::NearestTiesToEven).as_f64()
+        let a = Float::from_f64(a);
+        let b = Float::from_f64(b);
+        Float::div_with_rm(&a, &b, RoundingMode::NearestTiesToEven).as_f64()
     }
 
     for v0 in values {
@@ -621,11 +629,7 @@ macro_rules! declare_operator {
      $func_name:ident,
      $func_impl_name:ident) => {
         // Self + Self
-        impl<
-                const EXPONENT: usize,
-                const MANTISSA: usize,
-                const PARTS: usize,
-            > $trait_name for Float<EXPONENT, MANTISSA, PARTS>
+        impl $trait_name for Float
         {
             type Output = Self;
             fn $func_name(self, rhs: Self) -> Self {
@@ -638,29 +642,21 @@ macro_rules! declare_operator {
         }
 
         // Self + u64
-        impl<
-                const EXPONENT: usize,
-                const MANTISSA: usize,
-                const PARTS: usize,
-            > $trait_name<u64> for Float<EXPONENT, MANTISSA, PARTS>
+        impl  $trait_name<u64> for Float
         {
             type Output = Self;
             fn $func_name(self, rhs: u64) -> Self {
                 Self::$func_impl_name(
                     &self,
-                    &Self::Output::from_u64(rhs),
+                    &Self::Output::from_u64(self.get_semantics(), rhs),
                     RoundingMode::NearestTiesToEven,
                 )
             }
         }
         // &Self + &Self
-        impl<
-                const EXPONENT: usize,
-                const MANTISSA: usize,
-                const PARTS: usize,
-            > $trait_name<Self> for &Float<EXPONENT, MANTISSA, PARTS>
+        impl  $trait_name<Self> for &Float 
         {
-            type Output = Float<EXPONENT, MANTISSA, PARTS>;
+            type Output = Float ;
             fn $func_name(self, rhs: Self) -> Self::Output {
                 Self::Output::$func_impl_name(
                     &self,
@@ -670,34 +666,26 @@ macro_rules! declare_operator {
             }
         }
         // &Self + u64
-        impl<
-                const EXPONENT: usize,
-                const MANTISSA: usize,
-                const PARTS: usize,
-            > $trait_name<u64> for &Float<EXPONENT, MANTISSA, PARTS>
+        impl  $trait_name<u64> for &Float 
         {
-            type Output = Float<EXPONENT, MANTISSA, PARTS>;
+            type Output = Float ;
             fn $func_name(self, rhs: u64) -> Self::Output {
                 Self::Output::$func_impl_name(
                     &self,
-                    &Self::Output::from_u64(rhs),
+                    &Self::Output::from_u64(self.get_semantics(), rhs),
                     RoundingMode::NearestTiesToEven,
                 )
             }
         }
 
         // &Self + Self
-        impl<
-                const EXPONENT: usize,
-                const MANTISSA: usize,
-                const PARTS: usize,
-            > $trait_name<Float<EXPONENT, MANTISSA, PARTS>>
-            for &Float<EXPONENT, MANTISSA, PARTS>
+        impl  $trait_name<Float>
+            for &Float 
         {
-            type Output = Float<EXPONENT, MANTISSA, PARTS>;
+            type Output = Float ;
             fn $func_name(
                 self,
-                rhs: Float<EXPONENT, MANTISSA, PARTS>,
+                rhs: Float ,
             ) -> Self::Output {
                 Self::Output::$func_impl_name(
                     &self,
@@ -717,8 +705,8 @@ declare_operator!(Div, div, div_with_rm);
 #[test]
 fn test_operators() {
     use crate::FP64;
-    let a = FP64::from_f32(8.0);
-    let b = FP64::from_f32(2.0);
+    let a = Float::from_f32(8.0).cast(FP64);
+    let b = Float::from_f32(2.0).cast(FP64);
     let c = &a + &b;
     let d = &a - &b;
     let e = &a * &b;
@@ -735,9 +723,9 @@ fn test_slow_sqrt_2_test() {
     use crate::FP64;
 
     // Find sqrt using a binary search.
-    let two = FP128::from_f64(2.0);
-    let mut high = FP128::from_f64(2.0);
-    let mut low = FP128::from_f64(1.0);
+    let two = Float::from_f64(2.0).cast(FP128);
+    let mut high = Float::from_f64(2.0).cast(FP128);
+    let mut low = Float::from_f64(1.0).cast(FP128);
 
     for _ in 0..25 {
         let mid = (&high + &low) / 2;
@@ -748,7 +736,7 @@ fn test_slow_sqrt_2_test() {
         }
     }
 
-    let res: FP64 = low.cast();
+    let res = low.cast(FP64);
     assert!(res.as_f64() < 1.4142137_f64);
     assert!(res.as_f64() > 1.4142134_f64);
 }
@@ -760,8 +748,8 @@ fn test_famous_pentium4_bug() {
     // https://en.wikipedia.org/wiki/Pentium_FDIV_bug
     use crate::FP128;
 
-    let a = FP128::from_u64(4_195_835);
-    let b = FP128::from_u64(3_145_727);
+    let a = Float::from_u64(FP128, 4_195_835);
+    let b = Float::from_u64(FP128, 3_145_727);
     let res = a / b;
     let result = res.to_string();
     assert!(result.starts_with("1.333820449136241002"));

@@ -6,8 +6,8 @@ use alloc::string::{String, ToString};
 use core::cmp::Ordering;
 use core::fmt::Display;
 
-impl<const EXPONENT: usize, const MANTISSA: usize, const PARTS: usize>
-    Float<EXPONENT, MANTISSA, PARTS>
+impl
+    Float
 {
     /// Convert the number into a large integer, and a base-10 exponent.
     fn convert_to_integer(&self) -> (BigInt, i64) {
@@ -17,7 +17,7 @@ impl<const EXPONENT: usize, const MANTISSA: usize, const PARTS: usize>
         //  to bit zero.
         // See Ryu: Fast Float-to-String Conversion -- Ulf Adams.
         // https://youtu.be/kw-U6smcLzk?t=681
-        let mut exp = self.get_exp() - MANTISSA as i64;
+        let mut exp = self.get_exp() - self.MANTISSA() as i64;
         let mut mantissa: BigInt = self.get_mantissa();
 
         match exp.cmp(&0) {
@@ -48,22 +48,22 @@ impl<const EXPONENT: usize, const MANTISSA: usize, const PARTS: usize>
 
     /// Returns the highest number of decimal digits that are needed for
     /// representing this type accurately.
-    pub fn get_decimal_accuracy() -> usize {
+    pub fn get_decimal_accuracy(&self) -> usize {
         // Matula, David W. “A Formalization of Floating-Point Numeric Base
         // N = 2 + floor(n / log_b(B)) = 2 + floor(n / log(10, 2))
         // We convert from bits to base-10 digits: log(2)/log(10) ==> 59/196.
         // A continuous fraction of 5 iteration gives the ratio.
-        2 + (MANTISSA * 59) / 196
+        2 + (self.MANTISSA() * 59) / 196
     }
 
     /// Reduce a number in the representation mmmmm * e^10, to fewer bits in
     /// 'm', based on the max possible digits in the mantissa.
-    fn reduce_printed_integer_length(integer: &mut BigInt, exp: &mut i64) {
+    fn reduce_printed_integer_length(&self, integer: &mut BigInt, exp: &mut i64) {
         let bits = integer.msb_index();
-        if bits <= MANTISSA {
+        if bits <= self.MANTISSA() {
             return;
         };
-        let needed_bits = bits - MANTISSA;
+        let needed_bits = bits - self.MANTISSA();
         // We convert from bits to base-10 digits: log(2)/log(10) ==> 59/196.
         // A continuous fraction of 5 iteration gives the ratio.
         let mut digits_to_remove = ((needed_bits * 59) / 196) as i64;
@@ -84,7 +84,7 @@ impl<const EXPONENT: usize, const MANTISSA: usize, const PARTS: usize>
         let mut buff = Vec::new();
         let ten = BigInt::from_u64(10);
 
-        Self::reduce_printed_integer_length(&mut integer, &mut exp);
+        self.reduce_printed_integer_length(&mut integer, &mut exp);
 
         let chars = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'];
         while !integer.is_zero() {
@@ -125,8 +125,8 @@ impl<const EXPONENT: usize, const MANTISSA: usize, const PARTS: usize>
         result
     }
 }
-impl<const EXPONENT: usize, const MANTISSA: usize, const PARTS: usize> Display
-    for Float<EXPONENT, MANTISSA, PARTS>
+impl Display
+    for Float
 {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         write!(f, "{}", self.convert_to_string())
@@ -141,11 +141,11 @@ fn test_convert_to_string() {
     use std::format;
 
     fn to_str_w_fp16(val: f64) -> String {
-        format!("{}", FP16::from_f64(val))
+        format!("{}", Float::from_f64(val).cast(FP16))
     }
 
     fn to_str_w_fp64(val: f64) -> String {
-        format!("{}", FP64::from_f64(val))
+        format!("{}", Float::from_f64(val).cast(FP64))
     }
 
     assert_eq!("-0.0", to_str_w_fp16(-0.));
@@ -171,7 +171,7 @@ fn test_fuzz_printing() {
     for _ in 0..500 {
         let v0 = lfsr.get64();
         let f0 = f64::from_bits(v0);
-        let fp0 = FP64::from_f64(f0);
+        let fp0 = Float::from_f64(f0);
         fp0.to_string();
     }
 }
@@ -179,11 +179,12 @@ fn test_fuzz_printing() {
 #[cfg(feature = "std")]
 #[test]
 fn test_print_sqrt() {
-    type FP = crate::FP128;
+    
     use std::println;
+    use crate::FP64;
 
     // Use Newton-Raphson to find the square root of 5.
-    let n = FP::from_u64(5);
+    let n = Float::from_u64(FP64, 5);
 
     let mut x = n.clone();
 
@@ -196,13 +197,12 @@ fn test_print_sqrt() {
 #[test]
 #[cfg(feature = "std")]
 fn test_readme_example() {
-    use crate::new_float_type;
     use std::println;
     // Create a new type: 15 bits exponent, 112 significand.
-    type FP128 = new_float_type!(15, 112);
+    
 
     // Use Newton-Raphson to find the square root of 5.
-    let n = FP128::from_u64(5);
+    let n = Float::from_u64(FP128, 5);
     let mut x = n.clone();
 
     for _ in 0..1000 {
@@ -211,20 +211,19 @@ fn test_readme_example() {
     println!("fp128: {}", x);
     println!("fp64:  {}", x.as_f64());
 
-    use crate::FP16;
-    let fp = FP16::from_i64(15);
+    use crate::{FP16, FP128};
+    let fp = Float::from_i64(FP16, 15);
     fp.dump();
 }
 
 #[test]
 fn test_decimal_accuracy_for_type() {
     use crate::{FP128, FP16, FP256, FP32, FP64};
-
-    assert_eq!(FP16::get_decimal_accuracy(), 5);
-    assert_eq!(FP32::get_decimal_accuracy(), 8);
-    assert_eq!(FP64::get_decimal_accuracy(), 17);
-    assert_eq!(FP128::get_decimal_accuracy(), 35);
-    assert_eq!(FP256::get_decimal_accuracy(), 73);
+    assert_eq!(Float::zero(FP16, false).get_decimal_accuracy(), 5);
+    assert_eq!(Float::zero(FP32, false).get_decimal_accuracy(), 8);
+    assert_eq!(Float::zero(FP64, false).get_decimal_accuracy(), 17);
+    assert_eq!(Float::zero(FP128, false).get_decimal_accuracy(), 35);
+    assert_eq!(Float::zero(FP256, false).get_decimal_accuracy(), 73);
 }
 
 impl BigInt {

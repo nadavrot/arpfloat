@@ -1,13 +1,13 @@
-use crate::RoundingMode;
+use std::println;
+
+use crate::{float::Semantics, RoundingMode};
 
 use super::float::Float;
 
-impl<const EXPONENT: usize, const MANTISSA: usize, const PARTS: usize>
-    Float<EXPONENT, MANTISSA, PARTS>
-{
+impl Float {
     pub fn powi(&self, n: u64) -> Self {
         use RoundingMode::NearestTiesToEven;
-        let mut elem = Self::one(false);
+        let mut elem = Self::one(self.get_semantics(), false);
         for _ in 0..n {
             elem = Self::mul_with_rm(&elem, self, NearestTiesToEven);
         }
@@ -21,16 +21,17 @@ impl<const EXPONENT: usize, const MANTISSA: usize, const PARTS: usize>
     /// Calculates the square root of the number using the Newton Raphson
     /// method.
     pub fn sqrt(&self) -> Self {
+        let sem = self.get_semantics();
         if self.is_zero() {
             return self.clone(); // (+/-) zero
         } else if self.is_nan() || self.is_negative() {
-            return Self::nan(self.get_sign()); // (-/+)Nan, -Number.
+            return Self::nan(sem, self.get_sign()); // (-/+)Nan, -Number.
         } else if self.is_inf() {
             return self.clone(); // Inf+.
         }
 
         let target = self.clone();
-        let two = Self::from_u64(2);
+        let two = Self::from_u64(sem, 2);
 
         // Start the search at max(2, x).
         let mut x = if target < two { two } else { target.clone() };
@@ -102,14 +103,14 @@ fn test_sqrt() {
 
     // Try a few power-of-two values.
     for i in 0..256 {
-        let v16 = FP64::from_u64(i * i);
+        let v16 = Float::from_u64(FP64, i * i);
         assert_eq!(v16.sqrt().as_f64(), (i) as f64);
     }
 
     // Test the category and value of the different special values (inf, zero,
     // correct sign, etc).
     for v_f64 in utils::get_special_test_values() {
-        let vf = FP64::from_f64(v_f64);
+        let vf = Float::from_f64(v_f64);
         assert_eq!(vf.sqrt().is_inf(), v_f64.sqrt().is_infinite());
         assert_eq!(vf.sqrt().is_nan(), v_f64.sqrt().is_nan());
         assert_eq!(vf.sqrt().is_negative(), v_f64.sqrt().is_sign_negative());
@@ -117,7 +118,7 @@ fn test_sqrt() {
 
     // Test precomputed values.
     fn check(inp: f64, res: f64) {
-        assert_eq!(FP64::from_f64(inp).sqrt().as_f64(), res);
+        assert_eq!(Float::from_f64(inp).sqrt().as_f64(), res);
     }
     check(1.5, 1.224744871391589);
     check(2.3, 1.51657508881031);
@@ -146,14 +147,14 @@ fn test_min_max() {
     fn check(v0: f64, v1: f64) {
         // Min.
         let correct = v0.min(v1);
-        let test = FP64::from_f64(v0).min(&FP64::from_f64(v1)).as_f64();
+        let test = Float::from_f64(v0).min(&Float::from_f64(v1)).as_f64();
         assert_eq!(test.is_nan(), correct.is_nan());
         if !correct.is_nan() {
             assert_eq!(correct, test);
         }
         // Max.
         let correct = v0.max(v1);
-        let test = FP64::from_f64(v0).max(&FP64::from_f64(v1)).as_f64();
+        let test = Float::from_f64(v0).max(&Float::from_f64(v1)).as_f64();
         assert_eq!(test.is_nan(), correct.is_nan());
         if !correct.is_nan() {
             assert_eq!(correct, test);
@@ -183,23 +184,21 @@ fn test_abs() {
     use super::FP64;
     for v in utils::get_special_test_values() {
         if !v.is_nan() {
-            assert_eq!(FP64::from_f64(v).abs().as_f64(), v.abs());
+            assert_eq!(Float::from_f64(v).abs().as_f64(), v.abs());
         }
     }
 }
 
 //  Compute basic constants.
 
-impl<const EXPONENT: usize, const MANTISSA: usize, const PARTS: usize>
-    Float<EXPONENT, MANTISSA, PARTS>
-{
+impl Float {
     /// Computes PI -- Algorithm description in Pg 246:
     /// Fast Multiple-Precision Evaluation of Elementary Functions
     /// by Richard P. Brent.
-    pub fn pi() -> Self {
-        let one = Self::from_i64(1);
-        let two = Self::from_i64(2);
-        let four = Self::from_i64(4);
+    pub fn pi(sem: Semantics) -> Self {
+        let one = Self::from_i64(sem, 1);
+        let two = Self::from_i64(sem, 2);
+        let four = Self::from_i64(sem, 4);
 
         let mut a = one.clone();
         let mut b = one.clone() / two.sqrt();
@@ -217,12 +216,12 @@ impl<const EXPONENT: usize, const MANTISSA: usize, const PARTS: usize>
     }
 
     /// Computes e using Euler's continued fraction, which is a simple series.
-    pub fn e() -> Self {
-        let one = Self::from_i64(1);
+    pub fn e(sem: Semantics) -> Self {
+        let one = Self::from_i64(sem, 1);
         let mut term = one.clone();
-        let iterations: i64 = (EXPONENT * 2) as i64;
+        let iterations: i64 = (sem.EXPONENT() * 2) as i64;
         for i in (1..iterations).rev() {
-            let v = Self::from_i64(i);
+            let v = Self::from_i64(sem, i);
             term = &v + &v / &term;
         }
 
@@ -233,21 +232,19 @@ impl<const EXPONENT: usize, const MANTISSA: usize, const PARTS: usize>
 #[cfg(feature = "std")]
 #[test]
 fn test_pi() {
-    use super::FP128;
-    assert_eq!(FP128::pi().as_f64(), std::f64::consts::PI);
+    use crate::FP128;
+    assert_eq!(Float::pi(FP128).as_f64(), std::f64::consts::PI);
 }
 
 #[cfg(feature = "std")]
 #[test]
 fn test_e() {
     use super::{FP128, FP32};
-    assert_eq!(FP128::e().as_f64(), std::f64::consts::E);
-    assert_eq!(FP32::e().as_f32(), std::f32::consts::E);
+    assert_eq!(Float::e(FP128).as_f64(), std::f64::consts::E);
+    assert_eq!(Float::e(FP128).as_f32(), std::f32::consts::E);
 }
 
-impl<const EXPONENT: usize, const MANTISSA: usize, const PARTS: usize>
-    Float<EXPONENT, MANTISSA, PARTS>
-{
+impl Float {
     /// Similar to 'scalbln'. Adds or subtracts to the exponent of the number,
     /// and scaling it by 2^exp.
     pub fn scale(&self, scale: i64, rm: RoundingMode) -> Self {
@@ -257,6 +254,7 @@ impl<const EXPONENT: usize, const MANTISSA: usize, const PARTS: usize>
         }
 
         let mut r = Self::new(
+            self.get_semantics(),
             self.get_sign(),
             self.get_exp() + scale,
             self.get_mantissa(),
@@ -271,7 +269,7 @@ impl<const EXPONENT: usize, const MANTISSA: usize, const PARTS: usize>
         use core::ops::Sub;
         // Handle NaNs.
         if self.is_nan() || rhs.is_nan() || self.is_inf() || rhs.is_zero() {
-            return Self::nan(self.get_sign());
+            return Self::nan(self.get_semantics(), self.get_sign());
         }
         // Handle values that are obviously zero or self.
         if self.is_zero() || rhs.is_inf() {
@@ -312,7 +310,7 @@ impl<const EXPONENT: usize, const MANTISSA: usize, const PARTS: usize>
 #[test]
 fn test_scale() {
     use super::FP64;
-    let x = FP64::from_u64(1);
+    let x = Float::from_u64(FP64, 1);
     let y = x.scale(1, RoundingMode::NearestTiesToEven);
     assert_eq!(y.as_f64(), 2.0);
     let z = x.scale(-1, RoundingMode::NearestTiesToEven);
@@ -328,8 +326,8 @@ fn test_rem() {
     use core::ops::Rem;
 
     fn check_two_numbers(v0: f64, v1: f64) {
-        let f0 = FP64::from_f64(v0);
-        let f1 = FP64::from_f64(v1);
+        let f0 = Float::from_f64(v0);
+        let f1 = Float::from_f64(v1);
         let r0 = v0.rem(v1);
         let r1 = f0.rem(&f1).as_f64();
         assert_eq!(r0.is_nan(), r1.is_nan());
@@ -365,26 +363,25 @@ fn test_rem() {
     }
 }
 
-impl<const EXPONENT: usize, const MANTISSA: usize, const PARTS: usize>
-    Float<EXPONENT, MANTISSA, PARTS>
-{
+impl Float {
     /// sin(x) = x - x^3 / 3! + x^5 / 5! - x^7/7! ....
     fn sin_taylor(x: &Self) -> Self {
         use crate::BigInt;
+        let sem = x.get_semantics();
 
         let mut neg = false;
         let mut top = x.clone();
         let mut bottom = BigInt::one();
-        let mut sum = Self::zero(false);
+        let mut sum = Self::zero(sem, false);
         let x2 = x.sqr();
-        let mut prev = Self::one(true);
+        let mut prev = Self::one(sem, true);
         for i in 1..50 {
             if prev == sum {
                 break; // Stop if we are not making progress.
             }
             prev = sum.clone();
             // Update sum.
-            let elem = &top / &Self::from_bigint(bottom.clone());
+            let elem = &top / &Self::from_bigint(sem, bottom.clone());
             sum = if neg { sum - elem } else { sum + elem };
 
             // Prepare the next element.
@@ -419,7 +416,7 @@ impl<const EXPONENT: usize, const MANTISSA: usize, const PARTS: usize>
         }
 
         if self.is_inf() {
-            return Self::nan(self.get_sign());
+            return Self::nan(self.get_semantics(), self.get_sign());
         }
 
         assert!(self.is_normal());
@@ -434,7 +431,7 @@ impl<const EXPONENT: usize, const MANTISSA: usize, const PARTS: usize>
             val = val.neg();
             neg ^= true;
         }
-        let pi = Self::pi();
+        let pi = Self::pi(self.get_semantics());
         let pi2 = pi.scale(1, RoundingMode::Zero);
         let pi_half = pi.scale(-1, RoundingMode::Zero);
 
@@ -475,11 +472,11 @@ fn test_sin_known_value() {
     // from mpmath import mp
     // mp.dps = 1000
     // mp.sin(801./10000)
-    let res = FP128::from_f64(801. / 10000.).sin().to_string();
+    let res = Float::from_f64(801. / 10000.).cast(FP128).sin().to_string();
     assert_eq!(res, ".08001437374006335063004091256546517");
-    let res = FP128::from_f64(90210. / 10000.).sin().to_string();
+    let res = Float::from_f64(90210. / 10000.).cast(FP128).sin().to_string();
     assert_eq!(res, ".3928952872542333310202066837055861");
-    let res = FP128::from_f64(95051.).sin().to_string();
+    let res = Float::from_f64(95051.).cast(FP128).sin().to_string();
     assert_eq!(res, "-.8559198239971502543265812323548967");
 }
 
@@ -491,14 +488,14 @@ fn test_sin() {
     for i in -100..100 {
         let f0 = i as f64;
         let r0 = f0.sin();
-        let r1 = FP128::from_f64(f0).sin().as_f64();
+        let r1 = Float::from_f64(f0).cast(FP128).sin().as_f64();
         assert_eq!(r0, r1);
     }
 
     for i in -300..300 {
         let f0 = (i as f64) / 100.;
         let r0 = f0.sin();
-        let r1 = FP128::from_f64(f0).sin().as_f64();
+        let r1 = Float::from_f64(f0).cast(FP128).sin().as_f64();
         assert_eq!(r0, r1);
     }
 
@@ -508,7 +505,7 @@ fn test_sin() {
             continue;
         }
         let r0 = v.sin();
-        let r1 = FP128::from_f64(v).sin().as_f64();
+        let r1 = Float::from_f64(v).sin().as_f64();
         assert_eq!(r0.is_nan(), r1.is_nan());
         if !r0.is_nan() {
             assert_eq!(r0, r1);
@@ -516,18 +513,16 @@ fn test_sin() {
     }
 }
 
-impl<const EXPONENT: usize, const MANTISSA: usize, const PARTS: usize>
-    Float<EXPONENT, MANTISSA, PARTS>
-{
+impl Float {
     /// Compute log(2).
-    pub fn ln2() -> Self {
+    pub fn ln2(sem : Semantics) -> Self {
         // Represent log(2) using the sum 1/k*2^k
-        let one = Self::one(false);
-        let mut sum = Self::zero(false);
-        let mut prev = Self::inf(true);
+        let one = Self::one(sem, false);
+        let mut sum = Self::zero(sem, false);
+        let mut prev = Self::inf(sem, true);
         for k in 1..500 {
-            let k2 = Self::from_u64(1).scale(k, RoundingMode::Zero);
-            let k = Self::from_u64(k as u64);
+            let k2 = Self::from_u64(sem, 1).scale(k, RoundingMode::Zero);
+            let k = Self::from_u64(sem, k as u64);
             let term = &one / &(k * k2);
 
             sum = &sum + &term;
@@ -544,20 +539,21 @@ impl<const EXPONENT: usize, const MANTISSA: usize, const PARTS: usize>
     /// z = (x - 1)/(x + 1)
     /// log(x) = 2 (z + z^3/3 + z^5/5 + z^7/7 ... )
     fn log_taylor(x: &Self) -> Self {
-        let one = Self::one(false);
+        let sem = x.get_semantics();
+        let one = Self::one(sem, false);
         let z = &(x - &one) / &(x + &one);
         let z2 = z.sqr();
 
         let mut top = z;
-        let mut sum = Self::zero(false);
-        let mut prev = Self::one(true);
+        let mut sum = Self::zero(sem, false);
+        let mut prev = Self::one(sem, true);
         for i in 0..50 {
             if prev == sum {
                 break; // Stop if we are not making progress.
             }
             prev = sum.clone();
 
-            let elem = &top / &Self::from_u64(i * 2 + 1);
+            let elem = &top / &Self::from_u64(sem, i * 2 + 1);
             sum = sum + elem;
 
             // Prepare the next iteration.
@@ -571,11 +567,13 @@ impl<const EXPONENT: usize, const MANTISSA: usize, const PARTS: usize>
     /// ln(x) = ln(sqrt(x)^2) = 2 * ln(sqrt(x)) and
     /// ln(x) = -ln(1/x)
     fn log_range_reduce(x: &Self) -> Self {
-        let up = Self::from_f64(1.001);
-        let one = Self::from_u64(1);
+        let sem = x.get_semantics();
+        let up = Self::from_f64(1.001).cast(sem);
+        let one = Self::from_u64(sem, 1);
 
         if x > &up {
-            let two = Self::from_u64(2);
+            println!("{}", x);
+            let two = Self::from_u64(sem, 2);
             let sx = x.sqrt();
             return two * Self::log_range_reduce(&sx);
         }
@@ -589,12 +587,14 @@ impl<const EXPONENT: usize, const MANTISSA: usize, const PARTS: usize>
 
     /// Computes logarithm of 'x'.
     pub fn log(&self) -> Self {
+        let sem = self.get_semantics();
+
         //Fast Logarithm function for Arbitrary Precision number,
         // by Henrik Vestermark.
 
         // Handle all of the special cases:
         if !self.is_normal() || self.is_negative() {
-            return Self::nan(self.get_sign());
+            return Self::nan(sem, self.get_sign());
         }
 
         Self::log_range_reduce(self)
@@ -604,44 +604,45 @@ impl<const EXPONENT: usize, const MANTISSA: usize, const PARTS: usize>
 #[test]
 fn test_ln2() {
     use super::FP128;
-    assert_eq!(FP128::ln2().as_f64(), std::f64::consts::LN_2);
+    assert_eq!(Float::ln2(FP128).as_f64(), std::f64::consts::LN_2);
 }
 
 #[test]
 fn test_log() {
     use super::FP128;
-    let x = FP128::from_f64(0.1).log();
+    let x = Float::from_f64(0.1).cast(FP128).log();
     assert_eq!(x.as_f64(), -2.3025850929940455);
 
     for x in [
         0.1, 0.5, 2.3, 4.5, 9.8, 11.2, 15.2, 91.2, 102.2, 192.4, 1024.2,
         90210.2,
     ] {
-        let lhs = FP128::from_f64(x).log().as_f64();
+        let lhs = Float::from_f64(x).cast(FP128).log().as_f64();
         let rhs = x.ln();
         assert_eq!(lhs, rhs);
     }
 }
 
-impl<const EXPONENT: usize, const MANTISSA: usize, const PARTS: usize>
-    Float<EXPONENT, MANTISSA, PARTS>
+impl
+    Float
 {
     /// Computes the taylor series:
     /// exp(x) = 1 + x/1! + x^2/2! + x^3/3! ...
     fn exp_taylor(x: &Self) -> Self {
+        let sem = x.get_semantics();
         use crate::BigInt;
-        let mut top = Self::one(false);
+        let mut top = Self::one(sem, false);
         let mut bottom = BigInt::one();
 
-        let mut sum = Self::zero(false);
-        let mut prev = Self::one(true);
+        let mut sum = Self::zero(sem, false);
+        let mut prev = Self::one(sem, true);
         for k in 1..50 {
             if prev == sum {
                 break; // Stop if we are not making progress.
             }
             prev = sum.clone();
 
-            let elem = &top / &Self::from_bigint(bottom.clone());
+            let elem = &top / &Self::from_bigint(sem, bottom.clone());
             sum = sum + elem;
 
             // Prepare the next iteration.
@@ -655,7 +656,9 @@ impl<const EXPONENT: usize, const MANTISSA: usize, const PARTS: usize>
     /// Reduce the range of 'x' with the identity:
     /// e^x = (e^(x/2))^2
     fn exp_range_reduce(x: &Self) -> Self {
-        let one = Self::from_u64(1);
+        let sem = x.get_semantics();
+
+        let one = Self::from_u64(sem, 1);
 
         if x > &one {
             let sx = x.scale(-3, RoundingMode::Zero);
@@ -668,14 +671,16 @@ impl<const EXPONENT: usize, const MANTISSA: usize, const PARTS: usize>
 
     /// Computes exponential function `e^self`.
     pub fn exp(&self) -> Self {
+        let sem = self.get_semantics();
+
         // Handle all of the special cases:
         if !self.is_normal() {
-            return Self::nan(self.get_sign());
+            return Self::nan(sem, self.get_sign());
         }
 
         // Handle the negative values.
         if self.is_negative() {
-            let one = Self::one(false);
+            let one = Self::one(sem, false);
             return one / self.neg().exp();
         }
 
@@ -686,13 +691,13 @@ impl<const EXPONENT: usize, const MANTISSA: usize, const PARTS: usize>
 #[test]
 fn test_exp() {
     use super::FP128;
-    assert_eq!(FP128::from_f64(2.51).exp().as_f64(), 12.30493006051041);
+    assert_eq!(Float::from_f64(2.51).cast(FP128).exp().as_f64(), 12.30493006051041);
 
     for x in [
         0.000003, 0.001, 0.12, 0.13, 0.5, 1.2, 2.3, 4.5, 9.8, 5.0, 11.2, 15.2,
         25.0, 34.001, 54., 89.1, 91.2, 102.2, 150., 192.4, 212., 256., 102.3,
     ] {
-        let lhs = FP128::from_f64(x).exp().as_f64();
+        let lhs = Float::from_f64(x).cast(FP128).exp().as_f64();
         let rhs = x.exp();
         assert_eq!(lhs, rhs);
     }
