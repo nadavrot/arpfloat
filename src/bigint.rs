@@ -123,7 +123,7 @@ impl BigInt {
         }
     }
 
-    /// \return true if the number is equal to zero.
+    /// Return true if the number is equal to zero.
     pub fn is_zero(&self) -> bool {
         for elem in self.parts.iter() {
             if *elem != 0 {
@@ -226,13 +226,14 @@ impl BigInt {
         BigInt { parts }
     }
 
+    /// Ensure that there are at least 'size' words in the bigint.
     pub fn grow(&mut self, size: usize) {
         for _ in self.len()..size {
             self.parts.push(0);
         }
     }
 
-    /// Remove the leading zeros from the bitvector.
+    /// Remove the leading zero words from the bigint.
     fn shrink(&mut self) {
         while self.len() > 2 && self.parts[self.len() - 1] == 0 {
             self.parts.pop();
@@ -437,7 +438,7 @@ impl BigInt {
         self.shrink();
     }
 
-    /// \return raise this number to the power of `exp`.
+    /// Raise this number to the power of `exp` and return the value.
     pub fn powi(&self, mut exp: u64) -> Self {
         let mut v = Self::one();
         let mut base = self.clone();
@@ -454,7 +455,7 @@ impl BigInt {
         v
     }
 
-    /// \return the word at idx `idx`.
+    /// Returns the word at idx `idx`.
     pub fn get_part(&self, idx: usize) -> u64 {
         self.parts[idx]
     }
