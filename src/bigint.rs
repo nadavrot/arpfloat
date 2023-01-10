@@ -324,12 +324,8 @@ impl BigInt {
         let mut divisor = divisor.clone();
         let mut quotient = Self::zero();
 
-        let dividend_msb = dividend.msb_index();
-        let divisor_msb = divisor.msb_index();
-        assert_ne!(divisor_msb, 0, "division by zero");
-
         // Single word division.
-        if self.parts.len() == 1 && divisor.parts.len() == 1 {
+        if self.len() == 1 && divisor.parts.len() == 1 {
             let a = dividend.get_part(0);
             let b = divisor.get_part(0);
             let res = a / b;
@@ -337,6 +333,10 @@ impl BigInt {
             self.parts[0] = res;
             return Self::from_u64(rem);
         }
+
+        let dividend_msb = dividend.msb_index();
+        let divisor_msb = divisor.msb_index();
+        assert_ne!(divisor_msb, 0, "division by zero");
 
         if divisor_msb > dividend_msb {
             let ret = self.clone();
