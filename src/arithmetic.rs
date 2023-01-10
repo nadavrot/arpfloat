@@ -17,6 +17,7 @@ impl Float {
         b: &Self,
         subtract: bool,
     ) -> (Self, LossFraction) {
+        debug_assert_eq!(a.get_semantics(), b.get_semantics());
         let sem = a.get_semantics();
         let loss;
         let mut a = a.clone();
@@ -354,6 +355,7 @@ impl Float {
 
     /// See Pg 251. 8.4 Floating-Point Multiplication
     fn mul_normals(a: &Self, b: &Self, sign: bool) -> (Self, LossFraction) {
+        debug_assert_eq!(a.get_semantics(), b.get_semantics());
         let sem = a.get_semantics();
         // We multiply digits in the format 1.xx * 2^(e), or mantissa * 2^(e+1).
         // When we multiply two 2^(e+1) numbers, we get:
@@ -366,14 +368,14 @@ impl Float {
         let b_significand = b.get_mantissa();
 
         let mut ab_significand = a_significand * b_significand;
-        let first_non_zero = ab_significand.msb_index() as u64;
+        let first_non_zero = ab_significand.msb_index();
 
         // The exponent is correct, but the bits are not in the right place.
         // Set the right exponent for where the bits are placed, and fix the
         // exponent below.
-        exp -= sem.MANTISSA() as i64;
+        exp -= sem.get_mantissa_len() as i64;
 
-        let precision = a.get_precision();
+        let precision = a.get_semantics().get_precision();
         if first_non_zero > precision {
             let bits = first_non_zero - precision;
 
@@ -512,6 +514,7 @@ impl Float {
     /// Page 262 8.6. Floating-Point Division.
     /// This implementation uses a regular integer division for the mantissa.
     fn div_normals(a: &Self, b: &Self) -> (Self, LossFraction) {
+        debug_assert_eq!(a.get_semantics(), b.get_semantics());
         let sem = a.get_semantics();
 
         let mut a = a.clone();
@@ -538,7 +541,7 @@ impl Float {
         // semantics need to be 1.xxxxx, but we perform integer division.
         // Shift the dividend to make sure that we generate the bits after
         // the period.
-        a_mantissa.shift_left(sem.MANTISSA());
+        a_mantissa.shift_left(sem.get_mantissa_len());
         let reminder = a_mantissa.inplace_div(&b_mantissa);
 
         // Find 2 x reminder, to be able to compare to the reminder and figure

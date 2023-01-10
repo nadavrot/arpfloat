@@ -29,17 +29,24 @@ impl Semantics {
             precision,
         }
     }
-    pub fn MANTISSA(&self) -> usize {
+    /// Returns the precision in bits.
+    pub fn get_precision(&self) -> usize {
+        self.precision
+    }
+    /// Returns the length of the mantissa in bits (precision - 1).
+    pub fn get_mantissa_len(&self) -> usize {
         self.precision - 1
     }
-    pub fn EXPONENT(&self) -> usize {
+    /// Returns the length of the exponent in bits, which defines the valid
+    /// range.
+    pub fn get_exponent_len(&self) -> usize {
         self.exponent
     }
 
     /// Returns the exponent bias for the number, as a positive number.
     /// https://en.wikipedia.org/wiki/IEEE_754#Basic_and_interchange_formats
     pub(crate) fn get_bias(&self) -> i64 {
-        let e = self.EXPONENT();
+        let e = self.get_exponent_len();
         ((1u64 << (e - 1)) - 1) as i64
     }
 }
@@ -75,11 +82,11 @@ pub struct Float {
 }
 
 impl Float {
-    pub fn MANTISSA(&self) -> usize {
-        self.sem.precision - 1
+    pub fn get_mantissa_len(&self) -> usize {
+        self.sem.get_mantissa_len()
     }
-    pub fn EXPONENT(&self) -> usize {
-        self.sem.exponent
+    pub fn get_exponent_len(&self) -> usize {
+        self.sem.get_exponent_len()
     }
 
     /// Create a new normal floating point number.
@@ -127,7 +134,7 @@ impl Float {
     /// Returns a new float with the value one.
     pub fn one(sem: Semantics, sign: bool) -> Self {
         let mut one = BigInt::one();
-        one.shift_left(sem.MANTISSA());
+        one.shift_left(sem.get_mantissa_len());
         Float {
             sem,
             sign,
@@ -241,7 +248,7 @@ impl Float {
     /// number correct.
     pub(super) fn align_mantissa(&mut self) {
         let bits =
-            self.get_precision() as i64 - self.mantissa.msb_index() as i64;
+            self.sem.get_precision() as i64 - self.mantissa.msb_index() as i64;
         if bits > 0 {
             self.exp += bits;
             self.mantissa.shift_left(bits as usize);
@@ -280,14 +287,8 @@ impl Float {
     pub fn get_exp_bounds(&self) -> (i64, i64) {
         let exp_min: i64 = -self.get_bias() + 1;
         // The highest value is 0xFFFE, because 0xFFFF is used for signaling.
-        let exp_max: i64 = (1 << self.EXPONENT()) - self.get_bias() - 2;
+        let exp_max: i64 = (1 << self.get_exponent_len()) - self.get_bias() - 2;
         (exp_min, exp_max)
-    }
-
-    /// Returns the number of bits in the significand, including the integer
-    /// part.
-    pub(crate) fn get_precision(&self) -> u64 {
-        (self.MANTISSA() + 1) as u64
     }
 }
 
@@ -308,11 +309,11 @@ pub const FP256: Semantics = Semantics::new(19, 237);
 //// Shift `val` by `bits`, and report the loss.
 pub(crate) fn shift_right_with_loss(
     val: &BigInt,
-    bits: u64,
+    bits: usize,
 ) -> (BigInt, LossFraction) {
     let mut val = val.clone();
-    let loss = val.get_loss_kind_for_bit(bits as usize);
-    val.shift_right(bits as usize);
+    let loss = val.get_loss_kind_for_bit(bits);
+    val.shift_right(bits);
     (val, loss)
 }
 
@@ -358,7 +359,7 @@ impl Float {
             self.sem,
             self.sign,
             bounds.1,
-            BigInt::all1s(self.MANTISSA()),
+            BigInt::all1s(self.get_mantissa_len()),
         );
 
         *self = match rm {
@@ -387,7 +388,7 @@ impl Float {
         let bounds = self.get_exp_bounds();
         debug_assert!(self.exp >= bounds.0);
         debug_assert!(self.exp <= bounds.1);
-        let max_mantissa = BigInt::one_hot(self.get_precision() as usize);
+        let max_mantissa = BigInt::one_hot(self.sem.get_precision());
         debug_assert!(self.mantissa.lt(&max_mantissa));
     }
 
@@ -398,7 +399,7 @@ impl Float {
 
     pub(crate) fn shift_significand_right(&mut self, amt: u64) -> LossFraction {
         self.exp += amt as i64;
-        let res = shift_right_with_loss(&self.mantissa, amt);
+        let res = shift_right_with_loss(&self.mantissa, amt as usize);
         self.mantissa = res.0;
         res.1
     }
@@ -440,7 +441,7 @@ impl Float {
         // Step I - adjust the exponent.
         if nmsb > 0 {
             // Align the number so that the MSB bit will be MANTISSA + 1.
-            let mut exp_change = nmsb - self.get_precision() as i64;
+            let mut exp_change = nmsb - self.sem.get_precision() as i64;
 
             // Handle overflowing exponents.
             if self.exp + exp_change > bounds.1 {
@@ -491,7 +492,7 @@ impl Float {
             self.mantissa = self.mantissa.clone() + one;
             // Did the mantissa overflow?
             let mut m = self.mantissa.clone();
-            m.shift_right(self.get_precision() as usize);
+            m.shift_right(self.sem.get_precision());
             if !m.is_zero() {
                 // Can we fix the exponent?
                 if self.exp < bounds.1 {
@@ -531,7 +532,7 @@ impl PartialEq for Float {
 /// IEEE 754-2019 section 5.10 - totalOrder.
 impl PartialOrd for Float {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        assert_eq!(self.get_semantics(), other.get_semantics());
+        debug_assert_eq!(self.get_semantics(), other.get_semantics());
         let bool_to_ord = |ord: bool| -> Option<Ordering> {
             if ord {
                 Some(Ordering::Less)

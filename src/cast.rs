@@ -20,7 +20,7 @@ impl Float {
     /// Load the big int `val` into the float. Notice that the number may
     /// overflow, or rounded to the nearest even integer.
     pub fn from_bigint(sem: Semantics, val: BigInt) -> Self {
-        let mut a = Self::new(sem, false, sem.MANTISSA() as i64, val);
+        let mut a = Self::new(sem, false, sem.get_mantissa_len() as i64, val);
         a.normalize(RoundingMode::NearestTiesToEven, LossFraction::ExactlyZero);
         a
     }
@@ -69,7 +69,7 @@ impl Float {
 
         let exp = self.get_exp();
 
-        if exp > self.MANTISSA() as i64 {
+        if exp > self.get_mantissa_len() as i64 {
             // Already an integer.
             return self.clone();
         }
@@ -81,7 +81,7 @@ impl Float {
 
         // This is a fraction. Figure out which bits represent values over one
         // and clear out the values that represent the fraction.
-        let trim = (self.MANTISSA() as i64 - exp) as usize;
+        let trim = (self.get_mantissa_len() as i64 - exp) as usize;
         let mut m = self.get_mantissa();
         m.shift_right(trim);
         m.shift_left(trim);
@@ -100,7 +100,7 @@ impl Float {
 
         let exp = self.get_exp();
 
-        if exp > self.MANTISSA() as i64 {
+        if exp > self.get_mantissa_len() as i64 {
             // Already an integer.
             return self.clone();
         }
@@ -117,9 +117,8 @@ impl Float {
 
         // This is a fraction. Figure out which bits represent values over one
         // and clear out the values that represent the fraction.
-        let trim = (self.MANTISSA() as i64 - exp) as usize;
-        let (mut m, loss) =
-            shift_right_with_loss(&self.get_mantissa(), trim as u64);
+        let trim = (self.get_mantissa_len() as i64 - exp) as usize;
+        let (mut m, loss) = shift_right_with_loss(&self.get_mantissa(), trim);
         m.shift_left(trim);
         let t = Self::new(sem, self.get_sign(), self.get_exp(), m);
 
@@ -135,11 +134,11 @@ impl Float {
     fn convert_normal_to_integer(&self, rm: RoundingMode) -> BigInt {
         // We are converting to integer, so set the center point of the exponent
         // to the lsb instead of the msb.
-        let i_exp = self.get_exp() - self.MANTISSA() as i64;
+        let i_exp = self.get_exp() - self.get_mantissa_len() as i64;
         if i_exp < 0 {
             let (mut m, loss) = float::shift_right_with_loss(
                 &self.get_mantissa(),
-                -i_exp as u64,
+                -i_exp as usize,
             );
             if self.need_round_away_from_zero(rm, loss) {
                 m.inplace_add(&BigInt::one());
@@ -154,17 +153,19 @@ impl Float {
 
     fn from_bits(sem: Semantics, float: u64) -> Self {
         // Extract the biased exponent (wipe the sign and mantissa).
-        let biased_exp =
-            ((float >> sem.MANTISSA()) & mask(sem.EXPONENT()) as u64) as i64;
+        let biased_exp = ((float >> sem.get_mantissa_len())
+            & mask(sem.get_exponent_len()) as u64)
+            as i64;
         // Wipe the original exponent and mantissa.
-        let sign = (float >> (sem.EXPONENT() + sem.MANTISSA())) & 1;
+        let sign =
+            (float >> (sem.get_exponent_len() + sem.get_mantissa_len())) & 1;
         // Wipe the sign and exponent.
-        let mut mantissa = float & mask(sem.MANTISSA()) as u64;
+        let mut mantissa = float & mask(sem.get_mantissa_len()) as u64;
 
         let sign = sign == 1;
 
         // Check for NaN/Inf
-        if biased_exp == mask(sem.EXPONENT()) as i64 {
+        if biased_exp == mask(sem.get_exponent_len()) as i64 {
             if mantissa == 0 {
                 return Self::inf(sem, sign);
             }
@@ -175,7 +176,7 @@ impl Float {
 
         // Add the implicit bit for normal numbers.
         if biased_exp != 0 {
-            mantissa += 1u64 << sem.MANTISSA();
+            mantissa += 1u64 << sem.get_mantissa_len();
         } else {
             // Handle denormals, adjust the exponent to the legal range.
             exp += 1;
@@ -188,7 +189,8 @@ impl Float {
     /// Cast to another float using the rounding mode `rm`.
     pub fn cast_with_rm(&self, to: Semantics, rm: RoundingMode) -> Float {
         let mut loss = LossFraction::ExactlyZero;
-        let exp_delta = self.MANTISSA() as i64 - to.MANTISSA() as i64;
+        let exp_delta =
+            self.get_mantissa_len() as i64 - to.get_mantissa_len() as i64;
         let mut temp = self.clone();
         // If we are casting to a narrow type then we need to shift the bits
         // to the new-mantissa part of the word. This will adjust the exponent,
@@ -205,7 +207,8 @@ impl Float {
             temp.get_category(),
         );
         // Don't normalize if this is a nop conversion.
-        if to.EXPONENT() != self.EXPONENT() && to.MANTISSA() != self.MANTISSA()
+        if to.get_exponent_len() != self.get_exponent_len()
+            && to.get_mantissa_len() != self.get_mantissa_len()
         {
             x.normalize(rm, loss);
         }
@@ -223,11 +226,11 @@ impl Float {
         match self.get_category() {
             Category::Infinity => {
                 mantissa = 0;
-                exp = mask(self.EXPONENT()) as u64;
+                exp = mask(self.get_exponent_len()) as u64;
             }
             Category::NaN => {
-                mantissa = 1 << (self.MANTISSA() - 1);
-                exp = mask(self.EXPONENT()) as u64;
+                mantissa = 1 << (self.get_mantissa_len() - 1);
+                exp = mask(self.get_exponent_len()) as u64;
             }
             Category::Zero => {
                 mantissa = 0;
@@ -241,18 +244,18 @@ impl Float {
                 // Encode denormals. If the exponent is the minimum value and we
                 // don't have a leading integer bit (in the form 1.mmmm) then
                 // this is a denormal value and we need to encode it as such.
-                if (exp == 1) && ((m >> self.MANTISSA()) == 0) {
+                if (exp == 1) && ((m >> self.get_mantissa_len()) == 0) {
                     exp = 0;
                 }
-                mantissa = m & utils::mask(self.MANTISSA()) as u64;
+                mantissa = m & utils::mask(self.get_mantissa_len()) as u64;
             }
         }
 
         let mut bits: u64 = self.get_sign() as u64;
-        bits <<= self.EXPONENT();
+        bits <<= self.get_exponent_len();
         bits |= exp;
-        bits <<= self.MANTISSA();
-        debug_assert!(mantissa <= 1 << self.MANTISSA());
+        bits <<= self.get_mantissa_len();
+        debug_assert!(mantissa <= 1 << self.get_mantissa_len());
         bits |= mantissa;
         bits
     }

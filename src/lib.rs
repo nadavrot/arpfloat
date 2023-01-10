@@ -9,11 +9,11 @@
 //!  use arpfloat::Float;
 //!  use arpfloat::FP128;
 //!
-//!  // Use Newton-Raphson to find the square root of 5.
+//!  // Create the number '5' in FP128 format.
 //!  let n = Float::from_u64(FP128, 5);
 //!
+//!  // Use Newton-Raphson to find the square root of 5.
 //!  let mut x = n.clone();
-//!
 //!  for _ in 0..20 {
 //!      x = (x.clone() + (&n / &x))/2;
 //!  }

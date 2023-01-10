@@ -218,7 +218,7 @@ impl Float {
     pub fn e(sem: Semantics) -> Self {
         let one = Self::from_i64(sem, 1);
         let mut term = one.clone();
-        let iterations: i64 = (sem.EXPONENT() * 2) as i64;
+        let iterations: i64 = (sem.get_exponent_len() * 2) as i64;
         for i in (1..iterations).rev() {
             let v = Self::from_i64(sem, i);
             term = &v + &v / &term;

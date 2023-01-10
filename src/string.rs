@@ -15,7 +15,7 @@ impl Float {
         //  to bit zero.
         // See Ryu: Fast Float-to-String Conversion -- Ulf Adams.
         // https://youtu.be/kw-U6smcLzk?t=681
-        let mut exp = self.get_exp() - self.MANTISSA() as i64;
+        let mut exp = self.get_exp() - self.get_mantissa_len() as i64;
         let mut mantissa: BigInt = self.get_mantissa();
 
         match exp.cmp(&0) {
@@ -51,7 +51,7 @@ impl Float {
         // N = 2 + floor(n / log_b(B)) = 2 + floor(n / log(10, 2))
         // We convert from bits to base-10 digits: log(2)/log(10) ==> 59/196.
         // A continuous fraction of 5 iteration gives the ratio.
-        2 + (self.MANTISSA() * 59) / 196
+        2 + (self.get_mantissa_len() * 59) / 196
     }
 
     /// Reduce a number in the representation mmmmm * e^10, to fewer bits in
@@ -62,10 +62,10 @@ impl Float {
         exp: &mut i64,
     ) {
         let bits = integer.msb_index();
-        if bits <= self.MANTISSA() {
+        if bits <= self.get_mantissa_len() {
             return;
         };
-        let needed_bits = bits - self.MANTISSA();
+        let needed_bits = bits - self.get_mantissa_len();
         // We convert from bits to base-10 digits: log(2)/log(10) ==> 59/196.
         // A continuous fraction of 5 iteration gives the ratio.
         let mut digits_to_remove = ((needed_bits * 59) / 196) as i64;
