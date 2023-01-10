@@ -373,7 +373,7 @@ fn test_rem() {
 impl Float {
     /// sin(x) = x - x^3 / 3! + x^5 / 5! - x^7/7! ....
     fn sin_taylor(x: &Self) -> Self {
-        use crate::BigInt;
+        use crate::bigint::BigInt;
         let sem = x.get_semantics();
 
         let mut neg = false;
@@ -633,7 +633,7 @@ impl Float {
     /// exp(x) = 1 + x/1! + x^2/2! + x^3/3! ...
     fn exp_taylor(x: &Self) -> Self {
         let sem = x.get_semantics();
-        use crate::BigInt;
+        use crate::bigint::BigInt;
         let mut top = Self::one(sem, false);
         let mut bottom = BigInt::one();
 

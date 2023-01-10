@@ -10,7 +10,7 @@
 //!  use arpfloat::FP128;
 //!
 //!  // Create the number '5' in FP128 format.
-//!  let n = Float::from_u64(FP128, 5);
+//!  let n = Float::from_f64(5.).cast(FP128);
 //!
 //!  // Use Newton-Raphson to find the square root of 5.
 //!  let mut x = n.clone();
@@ -33,17 +33,20 @@
 //!operations.
 //!
 //!```
-//!    use arpfloat::{FP16, FP128, RoundingMode};
+//!    use arpfloat::FP128;
+//!    use arpfloat::RoundingMode::NearestTiesToEven;
 //!    use arpfloat::Float;
 //!
 //!    let x = Float::from_u64(FP128, 1<<53);
 //!    let y = Float::from_f64(1000.0).cast(FP128);
-//!    let val = Float::mul_with_rm(&x, &y, RoundingMode::NearestTiesToEven);
+//!
+//!    let val = Float::mul_with_rm(&x, &y, NearestTiesToEven);
 //! ```
 //!
 //! View the internal representation of numbers:
 //! ```
-//!    use arpfloat::{Float, FP16, FP128, RoundingMode};
+//!    use arpfloat::Float;
+//!    use arpfloat::FP16;
 //!
 //!    let fp = Float::from_i64(FP16, 15);
 //!    let m = fp.get_mantissa();
@@ -55,9 +58,22 @@
 //! Control the rounding mode for type conversion:
 //!```
 //!    use arpfloat::{FP16, FP32, RoundingMode, Float};
+//!
 //!    let x = Float::from_u64(FP32, 2649);
 //!    let b = x.cast_with_rm(FP16, RoundingMode::Zero);
 //!    println!("{}", b); // Prints 2648!
+//!```
+//!
+//! Define new float formats and use high-precision transcendental functions:
+//!```
+//!  use arpfloat::{Float, Semantics};
+//!  // Define a new float format with 120 bits of accuracy, and dynamic range
+//!  // of 2^10.
+//!  let sem = Semantics::new(10, 120);
+//!
+//!  let pi = Float::pi(sem);
+//!  let x = Float::exp(&pi);
+//!  println!("e^pi = {}", x); // Prints 23.1406926327792....
 //!```
 
 #![no_std]
@@ -73,7 +89,7 @@ mod functions;
 mod string;
 mod utils;
 
-pub use self::bigint::BigInt;
 pub use self::float::Float;
 pub use self::float::RoundingMode;
+pub use self::float::Semantics;
 pub use self::float::{FP128, FP16, FP256, FP32, FP64};

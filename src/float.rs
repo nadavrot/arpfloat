@@ -63,7 +63,7 @@ impl Semantics {
 }
 
 /// Declare the different categories of the floating point number. These
-/// categories are internal to the float, and can be access by the acessors:
+/// categories are internal to the float, and can be access by the accessors:
 /// is_inf, is_zero, is_nan, is_normal.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Category {

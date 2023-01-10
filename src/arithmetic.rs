@@ -1,5 +1,5 @@
 extern crate alloc;
-use crate::BigInt;
+use crate::bigint::BigInt;
 
 use super::bigint::LossFraction;
 use super::float::{shift_right_with_loss, Category, Float, RoundingMode};
