@@ -2,7 +2,6 @@ extern crate alloc;
 use super::bigint::BigInt;
 use super::bigint::LossFraction;
 use core::cmp::Ordering;
-use std::println;
 
 /// Defines the supported rounding modes.
 /// See IEEE754-2019 Section 4.3 Rounding-direction attributes
@@ -578,13 +577,11 @@ impl PartialOrd for Float {
 #[test]
 fn test_comparisons() {
     use super::utils;
-    use std::println;
 
     // Compare a bunch of special values, using the <,>,== operators and check
     // that they match the comparison on doubles.
     for first in utils::get_special_test_values() {
         for second in utils::get_special_test_values() {
-            println!("{}  {}", first, second);
             let is_less = first < second;
             let is_eq = first == second;
             let is_gt = first > second;
@@ -599,22 +596,7 @@ fn test_comparisons() {
 
 #[test]
 fn test_one_imm() {
-    let x: f64 = 1.0;
-    println!("{:x}", x.to_bits());
-
     let sem = Semantics::new(10, 12);
     let x = Float::one(sem, false);
-    assert_eq!(x.as_f64(), 1.0);
-}
-
-#[test]
-fn test_simple_ctor() {
-    let FP: Semantics = Semantics::new(5, 10);
-    println!("{:?}", FP);
-    let x = Float::one(FP, false);
-    println!("{}", x.get_bias());
-
-    let x = Float::one(FP64, false);
-    x.dump();
     assert_eq!(x.as_f64(), 1.0);
 }
