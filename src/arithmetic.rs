@@ -185,17 +185,18 @@ fn test_addition() {
 #[test]
 fn test_addition_large_numbers() {
     use super::float::FP64;
+    let rm = RoundingMode::NearestTiesToEven;
 
     let one = FP64::from_i64(1);
     let mut a = FP64::from_i64(1);
 
-    while FP64::sub(FP64::add(a.clone(), one.clone()), a.clone()) == one {
-        a = FP64::add(a.clone(), a);
+    while FP64::sub_with_rm(&FP64::add_with_rm(&a, &one, rm), &a, rm) == one {
+        a = FP64::add_with_rm(&a, &a, rm);
     }
 
     let mut b = one.clone();
-    while FP64::sub(FP64::add(a.clone(), b.clone()), a.clone()) != b {
-        b = FP64::add(b.clone(), one.clone());
+    while FP64::sub_with_rm(&FP64::add_with_rm(&a, &b, rm), &a, rm) != b {
+        b = FP64::add_with_rm(&b, &one, rm);
     }
 
     assert_eq!(a.as_f64(), 9007199254740992.);
@@ -739,7 +740,7 @@ fn test_slow_sqrt_2_test() {
     let mut low = FP128::from_f64(1.0);
 
     for _ in 0..25 {
-        let mid = &(high.clone() + low.clone()) / 2;
+        let mid = (&high + &low) / 2;
         if (&mid * &mid) < two {
             low = mid;
         } else {

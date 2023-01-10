@@ -5,9 +5,18 @@ use super::float::Float;
 impl<const EXPONENT: usize, const MANTISSA: usize, const PARTS: usize>
     Float<EXPONENT, MANTISSA, PARTS>
 {
+    pub fn powi(&self, n: u64) -> Self {
+        use RoundingMode::NearestTiesToEven;
+        let mut elem = Self::one(false);
+        for _ in 0..n {
+            elem = Self::mul_with_rm(&elem, self, NearestTiesToEven);
+        }
+        elem
+    }
+
     /// Calculates the power of two.
     pub fn sqr(&self) -> Self {
-        Self::mul_with_rm(self, self, RoundingMode::NearestTiesToEven)
+        self.powi(2)
     }
     /// Calculates the square root of the number using the Newton Raphson
     /// method.
@@ -28,7 +37,7 @@ impl<const EXPONENT: usize, const MANTISSA: usize, const PARTS: usize>
         let mut prev = x.clone();
 
         loop {
-            x = (x.clone() + (target.clone() / x.clone())) / 2;
+            x = (&x + (&target / &x)) / 2;
             // Stop when value did not change or regressed.
             if prev < x || x == prev {
                 return x;
@@ -57,7 +66,7 @@ impl<const EXPONENT: usize, const MANTISSA: usize, const PARTS: usize>
                 self.clone()
             }; // Handle (+-)0.
         }
-        if *self > other.clone() {
+        if self > other {
             self.clone()
         } else {
             other.clone()
@@ -77,7 +86,7 @@ impl<const EXPONENT: usize, const MANTISSA: usize, const PARTS: usize>
                 other.clone()
             }; // Handle (+-)0.
         }
-        if *self > other.clone() {
+        if self > other {
             other.clone()
         } else {
             self.clone()
@@ -201,8 +210,8 @@ impl<const EXPONENT: usize, const MANTISSA: usize, const PARTS: usize>
             let y = a.clone();
             a = (&a + &b) / 2;
             b = (&b * &y).sqrt();
-            t = &t - &(&x * &((&a - &y).sqr()));
-            x = x.clone() * 2;
+            t = &t - (&x * (&a - &y).sqr());
+            x = &x * 2;
         }
         a.sqr() / t
     }
@@ -214,7 +223,7 @@ impl<const EXPONENT: usize, const MANTISSA: usize, const PARTS: usize>
         let iterations: i64 = (EXPONENT * 2) as i64;
         for i in (1..iterations).rev() {
             let v = Self::from_i64(i);
-            term = &v + &(&v / &term);
+            term = &v + &v / &term;
         }
 
         one / term + 2
@@ -394,12 +403,10 @@ impl<const EXPONENT: usize, const MANTISSA: usize, const PARTS: usize>
         if steps == 0 {
             return Self::sin_taylor(x);
         }
-        let three = Self::from_u64(3);
-        let four = Self::from_u64(4);
 
-        let x3 = x.clone() / Self::from_u64(3);
+        let x3 = x / 3;
         let sx = Self::sin_step4_reduction(&x3, steps - 1);
-        (&three * &sx) - four * (&(&sx * &sx) * &sx)
+        (&sx * 3) - sx.powi(3) * 4
     }
 
     /// Return the sine function.
@@ -621,7 +628,7 @@ impl<const EXPONENT: usize, const MANTISSA: usize, const PARTS: usize>
 {
     /// Computes the taylor series:
     /// exp(x) = 1 + x/1! + x^2/2! + x^3/3! ...
-    fn exp_taylor(x: Self) -> Self {
+    fn exp_taylor(x: &Self) -> Self {
         use crate::BigInt;
         let mut top = Self::one(false);
         let mut bottom = BigInt::one();
@@ -639,7 +646,7 @@ impl<const EXPONENT: usize, const MANTISSA: usize, const PARTS: usize>
 
             // Prepare the next iteration.
             bottom = bottom * BigInt::from_u64(k);
-            top = top * x.clone();
+            top = &top * x;
         }
 
         sum
@@ -647,12 +654,12 @@ impl<const EXPONENT: usize, const MANTISSA: usize, const PARTS: usize>
 
     /// Reduce the range of 'x' with the identity:
     /// e^x = (e^(x/2))^2
-    fn exp_range_reduce(x: Self) -> Self {
+    fn exp_range_reduce(x: &Self) -> Self {
         let one = Self::from_u64(1);
 
-        if x > one {
+        if x > &one {
             let sx = x.scale(-3, RoundingMode::Zero);
-            let esx = Self::exp_range_reduce(sx);
+            let esx = Self::exp_range_reduce(&sx);
             return esx.sqr().sqr().sqr();
         }
 
@@ -672,7 +679,7 @@ impl<const EXPONENT: usize, const MANTISSA: usize, const PARTS: usize>
             return one / self.neg().exp();
         }
 
-        Self::exp_range_reduce(self.clone())
+        Self::exp_range_reduce(self)
     }
 }
 
