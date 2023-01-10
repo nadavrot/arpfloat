@@ -43,10 +43,15 @@ impl Semantics {
         self.exponent
     }
 
-    /// Create a new float semantics with increased precision with 'more'
+    /// Create a new float semantics with increased precision with 'add'
     /// additional digits.
     pub fn increase_precision(&self, more: usize) -> Semantics {
         Semantics::new(self.exponent, self.precision + more)
+    }
+    /// Create a new float semantics with increased exponent with 'more'
+    /// additional digits.
+    pub fn increase_exponent(&self, more: usize) -> Semantics {
+        Semantics::new(self.exponent + more, self.precision)
     }
 
     /// Returns the exponent bias for the number, as a positive number.

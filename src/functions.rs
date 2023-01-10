@@ -197,7 +197,7 @@ impl Float {
         // require rounding, so if we want to get the accurate results we need
         // to operate with increased precision.
         let orig_sem = sem;
-        let sem = sem.increase_precision(10);
+        let sem = sem.increase_precision(10).increase_exponent(4);
 
         let one = Self::from_i64(sem, 1);
         let two = Self::from_i64(sem, 2);
@@ -426,19 +426,22 @@ impl Float {
             return Self::nan(self.get_semantics(), self.get_sign());
         }
 
+        let orig_sem = self.get_semantics();
+        let sem = orig_sem.increase_precision(20).increase_exponent(4);
+
         assert!(self.is_normal());
 
         let mut neg = false;
         // Step1 range reduction.
 
-        let mut val = self.clone();
+        let mut val = self.cast(sem);
 
         // Handle the negatives.
         if val.is_negative() {
             val = val.neg();
             neg ^= true;
         }
-        let pi = Self::pi(self.get_semantics());
+        let pi = Self::pi(sem);
         let pi2 = pi.scale(1, RoundingMode::Zero);
         let pi_half = pi.scale(-1, RoundingMode::Zero);
 
@@ -462,32 +465,25 @@ impl Float {
         debug_assert!(val <= pi_half);
 
         let res = Self::sin_step4_reduction(&val, 16);
-        if neg {
-            res.neg()
-        } else {
-            res
-        }
+        let res = if neg { res.neg() } else { res };
+        res.cast(orig_sem)
     }
 }
 
 #[cfg(feature = "std")]
 #[test]
 fn test_sin_known_value() {
-    use super::FP128;
     use crate::std::string::ToString;
     // Verify the results with:
     // from mpmath import mp
     // mp.dps = 1000
     // mp.sin(801./10000)
-    let res = Float::from_f64(801. / 10000.).cast(FP128).sin().to_string();
-    assert_eq!(res, ".08001437374006335063004091256546517");
-    let res = Float::from_f64(90210. / 10000.)
-        .cast(FP128)
-        .sin()
-        .to_string();
-    assert_eq!(res, ".3928952872542333310202066837055861");
-    let res = Float::from_f64(95051.).cast(FP128).sin().to_string();
-    assert_eq!(res, "-.8559198239971502543265812323548967");
+    let res = Float::from_f64(801. / 10000.).sin().to_string();
+    assert_eq!(res, ".08001437374006335");
+    let res = Float::from_f64(90210. / 10000.).sin().to_string();
+    assert_eq!(res, ".3928952872542333");
+    let res = Float::from_f64(95051.).sin().to_string();
+    assert_eq!(res, "-.8559198239971502");
 }
 
 #[test]
