@@ -74,8 +74,8 @@ operations.
  
 ```rust
   use arpfloat::{Float, Semantics};
-  // Define a new float format with 120 bits of accuracy, and dynamic range
-  // of 2^10.
+  // Define a new float format with 120 bits of accuracy, and
+  // dynamic range of 2^10.
   let sem = Semantics::new(10, 120);
 
   let pi = Float::pi(sem);
