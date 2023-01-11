@@ -486,6 +486,7 @@ fn test_sin_known_value() {
     assert_eq!(res, "-.8559198239971502");
 }
 
+#[cfg(feature = "std")]
 #[test]
 fn test_sin() {
     use super::utils;
@@ -606,6 +607,7 @@ impl Float {
     }
 }
 
+#[cfg(feature = "std")]
 #[test]
 fn test_ln2() {
     use super::FP128;
