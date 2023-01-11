@@ -6,31 +6,28 @@ structures and utilities. The library can be used to emulate floating point
 operation, in software, or create new floating point data types.
 `no_std` environments are supported by disabling the `std` feature.
 
-### Example
 
+### Example
 ```rust
   use arpfloat::Float;
-  use arpfloat::new_float_type;
+  use arpfloat::FP128;
 
-  // Create a new type: 15 bits exponent, 112 significand.
-  type FP128 = new_float_type!(15, 112);
+  // Create the number '5' in FP128 format.
+  let n = Float::from_f64(5.).cast(FP128);
 
   // Use Newton-Raphson to find the square root of 5.
-  let n = FP128::from_u64(5);
-
-  let two = FP128::from_u64(2);
-  let mut x = n;
-
-  for _ in 0..1000 {
-      x = (x + (n / x))/2;
+  let mut x = n.clone();
+  for _ in 0..20 {
+      x += (&n / &x)/2;
   }
 
   println!("fp128: {}", x);
   println!("fp64:  {}", x.as_f64());
-```
+ ```
+
 
 The program above will print this output:
-```
+```console
 fp128: 2.2360679774997896964091736687312763
 fp64:  2.23606797749979
 ```
@@ -39,27 +36,53 @@ The library also provides API that exposes rounding modes, and low-level
 operations.
 
 ```rust
-    // Explicit control over rounding modes:
-    let val = FP128::mul_with_rm(y, z, RoundingMode::NearestTiesToEven);
+    use arpfloat::FP128;
+    use arpfloat::RoundingMode::NearestTiesToEven;
+    use arpfloat::Float;
 
-    // View the internals of the float:
-    let fp = FP16::from_i64(15);
+    let x = Float::from_u64(FP128, 1<<53);
+    let y = Float::from_f64(1000.0).cast(FP128);
+
+    let val = Float::mul_with_rm(&x, &y, NearestTiesToEven);
+ ```
+
+ View the internal representation of numbers:
+ 
+ ```rust
+    use arpfloat::Float;
+    use arpfloat::FP16;
+
+    let fp = Float::from_i64(FP16, 15);
+
+    fp.dump(); // Prints FP[+ E=+3 M=11110000000]
+
     let m = fp.get_mantissa();
-
-    // Prints FP[+ E=+3 M=11110000000]
-    fp.dump();
+     m.dump(); // Prints 11110000000
 ```
 
-
-Control the rounding-mode for type conversion:
+ Control the rounding mode for type conversion:
+ 
 ```rust
-   use arpfloat::{FP16, FP32, RoundingMode};
-   let x = FP32::from_u64(2649);
+    use arpfloat::{FP16, FP32, RoundingMode, Float};
 
-   // Convert from FP64 to FP16.
-   let b : FP16 = x.cast_with_rm(RoundingMode::Zero);
-   println!("{}", b); // Prints 2648!
+    let x = Float::from_u64(FP32, 2649);
+    let b = x.cast_with_rm(FP16, RoundingMode::Zero);
+    println!("{}", b); // Prints 2648!
 ```
+
+ Define new float formats and use high-precision transcendental functions:
+ 
+```rust
+  use arpfloat::{Float, Semantics};
+  // Define a new float format with 120 bits of accuracy, and dynamic range
+  // of 2^10.
+  let sem = Semantics::new(10, 120);
+
+  let pi = Float::pi(sem);
+  let x = Float::exp(&pi);
+  println!("e^pi = {}", x); // Prints 23.1406926327792....
+```
+
 
 The [examples](examples) directory contains a program that computes many digits of pi in float-256.
 
