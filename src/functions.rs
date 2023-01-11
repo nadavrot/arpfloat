@@ -3,11 +3,23 @@ use crate::{float::Semantics, RoundingMode};
 use super::float::Float;
 
 impl Float {
-    pub fn powi(&self, n: u64) -> Self {
-        use RoundingMode::NearestTiesToEven;
+    /// Return this number raised to the power of 'n'.
+    pub fn powi(&self, mut n: u64) -> Self {
+        use RoundingMode::NearestTiesToEven as rm;
         let mut elem = Self::one(self.get_semantics(), false);
-        for _ in 0..n {
-            elem = Self::mul_with_rm(&elem, self, NearestTiesToEven);
+        // This algorithm is similar to binary conversion. Each bit in 'n'
+        // represents a power-of-two number, like 1,2,4,8 ... We know how to
+        // generate numbers to the power of an even number by squaring the
+        // number log2 times. So, we just multiply all of the numbers together
+        // to get the result. This is like converting a binary number to integer
+        // except that instead of adding we multiply the values.
+        let mut val = self.clone();
+        while n > 0 {
+            if n & 1 == 1 {
+                elem = Self::mul_with_rm(&elem, &val, rm);
+            }
+            val = Self::mul_with_rm(&val, &val, rm);
+            n >>= 1;
         }
         elem
     }
@@ -710,4 +722,13 @@ fn test_exp() {
         let rhs = x.exp();
         assert_eq!(lhs, rhs);
     }
+}
+
+#[test]
+fn test_powi() {
+    assert_eq!(Float::from_f64(2.).powi(0).as_f64(), 1.);
+    assert_eq!(Float::from_f64(2.).powi(1).as_f64(), 2.);
+    assert_eq!(Float::from_f64(2.).powi(3).as_f64(), 8.);
+    assert_eq!(Float::from_f64(2.).powi(5).as_f64(), 32.);
+    assert_eq!(Float::from_f64(2.).powi(10).as_f64(), 1024.);
 }
