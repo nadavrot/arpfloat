@@ -36,7 +36,8 @@ impl Float {
         let mut prev = x.clone();
 
         loop {
-            x = (&x + (&target / &x)) / 2;
+            x += &target / &x;
+            x = x.scale(-1, RoundingMode::NearestTiesToEven);
             // Stop when value did not change or regressed.
             if prev < x || x == prev {
                 return x;
