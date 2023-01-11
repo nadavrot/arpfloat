@@ -14,6 +14,9 @@ pub enum RoundingMode {
     Negative,
 }
 
+/// Controls the semantics of a floating point number using two fields:
+/// 'precision', that determines the number of bits, and 'exponent' that
+///  controls the dynamic range of the number.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Semantics {
     /// The number of bits that define the range of the exponent.

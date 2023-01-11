@@ -49,10 +49,11 @@
 //!    use arpfloat::FP16;
 //!
 //!    let fp = Float::from_i64(FP16, 15);
-//!    let m = fp.get_mantissa();
 //!
-//!    // Prints FP[+ E=+3 M=11110000000]
-//!    fp.dump();
+//!    fp.dump(); // Prints FP[+ E=+3 M=11110000000]
+//!
+//!    let m = fp.get_mantissa();
+//!     m.dump(); // Prints 11110000000
 //!```
 //!
 //! Control the rounding mode for type conversion:
