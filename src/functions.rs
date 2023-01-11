@@ -212,6 +212,8 @@ impl Float {
         let orig_sem = sem;
         let sem = sem.increase_precision(10).increase_exponent(4);
 
+        use RoundingMode::NearestTiesToEven as rm;
+
         let one = Self::from_i64(sem, 1);
         let two = Self::from_i64(sem, 2);
         let four = Self::from_i64(sem, 4);
@@ -223,10 +225,10 @@ impl Float {
 
         while a != b {
             let y = a.clone();
-            a = (&a + &b) / 2;
+            a = (&a + &b).scale(-1, rm);
             b = (&b * &y).sqrt();
-            t = &t - (&x * (&a - &y).sqr());
-            x = &x * 2;
+            t -= &x * (&a - &y).sqr();
+            x = x.scale(1, rm);
         }
         (a.sqr() / t).cast(orig_sem)
     }
@@ -236,7 +238,7 @@ impl Float {
         let orig_sem = sem;
         let sem = sem.increase_precision(10);
 
-        let one = Self::from_i64(sem, 1);
+        let one = Self::one(sem, false);
         let mut term = one.clone();
         let iterations: i64 = (sem.get_exponent_len() * 2) as i64;
         for i in (1..iterations).rev() {
@@ -587,14 +589,14 @@ impl Float {
     /// ln(x) = ln(sqrt(x)^2) = 2 * ln(sqrt(x)) and
     /// ln(x) = -ln(1/x)
     fn log_range_reduce(x: &Self) -> Self {
+        use RoundingMode::NearestTiesToEven as even;
         let sem = x.get_semantics();
         let up = Self::from_f64(1.001).cast(sem);
         let one = Self::from_u64(sem, 1);
 
         if x > &up {
-            let two = Self::from_u64(sem, 2);
             let sx = x.sqrt();
-            return two * Self::log_range_reduce(&sx);
+            return Self::log_range_reduce(&sx).scale(1, even);
         }
 
         if x < &one {
