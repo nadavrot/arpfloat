@@ -3,6 +3,7 @@ extern crate alloc;
 use super::bigint::BigInt;
 use super::float::Float;
 use alloc::string::{String, ToString};
+use alloc::vec::Vec;
 use core::cmp::Ordering;
 use core::fmt::Display;
 
@@ -81,26 +82,27 @@ impl Float {
     }
 
     fn convert_normal_to_string(&self) -> String {
-        use alloc::vec::Vec;
-        let (mut integer, mut exp) = self.convert_to_integer();
+        // Convert the integer to base-10 integer, and e, the exponent in
+        // base 10 (scientific notation).
+        let (mut integer, mut e) = self.convert_to_integer();
+
+        // Try to shorten the number.
+        self.reduce_printed_integer_length(&mut integer, &mut e);
+
+        // Extract the digits: Div10-Mod10-Div10-Mod10 ....
         let mut buff = Vec::new();
-        let ten = BigInt::from_u64(10);
-
-        self.reduce_printed_integer_length(&mut integer, &mut exp);
-
-        let chars = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'];
-        while !integer.is_zero() {
-            let rem = integer.inplace_div(&ten);
-            let ch = chars[rem.as_u64() as usize];
-            buff.insert(0, ch);
+        let digits = integer.to_digits::<10>();
+        for d in digits {
+            buff.push(std::char::from_digit(d as u32, 10).unwrap())
         }
 
-        debug_assert!(exp >= 0);
-        while buff.len() < exp as usize {
+        debug_assert!(e >= 0);
+        // Add the trailing zeros, and make room to place the point.
+        while buff.len() < e as usize {
             buff.insert(0, '0');
         }
 
-        buff.insert(buff.len() - exp as usize, '.');
+        buff.insert(buff.len() - e as usize, '.');
         while !buff.is_empty() && buff[buff.len() - 1] == '0' {
             buff.pop();
         }
@@ -226,8 +228,6 @@ fn test_decimal_accuracy_for_type() {
 impl BigInt {
     /// Prints the bigint as a decimal number.
     pub fn as_decimal(&self) -> String {
-        use alloc::vec::Vec;
-
         if self.is_zero() {
             return "0".to_string();
         }

@@ -924,3 +924,78 @@ fn test_mul_div_encode_decode() {
         assert_eq!(message[idx], rem.as_u64());
     }
 }
+
+impl BigInt {
+    /// Converts this number into a sequence of digits in the range 0..DIGIT.
+    pub fn to_digits<const DIGIT: u8>(&self) -> Vec<u8> {
+        let mut digits = Vec::new();
+
+        // Figure out how many digits fit in a single word.
+        let bits_per_digit = 8 - DIGIT.leading_zeros();
+        let digits_per_word = 64 / bits_per_digit;
+        let digit = DIGIT as u64;
+
+        // Multiply a*a*a*a ... until we fill a 64bit word.
+        let divisor = digit.pow(digits_per_word);
+
+        let divisor = BigInt::from_u64(divisor);
+        let digit = BigInt::from_u64(digit);
+
+        let mut num = self.clone();
+        while num > divisor {
+            // Pull a single word of [a*a*a*a ....].
+            let mut rem = num.inplace_div(&divisor);
+
+            // Extract the digits one by one. This is fast because we operate
+            // on a single word.
+            for _ in 0..digits_per_word {
+                let d = rem.inplace_div(&digit).as_u64();
+                digits.push(d as u8);
+            }
+        }
+
+        // Extract the remaining digits one by one. We do this outside the loop
+        // to avoid pushing zero digits.
+        while !num.is_zero() {
+            let d = num.inplace_div(&digit).as_u64();
+            digits.push(d as u8);
+        }
+
+        digits.reverse();
+        digits
+    }
+}
+
+#[test]
+pub fn test_bigint_to_digits() {
+    use alloc::string::String;
+    /// Convert the vector of digits 'vec' of base 'base' into a string.
+    fn vec_to_string(vec: Vec<u8>, base: u32) -> String {
+        let mut sb = String::new();
+        for d in vec {
+            sb.push(std::char::from_digit(d as u32, base).unwrap())
+        }
+        sb
+    }
+
+    // Test binary.
+    let mut num = BigInt::from_u64(0b111000111000101010);
+    num.shift_left(64);
+    let digits = num.to_digits::<2>();
+    assert_eq!(
+        vec_to_string(digits, 2),
+        "1110001110001010100000000000000\
+        0000000000000000000000000000000\
+        00000000000000000000"
+    );
+
+    // Test base 10.
+    let num = BigInt::from_u64(90210);
+    let digits = num.to_digits::<10>();
+    assert_eq!(vec_to_string(digits, 10), "90210");
+
+    // Test base 10 long.
+    let num = BigInt::from_u128(123_456_123_456_987_654_987_654u128);
+    let digits = num.to_digits::<10>();
+    assert_eq!(vec_to_string(digits, 10), "123456123456987654987654");
+}
