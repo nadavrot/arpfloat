@@ -25,10 +25,10 @@ fn main() {
         let q3 = Float::from_u64(FP256, q * q * q);
         let k3 = &kc * &(&kc * &kc);
         m = (k3 - (&kc * &c16)) * m / q3;
-        l = &l + &c2;
-        x = &x * &c3;
-        s = s + (&(&m * &l) / &x);
-        kc = &kc + &c12;
+        l += &c2;
+        x *= &c3;
+        s += &(&m * &l) / &x;
+        kc += &c12;
     }
     let pi = Float::from_u64(FP256, 426880) * (c1 / s);
     println!("pi = {}", pi);

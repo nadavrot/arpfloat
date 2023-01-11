@@ -560,7 +560,7 @@ impl Float {
             prev = sum.clone();
 
             let elem = &top / &Self::from_u64(sem, i * 2 + 1);
-            sum = sum + elem;
+            sum += elem;
 
             // Prepare the next iteration.
             top = &top * &z2;
@@ -646,7 +646,7 @@ impl Float {
             prev = sum.clone();
 
             let elem = &top / &Self::from_bigint(sem, bottom.clone());
-            sum = sum + elem;
+            sum += elem;
 
             // Prepare the next iteration.
             bottom = bottom * BigInt::from_u64(k);

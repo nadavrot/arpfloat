@@ -74,9 +74,7 @@ pub enum Category {
 }
 
 /// This is the main data structure of this library. It represents an
-/// arbitrary-precision floating-point number. The data structure is generic
-/// and accepts the EXPONENT and MANTISSA constants, that represent the encoding
-/// number of bits that are dedicated to storing these values.
+/// arbitrary-precision floating-point number.
 #[derive(Debug, Clone)]
 pub struct Float {
     // The semantics of the float (precision, exponent range).

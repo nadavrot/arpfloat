@@ -15,7 +15,7 @@
 //!  // Use Newton-Raphson to find the square root of 5.
 //!  let mut x = n.clone();
 //!  for _ in 0..20 {
-//!      x = (x.clone() + (&n / &x))/2;
+//!      x += (&n / &x)/2;
 //!  }
 //!
 //!  println!("fp128: {}", x);

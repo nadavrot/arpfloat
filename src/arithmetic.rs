@@ -4,7 +4,9 @@ use crate::bigint::BigInt;
 use super::bigint::LossFraction;
 use super::float::{shift_right_with_loss, Category, Float, RoundingMode};
 use core::cmp::Ordering;
-use core::ops::{Add, Div, Mul, Sub};
+use core::ops::{
+    Add, AddAssign, Div, DivAssign, Mul, MulAssign, Sub, SubAssign,
+};
 
 impl Float {
     /// An inner function that performs the addition and subtraction of normal
@@ -679,6 +681,37 @@ declare_operator!(Add, add, add_with_rm);
 declare_operator!(Sub, sub, sub_with_rm);
 declare_operator!(Mul, mul, mul_with_rm);
 declare_operator!(Div, div, div_with_rm);
+
+macro_rules! declare_assign_operator {
+    ($trait_name:ident,
+     $func_name:ident,
+     $func_impl_name:ident) => {
+        impl $trait_name for Float {
+            fn $func_name(&mut self, rhs: Self) {
+                *self = Self::$func_impl_name(
+                    self,
+                    &rhs,
+                    RoundingMode::NearestTiesToEven,
+                );
+            }
+        }
+
+        impl $trait_name<&Float> for Float {
+            fn $func_name(&mut self, rhs: &Self) {
+                *self = Self::$func_impl_name(
+                    self,
+                    rhs,
+                    RoundingMode::NearestTiesToEven,
+                );
+            }
+        }
+    };
+}
+
+declare_assign_operator!(AddAssign, add_assign, add_with_rm);
+declare_assign_operator!(SubAssign, sub_assign, sub_with_rm);
+declare_assign_operator!(MulAssign, mul_assign, mul_with_rm);
+declare_assign_operator!(DivAssign, div_assign, div_with_rm);
 
 #[test]
 fn test_operators() {
