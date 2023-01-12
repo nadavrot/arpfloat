@@ -623,7 +623,10 @@ impl Float {
             return Self::nan(sem, self.get_sign());
         }
 
-        Self::log_range_reduce(self)
+        let orig_sem = self.get_semantics();
+        let sem = orig_sem.grow_log(10).increase_exponent(10);
+
+        Self::log_range_reduce(&self.cast(sem)).cast(orig_sem)
     }
 }
 
@@ -703,29 +706,28 @@ impl Float {
             return Self::nan(sem, self.get_sign());
         }
 
+        let orig_sem = self.get_semantics();
+        let sem = orig_sem.grow_log(10).increase_exponent(10);
+
         // Handle the negative values.
         if self.is_negative() {
             let one = Self::one(sem, false);
-            return one / self.neg().exp();
+            return one / self.cast(sem).neg().exp();
         }
 
-        Self::exp_range_reduce(self)
+        Self::exp_range_reduce(&self.cast(sem)).cast(orig_sem)
     }
 }
 
 #[test]
 fn test_exp() {
-    use super::FP128;
-    assert_eq!(
-        Float::from_f64(2.51).cast(FP128).exp().as_f64(),
-        12.30493006051041
-    );
+    assert_eq!(Float::from_f64(2.51).exp().as_f64(), 12.30493006051041);
 
     for x in [
         0.000003, 0.001, 0.12, 0.13, 0.5, 1.2, 2.3, 4.5, 9.8, 5.0, 11.2, 15.2,
         25.0, 34.001, 54., 89.1, 91.2, 102.2, 150., 192.4, 212., 256., 102.3,
     ] {
-        let lhs = Float::from_f64(x).cast(FP128).exp().as_f64();
+        let lhs = Float::from_f64(x).exp().as_f64();
         let rhs = x.exp();
         assert_eq!(lhs, rhs);
     }
@@ -738,4 +740,57 @@ fn test_powi() {
     assert_eq!(Float::from_f64(2.).powi(3).as_f64(), 8.);
     assert_eq!(Float::from_f64(2.).powi(5).as_f64(), 32.);
     assert_eq!(Float::from_f64(2.).powi(10).as_f64(), 1024.);
+}
+
+impl Float {
+    /// Return this number raised to the power of 'n'.
+    /// Computed using e^(n * log(self))
+    pub fn pow(&self, n: Float) -> Self {
+        let orig_sem = self.get_semantics();
+        let one = Self::one(orig_sem, false);
+        let sign = self.get_sign();
+
+        assert_eq!(orig_sem, n.get_semantics());
+
+        if *self == one {
+            return self.clone();
+        } else if n.is_inf() || n.is_nan() {
+            return Self::nan(orig_sem, sign);
+        } else if n.is_zero() {
+            return Self::one(orig_sem, sign);
+        } else if self.is_zero() {
+            return if n.is_negative() {
+                Self::inf(orig_sem, sign)
+            } else {
+                Self::zero(orig_sem, sign)
+            };
+        } else if self.is_negative() || self.is_inf() || self.is_nan() {
+            return Self::nan(orig_sem, sign);
+        }
+
+        let sem = orig_sem.grow_log(10).increase_exponent(10);
+        (n.cast(sem) * self.cast(sem).log()).exp().cast(orig_sem)
+    }
+}
+
+#[test]
+fn test_pow() {
+    fn my_pow(a: f32, b: f32) -> f32 {
+        Float::from_f32(a).pow(Float::from_f32(b)).as_f32()
+    }
+
+    assert_eq!(my_pow(1.24, 1.2), 1.2945118);
+    assert_eq!(my_pow(0.94, 13.), 0.44736509);
+    assert_eq!(my_pow(0.11, -8.), 46650738.02097334);
+    assert_eq!(my_pow(40.0, 3.1), 92552.0);
+
+    for i in 0..30 {
+        for j in -10..10 {
+            let i = i as f64;
+            let j = j as f64;
+            let res = i.powf(j);
+            let res2 = Float::from_f64(i).pow(Float::from_f64(j));
+            assert_eq!(res, res2.as_f64());
+        }
+    }
 }

@@ -51,6 +51,12 @@ impl Semantics {
     pub fn increase_precision(&self, more: usize) -> Semantics {
         Semantics::new(self.exponent, self.precision + more)
     }
+    /// Create a new float semantics with increased precision with 'add'
+    /// additional digits, plus ceil(log2) of the number.
+    pub fn grow_log(&self, more: usize) -> Semantics {
+        let log2 = 64 - (self.precision as u64).leading_zeros() as usize;
+        Semantics::new(self.exponent, self.precision + more + log2)
+    }
     /// Create a new float semantics with increased exponent with 'more'
     /// additional digits.
     pub fn increase_exponent(&self, more: usize) -> Semantics {
@@ -198,7 +204,7 @@ impl Float {
         false
     }
 
-    /// Returns true if the Float is a +- NaN.
+    /// Returns true if the Float is a +- zero.
     pub fn is_zero(&self) -> bool {
         if let Category::Zero = self.category {
             return true;
