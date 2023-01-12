@@ -613,3 +613,20 @@ fn test_one_imm() {
     let x = Float::one(sem, false);
     assert_eq!(x.as_f64(), 1.0);
 }
+
+#[test]
+pub fn test_bigint_ctor() {
+    use RoundingMode::NearestTiesToEven as rm;
+    // Make sure that we can load numbers of the highest border of the FP16
+    // number.
+    let bi = BigInt::from_u64(65519);
+    assert_eq!(Float::from_bigint(FP16, bi).cast(FP32).to_i64(rm), 65504);
+    assert_eq!(Float::from_f64(65519.).cast(FP16).to_i64(rm), 65504);
+
+    // Make sure that we can load numbers that are greater than the precision
+    // and that normalization fixes and moves things to the right place.
+    let sem = Semantics::new(40, 10);
+    let bi = BigInt::from_u64(1 << 14);
+    let num = Float::from_bigint(sem, bi);
+    assert_eq!(num.to_i64(rm), 1 << 14);
+}
