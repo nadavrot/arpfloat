@@ -456,28 +456,33 @@ impl Float {
             val = val.neg();
             neg ^= true;
         }
-        let pi = Self::pi(sem);
-        let pi2 = pi.scale(1, RoundingMode::Zero);
-        let pi_half = pi.scale(-1, RoundingMode::Zero);
 
-        // Step 1
-        if val > pi2 {
-            val = val.rem(&pi2);
-        }
+        let is_small = self.get_exp() < 0;
 
-        debug_assert!(val <= pi2);
-        // Step 2.
-        if val > pi {
-            val = &val - &pi;
-            neg ^= true;
-        }
+        if !is_small {
+            let pi = Self::pi(sem);
+            let pi2 = pi.scale(1, RoundingMode::Zero);
+            let pi_half = pi.scale(-1, RoundingMode::Zero);
 
-        debug_assert!(val <= pi);
-        // Step 3.
-        if val > pi_half {
-            val = pi - val;
+            // Step 1
+            if val > pi2 {
+                val = val.rem(&pi2);
+            }
+
+            debug_assert!(val <= pi2);
+            // Step 2.
+            if val > pi {
+                val = &val - &pi;
+                neg ^= true;
+            }
+
+            debug_assert!(val <= pi);
+            // Step 3.
+            if val > pi_half {
+                val = pi - val;
+            }
+            debug_assert!(val <= pi_half);
         }
-        debug_assert!(val <= pi_half);
 
         let res = Self::sin_step4_reduction(&val, 16);
         let res = if neg { res.neg() } else { res };
