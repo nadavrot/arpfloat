@@ -927,42 +927,96 @@ fn test_mul_div_encode_decode() {
 
 impl BigInt {
     /// Converts this number into a sequence of digits in the range 0..DIGIT.
-    pub fn to_digits<const DIGIT: u8>(&self) -> Vec<u8> {
-        let mut digits = Vec::new();
+    /// Use a recursive algorithm to split the number in half, if the number is
+    /// too big.
+    /// Return the number of digits that were converted.
+    fn to_digits_impl<const DIGIT: u8>(
+        num: &mut BigInt,
+        num_digits: usize,
+        output: &mut Vec<u8>,
+    ) -> usize {
+        const SPLIT_WORD_THRESHOLD: usize = 5;
 
         // Figure out how many digits fit in a single word.
-        let bits_per_digit = 8 - DIGIT.leading_zeros();
+        let bits_per_digit = (8 - DIGIT.leading_zeros()) as usize;
         let digits_per_word = 64 / bits_per_digit;
         let digit = DIGIT as u64;
 
+        // If the word is too big, split it in half.
+        let len = num.len();
+        if len > SPLIT_WORD_THRESHOLD {
+            let half = len / 2 - 1;
+            // Figure out how many digits to extract:
+            let k = digits_per_word * half;
+            // Create a mega digit (a*a*a*a....).
+            let mega_digit = BigInt::from_u64(digit).powi(k as u64);
+            // Extract the lowest k digits.
+            let mut rem = num.inplace_div(&mega_digit);
+
+            // Convert the two parts to digits:
+            let tail = Self::to_digits_impl::<DIGIT>(&mut rem, k, output);
+            let hd = Self::to_digits_impl::<DIGIT>(num, num_digits - k, output);
+            debug_assert_eq!(tail, k);
+            debug_assert_eq!(hd, num_digits - k);
+            return num_digits;
+        }
+
+        let mut extracted = 0;
+
         // Multiply a*a*a*a ... until we fill a 64bit word.
-        let divisor = digit.pow(digits_per_word);
-
-        let divisor = BigInt::from_u64(divisor);
-        let digit = BigInt::from_u64(digit);
-
-        let mut num = self.clone();
-        while num > divisor {
+        let divisor = BigInt::from_u64(digit.pow(digits_per_word as u32));
+        // For each word:
+        for _ in 0..(num_digits / digits_per_word) {
             // Pull a single word of [a*a*a*a ....].
             let mut rem = num.inplace_div(&divisor);
-
-            // Extract the digits one by one. This is fast because we operate
-            // on a single word.
-            for _ in 0..digits_per_word {
-                let d = rem.inplace_div(&digit).as_u64();
-                digits.push(d as u8);
-            }
+            // This is fast because we operate on a single word.
+            extracted += digits_per_word;
+            Self::extract_digits::<DIGIT>(digits_per_word, &mut rem, output);
         }
 
-        // Extract the remaining digits one by one. We do this outside the loop
-        // to avoid pushing zero digits.
-        while !num.is_zero() {
+        // Handle the rest of the digits.
+        let iters = num_digits % digits_per_word;
+        Self::extract_digits::<DIGIT>(iters, num, output);
+        extracted += iters;
+
+        extracted
+    }
+
+    // Extract 'iter' digits from 'num', one by one, and push them to 'vec'.
+    fn extract_digits<const DIGIT: u8>(
+        iter: usize,
+        num: &mut BigInt,
+        vec: &mut Vec<u8>,
+    ) {
+        let digit = BigInt::from_u64(DIGIT as u64);
+        for _ in 0..iter {
             let d = num.inplace_div(&digit).as_u64();
-            digits.push(d as u8);
+            vec.push(d as u8);
+        }
+    }
+
+    /// Converts this number into a sequence of digits in the range 0..DIGIT.
+    pub fn to_digits<const DIGIT: u8>(&self) -> Vec<u8> {
+        let mut num = self.clone();
+        num.shrink();
+
+        let mut output: Vec<u8> = Vec::new();
+
+        while !num.is_zero() {
+            let len = num.len();
+            // Figure out how many digits fit in the number.
+            // See 'get_decimal_accuracy'.
+            let digits = (len * 64 * 59) / 196;
+            Self::to_digits_impl::<DIGIT>(&mut num, digits, &mut output);
         }
 
-        digits.reverse();
-        digits
+        // Eliminate leading zeros.
+
+        while output.len() > 1 && output[output.len() - 1] == 0 {
+            output.pop();
+        }
+        output.reverse();
+        output
     }
 }
 
