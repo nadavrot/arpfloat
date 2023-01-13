@@ -5,7 +5,7 @@ use core::cmp::Ordering;
 
 /// Defines the supported rounding modes.
 /// See IEEE754-2019 Section 4.3 Rounding-direction attributes
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum RoundingMode {
     None,
     NearestTiesToEven,
@@ -24,13 +24,20 @@ pub struct Semantics {
     pub exponent: usize,
     /// The number of bits in the significand (mantissa + 1).
     pub precision: usize,
+    /// The rounding mode used when performing operations on this type.
+    pub mode: RoundingMode,
 }
 
 impl Semantics {
-    pub const fn new(exponent: usize, precision: usize) -> Self {
+    pub const fn new(
+        exponent: usize,
+        precision: usize,
+        mode: RoundingMode,
+    ) -> Self {
         Semantics {
             exponent,
             precision,
+            mode,
         }
     }
     /// Returns the precision in bits.
@@ -47,21 +54,30 @@ impl Semantics {
         self.exponent
     }
 
+    /// Returns the rounding mode of the type.
+    pub fn get_rounding_mode(&self) -> RoundingMode {
+        self.mode
+    }
+
     /// Create a new float semantics with increased precision with 'add'
     /// additional digits.
     pub fn increase_precision(&self, more: usize) -> Semantics {
-        Semantics::new(self.exponent, self.precision + more)
+        Semantics::new(self.exponent, self.precision + more, self.mode)
     }
     /// Create a new float semantics with increased precision with 'add'
     /// additional digits, plus ceil(log2) of the number.
     pub fn grow_log(&self, more: usize) -> Semantics {
         let log2 = 64 - (self.precision as u64).leading_zeros() as usize;
-        Semantics::new(self.exponent, self.precision + more + log2)
+        Semantics::new(self.exponent, self.precision + more + log2, self.mode)
     }
     /// Create a new float semantics with increased exponent with 'more'
     /// additional digits.
     pub fn increase_exponent(&self, more: usize) -> Semantics {
-        Semantics::new(self.exponent + more, self.precision)
+        Semantics::new(self.exponent + more, self.precision, self.mode)
+    }
+    /// Create a new float semantics with a different rounding mode 'mode'.
+    pub fn with_rm(&self, rm: RoundingMode) -> Semantics {
+        Semantics::new(self.exponent, self.precision, rm)
     }
 
     /// Returns the exponent bias for the number, as a positive number.
@@ -313,17 +329,18 @@ impl Float {
 
 // IEEE 754-2019
 // Table 3.5 — Binary interchange format parameters.
+use RoundingMode::NearestTiesToEven as nte;
 
 /// Predefined FP16 float with 5 exponent bits, and 10 mantissa bits.
-pub const FP16: Semantics = Semantics::new(5, 11);
+pub const FP16: Semantics = Semantics::new(5, 11, nte);
 /// Predefined FP32 float with 8 exponent bits, and 23 mantissa bits.
-pub const FP32: Semantics = Semantics::new(8, 24);
+pub const FP32: Semantics = Semantics::new(8, 24, nte);
 /// Predefined FP64 float with 11 exponent bits, and 52 mantissa bits.
-pub const FP64: Semantics = Semantics::new(11, 53);
+pub const FP64: Semantics = Semantics::new(11, 53, nte);
 /// Predefined FP128 float with 15 exponent bits, and 112 mantissa bits.
-pub const FP128: Semantics = Semantics::new(15, 113);
+pub const FP128: Semantics = Semantics::new(15, 113, nte);
 /// Predefined FP256 float with 19 exponent bits, and 236 mantissa bits.
-pub const FP256: Semantics = Semantics::new(19, 237);
+pub const FP256: Semantics = Semantics::new(19, 237, nte);
 
 //// Shift `val` by `bits`, and report the loss.
 pub(crate) fn shift_right_with_loss(
@@ -618,24 +635,23 @@ fn test_comparisons() {
 
 #[test]
 fn test_one_imm() {
-    let sem = Semantics::new(10, 12);
+    let sem = Semantics::new(10, 12, nte);
     let x = Float::one(sem, false);
     assert_eq!(x.as_f64(), 1.0);
 }
 
 #[test]
 pub fn test_bigint_ctor() {
-    use RoundingMode::NearestTiesToEven as rm;
     // Make sure that we can load numbers of the highest border of the FP16
     // number.
     let bi = BigInt::from_u64(65519);
-    assert_eq!(Float::from_bigint(FP16, bi).cast(FP32).to_i64(rm), 65504);
-    assert_eq!(Float::from_f64(65519.).cast(FP16).to_i64(rm), 65504);
+    assert_eq!(Float::from_bigint(FP16, bi).cast(FP32).to_i64(), 65504);
+    assert_eq!(Float::from_f64(65519.).cast(FP16).to_i64(), 65504);
 
     // Make sure that we can load numbers that are greater than the precision
     // and that normalization fixes and moves things to the right place.
-    let sem = Semantics::new(40, 10);
+    let sem = Semantics::new(40, 10, nte);
     let bi = BigInt::from_u64(1 << 14);
     let num = Float::from_bigint(sem, bi);
-    assert_eq!(num.to_i64(rm), 1 << 14);
+    assert_eq!(num.to_i64(), 1 << 14);
 }

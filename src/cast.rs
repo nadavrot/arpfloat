@@ -19,7 +19,7 @@ impl Float {
     /// overflow, or rounded to the nearest even integer.
     pub fn from_bigint(sem: Semantics, val: BigInt) -> Self {
         let mut a = Self::new(sem, false, sem.get_mantissa_len() as i64, val);
-        a.normalize(RoundingMode::NearestTiesToEven, LossFraction::ExactlyZero);
+        a.normalize(sem.get_rounding_mode(), LossFraction::ExactlyZero);
         a
     }
 
@@ -36,7 +36,7 @@ impl Float {
     }
 
     /// Converts and returns the rounded integral part.
-    pub fn to_i64(&self, rm: RoundingMode) -> i64 {
+    pub fn to_i64(&self) -> i64 {
         if self.is_nan() || self.is_zero() {
             return 0;
         }
@@ -48,7 +48,7 @@ impl Float {
                 return i64::MAX;
             }
         }
-
+        let rm = self.get_semantics().get_rounding_mode();
         let val = self.convert_normal_to_integer(rm);
         if self.get_sign() {
             -(val.as_u64() as i64)
@@ -184,7 +184,7 @@ impl Float {
         Self::new(sem, sign, exp, mantissa)
     }
 
-    /// Cast to another float using the rounding mode `rm`.
+    /// Cast to another float using the non-default rounding mode `rm`.
     pub fn cast_with_rm(&self, to: Semantics, rm: RoundingMode) -> Float {
         let mut loss = LossFraction::ExactlyZero;
         let exp_delta =
@@ -214,7 +214,7 @@ impl Float {
     }
     /// Convert from one float format to another.
     pub fn cast(&self, to: Semantics) -> Float {
-        self.cast_with_rm(to, RoundingMode::NearestTiesToEven)
+        self.cast_with_rm(to, self.get_semantics().get_rounding_mode())
     }
 
     fn as_native_float(&self) -> u64 {
@@ -288,45 +288,46 @@ impl Float {
 fn test_rounding_to_integer() {
     // Test the low integers with round-to-zero.
     for i in 0..100 {
-        let r = Float::from_f64(i as f64 + 0.1).to_i64(RoundingMode::Zero);
+        let z64 = FP64.with_rm(RoundingMode::Zero);
+        let r = Float::from_f64(i as f64 + 0.1).cast(z64).to_i64();
         assert_eq!(i, r);
     }
 
     // Test the high integers with round_to_zero.
     for i in 0..100 {
+        let z64 = FP64.with_rm(RoundingMode::Zero);
         let val = (i as i64) << 54;
-        let r = Float::from_i64(FP64, val).to_i64(RoundingMode::Zero);
+        let r = Float::from_i64(FP64, val).cast(z64).to_i64();
         assert_eq!(val, r);
     }
 
-    use RoundingMode::NearestTiesToAway;
-    assert_eq!(1, Float::from_f64(0.5).to_i64(NearestTiesToAway));
-    assert_eq!(0, Float::from_f64(0.49).to_i64(NearestTiesToAway));
-    assert_eq!(199999, Float::from_f64(199999.49).to_i64(NearestTiesToAway));
-    assert_eq!(0, Float::from_f64(-0.49).to_i64(NearestTiesToAway));
-    assert_eq!(-1, Float::from_f64(-0.5).to_i64(NearestTiesToAway));
+    let nta64 = FP64.with_rm(RoundingMode::NearestTiesToAway);
+    assert_eq!(1, Float::from_f64(0.5).cast(nta64).to_i64());
+    assert_eq!(0, Float::from_f64(0.49).cast(nta64).to_i64());
+    assert_eq!(199999, Float::from_f64(199999.49).cast(nta64).to_i64());
+    assert_eq!(0, Float::from_f64(-0.49).cast(nta64).to_i64());
+    assert_eq!(-1, Float::from_f64(-0.5).cast(nta64).to_i64());
 
-    use RoundingMode::Zero;
-    assert_eq!(0, Float::from_f64(0.9).to_i64(Zero));
-    assert_eq!(1, Float::from_f64(1.1).to_i64(Zero));
-    assert_eq!(99, Float::from_f64(99.999).to_i64(Zero));
-    assert_eq!(0, Float::from_f64(-0.99).to_i64(Zero));
-    assert_eq!(0, Float::from_f64(-0.5).to_i64(Zero));
+    let z64 = FP64.with_rm(RoundingMode::Zero);
+    assert_eq!(0, Float::from_f64(0.9).cast(z64).to_i64());
+    assert_eq!(1, Float::from_f64(1.1).cast(z64).to_i64());
+    assert_eq!(99, Float::from_f64(99.999).cast(z64).to_i64());
+    assert_eq!(0, Float::from_f64(-0.99).cast(z64).to_i64());
+    assert_eq!(0, Float::from_f64(-0.5).cast(z64).to_i64());
 
-    use RoundingMode::Positive;
-    assert_eq!(1, Float::from_f64(0.9).to_i64(Positive));
-    assert_eq!(2, Float::from_f64(1.1).to_i64(Positive));
-    assert_eq!(100, Float::from_f64(99.999).to_i64(Positive));
-    assert_eq!(0, Float::from_f64(-0.99).to_i64(Positive));
-    assert_eq!(0, Float::from_f64(-0.5).to_i64(Positive));
+    let p64 = FP64.with_rm(RoundingMode::Positive);
+    assert_eq!(1, Float::from_f64(0.9).cast(p64).to_i64());
+    assert_eq!(2, Float::from_f64(1.1).cast(p64).to_i64());
+    assert_eq!(100, Float::from_f64(99.999).cast(p64).to_i64());
+    assert_eq!(0, Float::from_f64(-0.99).cast(p64).to_i64());
+    assert_eq!(0, Float::from_f64(-0.5).cast(p64).to_i64());
 
     // Special values
-    use RoundingMode::NearestTiesToEven;
     let n_inf = f64::NEG_INFINITY;
     let inf = f64::INFINITY;
-    assert_eq!(0, Float::from_f64(f64::NAN).to_i64(NearestTiesToEven));
-    assert_eq!(i64::MIN, Float::from_f64(n_inf).to_i64(NearestTiesToEven));
-    assert_eq!(i64::MAX, Float::from_f64(inf).to_i64(NearestTiesToEven));
+    assert_eq!(0, Float::from_f64(f64::NAN).to_i64());
+    assert_eq!(i64::MIN, Float::from_f64(n_inf).to_i64());
+    assert_eq!(i64::MAX, Float::from_f64(inf).to_i64());
 }
 
 #[test]
@@ -601,6 +602,6 @@ fn test_cast_sizes() {
         let narrow = Float::from_u64(FP16, 50);
         let wide = narrow.cast(FP256);
         assert_eq!(wide.as_f64(), narrow.as_f64());
-        assert_eq!(wide.to_i64(RoundingMode::NearestTiesToEven), 50);
+        assert_eq!(wide.to_i64(), 50);
     }
 }

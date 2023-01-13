@@ -621,11 +621,8 @@ macro_rules! declare_operator {
         impl $trait_name for Float {
             type Output = Self;
             fn $func_name(self, rhs: Self) -> Self {
-                Self::$func_impl_name(
-                    &self,
-                    &rhs,
-                    RoundingMode::NearestTiesToEven,
-                )
+                let sem = self.get_semantics();
+                Self::$func_impl_name(&self, &rhs, sem.get_rounding_mode())
             }
         }
 
@@ -633,10 +630,11 @@ macro_rules! declare_operator {
         impl $trait_name<u64> for Float {
             type Output = Self;
             fn $func_name(self, rhs: u64) -> Self {
+                let sem = self.get_semantics();
                 Self::$func_impl_name(
                     &self,
-                    &Self::Output::from_u64(self.get_semantics(), rhs),
-                    RoundingMode::NearestTiesToEven,
+                    &Self::Output::from_u64(sem, rhs),
+                    sem.get_rounding_mode(),
                 )
             }
         }
@@ -644,10 +642,11 @@ macro_rules! declare_operator {
         impl $trait_name<Self> for &Float {
             type Output = Float;
             fn $func_name(self, rhs: Self) -> Self::Output {
+                let sem = self.get_semantics();
                 Self::Output::$func_impl_name(
                     &self,
                     rhs,
-                    RoundingMode::NearestTiesToEven,
+                    sem.get_rounding_mode(),
                 )
             }
         }
@@ -655,10 +654,11 @@ macro_rules! declare_operator {
         impl $trait_name<u64> for &Float {
             type Output = Float;
             fn $func_name(self, rhs: u64) -> Self::Output {
+                let sem = self.get_semantics();
                 Self::Output::$func_impl_name(
                     &self,
                     &Self::Output::from_u64(self.get_semantics(), rhs),
-                    RoundingMode::NearestTiesToEven,
+                    sem.get_rounding_mode(),
                 )
             }
         }
@@ -667,10 +667,11 @@ macro_rules! declare_operator {
         impl $trait_name<Float> for &Float {
             type Output = Float;
             fn $func_name(self, rhs: Float) -> Self::Output {
+                let sem = self.get_semantics();
                 Self::Output::$func_impl_name(
                     &self,
                     &rhs,
-                    RoundingMode::NearestTiesToEven,
+                    sem.get_rounding_mode(),
                 )
             }
         }
@@ -688,21 +689,17 @@ macro_rules! declare_assign_operator {
      $func_impl_name:ident) => {
         impl $trait_name for Float {
             fn $func_name(&mut self, rhs: Self) {
-                *self = Self::$func_impl_name(
-                    self,
-                    &rhs,
-                    RoundingMode::NearestTiesToEven,
-                );
+                let sem = self.get_semantics();
+                *self =
+                    Self::$func_impl_name(self, &rhs, sem.get_rounding_mode());
             }
         }
 
         impl $trait_name<&Float> for Float {
             fn $func_name(&mut self, rhs: &Self) {
-                *self = Self::$func_impl_name(
-                    self,
-                    rhs,
-                    RoundingMode::NearestTiesToEven,
-                );
+                let sem = self.get_semantics();
+                *self =
+                    Self::$func_impl_name(self, rhs, sem.get_rounding_mode());
             }
         }
     };

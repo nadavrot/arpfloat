@@ -2,6 +2,7 @@ extern crate alloc;
 
 use super::bigint::BigInt;
 use super::float::Float;
+use super::RoundingMode;
 use super::Semantics;
 use alloc::string::{String, ToString};
 use alloc::vec::Vec;
@@ -136,13 +137,27 @@ impl Display for Float {
     }
 }
 
+impl RoundingMode {
+    pub fn as_string(&self) -> &str {
+        match self {
+            RoundingMode::None => "None",
+            RoundingMode::NearestTiesToEven => "NearestTiesToEven",
+            RoundingMode::NearestTiesToAway => "NearestTiesToAway",
+            RoundingMode::Zero => "Zero",
+            RoundingMode::Positive => "Positive",
+            RoundingMode::Negative => "Negative",
+        }
+    }
+}
+
 impl Display for Semantics {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         write!(
             f,
-            "(exponent:{} precision:{})",
+            "(exponent:{} precision:{} rm:{})",
             self.get_exponent_len(),
-            self.get_precision()
+            self.get_precision(),
+            self.get_rounding_mode().as_string()
         )
     }
 }

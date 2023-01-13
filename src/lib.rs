@@ -67,10 +67,10 @@
 //!
 //! Define new float formats and use high-precision transcendental functions:
 //!```
-//!  use arpfloat::{Float, Semantics};
+//!  use arpfloat::{Float, Semantics, RoundingMode};
 //!  // Define a new float format with 120 bits of accuracy, and dynamic range
 //!  // of 2^10.
-//!  let sem = Semantics::new(10, 120);
+//!  let sem = Semantics::new(10, 120, RoundingMode::NearestTiesToEven);
 //!
 //!  let pi = Float::pi(sem);
 //!  let x = Float::exp(&pi);
