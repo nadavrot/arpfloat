@@ -7,6 +7,7 @@ use core::cmp::Ordering;
 /// See IEEE754-2019 Section 4.3 Rounding-direction attributes
 #[derive(Debug, Clone, Copy)]
 pub enum RoundingMode {
+    None,
     NearestTiesToEven,
     NearestTiesToAway,
     Zero,
@@ -381,6 +382,7 @@ impl Float {
         );
 
         *self = match rm {
+            RoundingMode::None => inf,
             RoundingMode::NearestTiesToEven => inf,
             RoundingMode::NearestTiesToAway => inf,
             RoundingMode::Zero => max,
@@ -433,6 +435,7 @@ impl Float {
             RoundingMode::Positive => !self.sign,
             RoundingMode::Negative => self.sign,
             RoundingMode::Zero => false,
+            RoundingMode::None => false,
             RoundingMode::NearestTiesToAway => loss.is_gte_half(),
             RoundingMode::NearestTiesToEven => {
                 if loss.is_mt_half() {
