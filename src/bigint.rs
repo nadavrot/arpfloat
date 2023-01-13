@@ -1,7 +1,9 @@
 extern crate alloc;
 
 use core::cmp::Ordering;
-use core::ops::{Add, Div, Mul, Sub};
+use core::ops::{
+    Add, AddAssign, Div, DivAssign, Mul, MulAssign, Sub, SubAssign,
+};
 
 use alloc::vec::Vec;
 
@@ -835,6 +837,29 @@ declare_operator!(Add, add, inplace_add);
 declare_operator!(Sub, sub, inplace_sub);
 declare_operator!(Mul, mul, inplace_mul);
 declare_operator!(Div, div, inplace_div);
+
+macro_rules! declare_assign_operator {
+    ($trait_name:ident,
+     $func_name:ident,
+     $func_impl_name:ident) => {
+        impl $trait_name for BigInt {
+            fn $func_name(&mut self, rhs: Self) {
+                let _ = self.$func_impl_name(&rhs);
+            }
+        }
+
+        impl $trait_name<&BigInt> for BigInt {
+            fn $func_name(&mut self, rhs: &Self) {
+                let _ = self.$func_impl_name(&rhs);
+            }
+        }
+    };
+}
+
+declare_assign_operator!(AddAssign, add_assign, inplace_add);
+declare_assign_operator!(SubAssign, sub_assign, inplace_sub);
+declare_assign_operator!(MulAssign, mul_assign, inplace_mul);
+declare_assign_operator!(DivAssign, div_assign, inplace_div);
 
 #[test]
 fn test_bigint_operators() {

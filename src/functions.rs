@@ -409,7 +409,7 @@ impl Float {
             // Prepare the next element.
             top = &top * &x2;
             let next_term = BigInt::from_u64((i * 2) * (i * 2 + 1));
-            bottom = bottom * &next_term;
+            bottom *= next_term;
             neg ^= true;
         }
 
@@ -674,7 +674,7 @@ impl Float {
             sum += elem;
 
             // Prepare the next iteration.
-            bottom = bottom * BigInt::from_u64(k);
+            bottom *= BigInt::from_u64(k);
             top = &top * x;
         }
 
