@@ -210,7 +210,7 @@ impl Float {
         // require rounding, so if we want to get the accurate results we need
         // to operate with increased precision.
         let orig_sem = sem;
-        let sem = sem.increase_precision(10).increase_exponent(4);
+        let sem = sem.increase_precision(2);
 
         use RoundingMode::NearestTiesToEven as rm;
 
@@ -236,7 +236,7 @@ impl Float {
     /// Computes e using Euler's continued fraction, which is a simple series.
     pub fn e(sem: Semantics) -> Self {
         let orig_sem = sem;
-        let sem = sem.increase_precision(10);
+        let sem = sem.increase_precision(1);
 
         let one = Self::one(sem, false);
         let mut term = one.clone();
@@ -253,8 +253,10 @@ impl Float {
 #[cfg(feature = "std")]
 #[test]
 fn test_pi() {
+    use super::FP32;
     use crate::FP64;
     assert_eq!(Float::pi(FP64).as_f64(), std::f64::consts::PI);
+    assert_eq!(Float::pi(FP32).as_f32(), std::f32::consts::PI);
 }
 
 #[cfg(feature = "std")]
@@ -315,9 +317,9 @@ impl Float {
             let scale = lhs.get_exp() - rhs.get_exp();
 
             // Scale RHS by a power of two. If we overshoot, take a step back.
-            let mut diff = rhs.scale(scale, RoundingMode::NearestTiesToEven);
+            let mut diff = rhs.scale(scale, RoundingMode::None);
             if diff > lhs {
-                diff = rhs.scale(scale - 1, RoundingMode::NearestTiesToEven);
+                diff = rhs.scale(scale - 1, RoundingMode::None);
             }
 
             lhs = lhs.sub(diff);
@@ -333,9 +335,9 @@ impl Float {
 fn test_scale() {
     use super::FP64;
     let x = Float::from_u64(FP64, 1);
-    let y = x.scale(1, RoundingMode::NearestTiesToEven);
+    let y = x.scale(1, RoundingMode::None);
     assert_eq!(y.as_f64(), 2.0);
-    let z = x.scale(-1, RoundingMode::NearestTiesToEven);
+    let z = x.scale(-1, RoundingMode::None);
     assert_eq!(z.as_f64(), 0.5);
 }
 
@@ -419,17 +421,20 @@ impl Float {
     /// Reduce sin(x) in the range 0..pi/2, using the identity:
     /// sin(3x) = 3sin(x)-4(sin(x)^3)
     fn sin_step4_reduction(x: &Self, steps: usize) -> Self {
+        use RoundingMode::None as rm;
         if steps == 0 {
             return Self::sin_taylor(x);
         }
-
-        let x3 = x / 3;
-        let sx = Self::sin_step4_reduction(&x3, steps - 1);
-        (&sx * 3) - sx.powi(3) * 4
+        let i3 = Float::from_u64(x.get_semantics(), 3);
+        let x3 = Float::div_with_rm(x, &i3, rm);
+        let sx = Float::sin_step4_reduction(&x3, steps - 1);
+        let sx3 = Float::mul_with_rm(&sx, &i3, rm);
+        Float::sub_with_rm(&sx3, &sx.powi(3).scale(2, rm), rm)
     }
 
     /// Return the sine function.
     pub fn sin(&self) -> Self {
+        use RoundingMode::None as rm;
         // Fast Trigonometric functions for Arbitrary Precision number
         // by Henrik Vestermark.
 
@@ -442,14 +447,13 @@ impl Float {
         }
 
         let orig_sem = self.get_semantics();
-        let sem = orig_sem.increase_precision(20).increase_exponent(4);
+        let sem = orig_sem.grow_log(14).increase_exponent(4);
 
         assert!(self.is_normal());
 
         let mut neg = false;
-        // Step1 range reduction.
 
-        let mut val = self.cast(sem);
+        let mut val = self.cast_with_rm(sem, rm);
 
         // Handle the negatives.
         if val.is_negative() {
@@ -457,12 +461,13 @@ impl Float {
             neg ^= true;
         }
 
+        // Range reductions.
         let is_small = self.get_exp() < 0;
 
         if !is_small {
             let pi = Self::pi(sem);
-            let pi2 = pi.scale(1, RoundingMode::Zero);
-            let pi_half = pi.scale(-1, RoundingMode::Zero);
+            let pi2 = pi.scale(1, rm);
+            let pi_half = pi.scale(-1, rm);
 
             // Step 1
             if val > pi2 {
@@ -472,14 +477,14 @@ impl Float {
             debug_assert!(val <= pi2);
             // Step 2.
             if val > pi {
-                val = &val - &pi;
+                val = Float::sub_with_rm(&val, &pi, rm);
                 neg ^= true;
             }
 
             debug_assert!(val <= pi);
             // Step 3.
             if val > pi_half {
-                val = pi - val;
+                val = Float::sub_with_rm(&pi, &val, rm);
             }
             debug_assert!(val <= pi_half);
         }
@@ -543,17 +548,19 @@ fn test_sin() {
 impl Float {
     /// Compute log(2).
     pub fn ln2(sem: Semantics) -> Self {
+        use RoundingMode::None as rm;
+        let sem2 = sem.increase_precision(8);
+
         // Represent log(2) using the sum 1/k*2^k
-        let one = Self::one(sem, false);
-        let mut sum = Self::zero(sem, false);
-        let mut prev = Self::inf(sem, true);
+        let one = Self::one(sem2, false);
+        let mut sum = Self::zero(sem2, false);
+        let mut prev = Self::inf(sem2, true);
         for k in 1..500 {
-            let k2 = Self::from_u64(sem, 1).scale(k, RoundingMode::Zero);
-            let k = Self::from_u64(sem, k as u64);
-            let term = &one / &(k * k2);
-
-            sum = &sum + &term;
-
+            let k2 = Self::from_u64(sem2, 1).scale(k, rm);
+            let k = Self::from_u64(sem2, k as u64);
+            let kk2 = &Float::mul_with_rm(&k, &k2, rm);
+            let term = Float::div_with_rm(&one, kk2, rm);
+            sum = Float::add_with_rm(&sum, &term, rm);
             if prev == sum {
                 break;
             }
@@ -613,6 +620,7 @@ impl Float {
 
     /// Computes logarithm of 'x'.
     pub fn log(&self) -> Self {
+        use RoundingMode::None as rm;
         let sem = self.get_semantics();
 
         //Fast Logarithm function for Arbitrary Precision number,
@@ -626,15 +634,16 @@ impl Float {
         let orig_sem = self.get_semantics();
         let sem = orig_sem.grow_log(10).increase_exponent(10);
 
-        Self::log_range_reduce(&self.cast(sem)).cast(orig_sem)
+        let x = &self.cast_with_rm(sem, rm);
+        Self::log_range_reduce(x).cast_with_rm(orig_sem, rm)
     }
 }
 
 #[cfg(feature = "std")]
 #[test]
 fn test_ln2() {
-    use super::FP128;
-    assert_eq!(Float::ln2(FP128).as_f64(), std::f64::consts::LN_2);
+    use super::FP64;
+    assert_eq!(Float::ln2(FP64).as_f64(), std::f64::consts::LN_2);
 }
 
 #[test]
