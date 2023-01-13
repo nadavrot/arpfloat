@@ -210,7 +210,7 @@ impl Float {
         // require rounding, so if we want to get the accurate results we need
         // to operate with increased precision.
         let orig_sem = sem;
-        let sem = sem.increase_precision(2);
+        let sem = sem.grow_log(4);
 
         use RoundingMode::NearestTiesToEven as rm;
 
