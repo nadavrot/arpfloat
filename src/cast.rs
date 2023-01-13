@@ -206,7 +206,7 @@ impl Float {
         );
         // Don't normalize if this is a nop conversion.
         if to.get_exponent_len() != self.get_exponent_len()
-            && to.get_mantissa_len() != self.get_mantissa_len()
+            || to.get_mantissa_len() != self.get_mantissa_len()
         {
             x.normalize(rm, loss);
         }
