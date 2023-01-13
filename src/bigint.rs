@@ -462,13 +462,8 @@ impl BigInt {
 
     #[cfg(feature = "std")]
     pub fn dump(&self) {
-        use std::{print, println};
-        print!("[");
-        for i in (0..self.len()).rev() {
-            let width = u64::BITS as usize;
-            print!("|{:0width$b}", self.parts[i]);
-        }
-        println!("]");
+        use std::println;
+        println!("[{}]", self.as_str());
     }
 }
 
