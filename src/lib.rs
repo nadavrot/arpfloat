@@ -1,9 +1,13 @@
 //!
 //! ARPFloat is an implementation of arbitrary precision
-//![floating point](https://en.wikipedia.org/wiki/IEEE_754) data
-//!structures and utilities. The library can be used to emulate floating point
-//!operation, in software, or create new floating point data types.
-
+//! [floating point](https://en.wikipedia.org/wiki/IEEE_754) data
+//! structures and utilities. The library can be used to emulate existing
+//! floating point types, such as FP16, and create new floating point types.
+//! Floating point types can scale to hundreds of digits, and perform very
+//! accurate calculations. In ARPFloat the rounding mode is a part of the
+//! type-system, and this defines away a number of problem that show up when
+//! using `fenv.h`.
+//!
 //!### Example
 //!```
 //!  use arpfloat::Float;
@@ -21,7 +25,6 @@
 //!  println!("fp128: {}", x);
 //!  println!("fp64:  {}", x.as_f64());
 //! ```
-//!
 //!
 //!The program above will print this output:
 //!```console
@@ -43,7 +46,7 @@
 //!    let val = Float::mul_with_rm(&x, &y, NearestTiesToEven);
 //! ```
 //!
-//! View the internal representation of numbers:
+//! View the internal representation of floating point numbers:
 //! ```
 //!    use arpfloat::Float;
 //!    use arpfloat::FP16;
@@ -53,16 +56,16 @@
 //!    fp.dump(); // Prints FP[+ E=+3 M=11110000000]
 //!
 //!    let m = fp.get_mantissa();
-//!     m.dump(); // Prints 11110000000
+//!    m.dump(); // Prints 11110000000
 //!```
 //!
 //! Control the rounding mode for type conversion:
 //!```
 //!    use arpfloat::{FP16, FP32, RoundingMode, Float};
 //!
-//!    let x = Float::from_u64(FP32, 2649);
-//!    let b = x.cast_with_rm(FP16, RoundingMode::Zero);
-//!    println!("{}", b); // Prints 2648!
+//!    let x = Float::from_u64(FP32, 2649);              // Load an FP32 Value.
+//!    let b = x.cast_with_rm(FP16, RoundingMode::Zero); // Convert to FP16.
+//!    println!("{}", b);                                // Prints 2648!
 //!```
 //!
 //! Define new float formats and use high-precision transcendental functions:
