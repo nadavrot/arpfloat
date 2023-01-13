@@ -515,19 +515,18 @@ fn test_sin_known_value() {
 #[test]
 fn test_sin() {
     use super::utils;
-    use super::FP128;
 
     for i in -100..100 {
         let f0 = i as f64;
         let r0 = f0.sin();
-        let r1 = Float::from_f64(f0).cast(FP128).sin().as_f64();
+        let r1 = Float::from_f64(f0).sin().as_f64();
         assert_eq!(r0, r1);
     }
 
     for i in -300..300 {
         let f0 = (i as f64) / 100.;
         let r0 = f0.sin();
-        let r1 = Float::from_f64(f0).cast(FP128).sin().as_f64();
+        let r1 = Float::from_f64(f0).sin().as_f64();
         assert_eq!(r0, r1);
     }
 
