@@ -573,9 +573,12 @@ impl Float {
     /// z = (x - 1)/(x + 1)
     /// log(x) = 2 (z + z^3/3 + z^5/5 + z^7/7 ... )
     fn log_taylor(x: &Self) -> Self {
+        use RoundingMode::None as rm;
         let sem = x.get_semantics();
         let one = Self::one(sem, false);
-        let z = &(x - &one) / &(x + &one);
+        let up = Float::sub_with_rm(x, &one, rm);
+        let down = Float::add_with_rm(x, &one, rm);
+        let z = Float::div_with_rm(&up, &down, rm);
         let z2 = z.sqr();
 
         let mut top = z;
@@ -587,11 +590,12 @@ impl Float {
             }
             prev = sum.clone();
 
-            let elem = &top / &Self::from_u64(sem, i * 2 + 1);
-            sum += elem;
+            let bottom = &Self::from_u64(sem, i * 2 + 1);
+            let elem = Float::div_with_rm(&top, bottom, rm);
+            sum = Float::add_with_rm(&sum, &elem, rm);
 
             // Prepare the next iteration.
-            top = &top * &z2;
+            top = Float::mul_with_rm(&top, &z2, rm);
         }
 
         sum.scale(1, RoundingMode::Zero)
@@ -612,7 +616,8 @@ impl Float {
         }
 
         if x < &one {
-            return Self::log_range_reduce(&(&one / x)).neg();
+            let re = Float::div_with_rm(&one, x, RoundingMode::None);
+            return Self::log_range_reduce(&re).neg();
         }
 
         Self::log_taylor(x)
