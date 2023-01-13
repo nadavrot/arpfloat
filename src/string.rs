@@ -2,6 +2,7 @@ extern crate alloc;
 
 use super::bigint::BigInt;
 use super::float::Float;
+use super::Semantics;
 use alloc::string::{String, ToString};
 use alloc::vec::Vec;
 use core::cmp::Ordering;
@@ -132,6 +133,17 @@ impl Float {
 impl Display for Float {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         write!(f, "{}", self.convert_to_string())
+    }
+}
+
+impl Display for Semantics {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        write!(
+            f,
+            "(exponent:{} precision:{})",
+            self.get_exponent_len(),
+            self.get_precision()
+        )
     }
 }
 
