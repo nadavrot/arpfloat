@@ -89,7 +89,7 @@ mod arithmetic;
 mod bigint;
 mod cast;
 mod float;
-mod functions;
+mod operations;
 mod string;
 mod utils;
 
