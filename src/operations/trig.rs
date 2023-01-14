@@ -46,7 +46,7 @@ impl Float {
         Float::sub_with_rm(&sx3, &sx.powi(3).scale(2, rm), rm)
     }
 
-    /// Return the sine function.
+    /// Computes the sine of the number (in radians).
     pub fn sin(&self) -> Self {
         use RoundingMode::None as rm;
         // Fast Trigonometric functions for Arbitrary Precision number
@@ -208,7 +208,7 @@ impl Float {
         Float::sub_with_rm(&sx.sqr().scale(1, rm), &one, rm)
     }
 
-    /// Return the cos function.
+    /// Computes the cosine of the number (in radians).
     pub fn cos(&self) -> Self {
         use RoundingMode::None as rm;
         // Fast Trigonometric functions for Arbitrary Precision number
