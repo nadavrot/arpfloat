@@ -67,9 +67,16 @@ impl Semantics {
     /// Create a new float semantics with increased precision with 'add'
     /// additional digits, plus ceil(log2) of the number.
     pub fn grow_log(&self, more: usize) -> Semantics {
-        let log2 = 64 - (self.precision as u64).leading_zeros() as usize;
+        let log2 = self.log_precision();
         Semantics::new(self.exponent, self.precision + more + log2, self.mode)
     }
+
+    /// Return a log2 approximation for the precision value.
+    pub fn log_precision(&self) -> usize {
+        // This is ~Log2(precision)
+        64 - (self.precision as u64).leading_zeros() as usize
+    }
+
     /// Create a new float semantics with increased exponent with 'more'
     /// additional digits.
     pub fn increase_exponent(&self, more: usize) -> Semantics {
@@ -654,4 +661,12 @@ pub fn test_bigint_ctor() {
     let bi = BigInt::from_u64(1 << 14);
     let num = Float::from_bigint(sem, bi);
     assert_eq!(num.to_i64(), 1 << 14);
+}
+
+#[test]
+pub fn test_semantics_size() {
+    assert_eq!(FP16.log_precision(), 4);
+    assert_eq!(FP32.log_precision(), 5);
+    assert_eq!(FP64.log_precision(), 6);
+    assert_eq!(FP128.log_precision(), 7);
 }
