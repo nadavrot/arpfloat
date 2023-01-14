@@ -95,6 +95,7 @@ There are excellent resources out there, some of which are referenced in the cod
     * Elementary Functions: Algorithms and Implementation by Jean-Michel Muller.
     * Modern Computer Arithmetic by Brent and Zimmermann.
 * Papers:
+    * An Accurate Elementary Mathematical Library for the IEEE Floating Point Standard, by Gal and Bachels.
     * How to print floating-point numbers accurately by Steele, White.
     * What Every Computer Scientist Should Know About Floating-Point Arithmetic by David Goldberg.
     * Fast Multiple-Precision Evaluation of Elementary Functions by Richard Brent.
