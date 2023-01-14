@@ -103,7 +103,10 @@ impl Float {
             debug_assert!(val <= pi_half);
         }
 
-        let res = Self::sin_step4_reduction(&val, 16);
+        // Calculate the number of needed reduction: 8[2/3 * log(2) * log(p)];
+        let k = orig_sem.log_precision() * 4;
+
+        let res = Self::sin_step4_reduction(&val, k);
         let res = if neg { res.neg() } else { res };
         res.cast(orig_sem)
     }
@@ -211,8 +214,12 @@ impl Float {
         // Fast Trigonometric functions for Arbitrary Precision number
         // by Henrik Vestermark.
 
-        if self.is_zero() || self.is_nan() {
+        if self.is_nan() {
             return self.clone();
+        }
+
+        if self.is_zero() {
+            return Self::one(self.get_semantics(), false);
         }
 
         if self.is_inf() {
@@ -261,7 +268,10 @@ impl Float {
             debug_assert!(val <= pi_half);
         }
 
-        let res = Self::cos_step4_reduction(&val, 8);
+        // Calculate the number of needed reduction: 2[log(2) * log(p)];
+        let k = (sem.log_precision() * 8) / 10;
+
+        let res = Self::cos_step4_reduction(&val, k);
         let res = if neg { res.neg() } else { res };
         res.cast(orig_sem)
     }
@@ -284,4 +294,40 @@ fn test_cos_known_value() {
     assert_eq!(res, "-.9195832171442742");
     let res = Float::from_f64(95051.).cos().to_string();
     assert_eq!(res, ".5171085523259959");
+}
+
+#[cfg(feature = "std")]
+#[test]
+fn test_cos() {
+    use crate::utils;
+
+    for i in -100..100 {
+        let f0 = i as f64;
+        let r0 = f0.cos();
+        let r1 = Float::from_f64(f0).cos().as_f64();
+        assert_eq!(r0, r1);
+    }
+
+    // The native implementation of sin is not accurate to all 64 bits, so
+    // we just pick a few values where we happen to get lucky and native sin
+    // matches the arbitrary precision implementation.
+    for i in -100..100 {
+        let f0 = (i as f64) / 100.;
+        let r0 = f0.cos();
+        let r1 = Float::from_f64(f0).cos().as_f64();
+        assert_eq!(r0, r1);
+    }
+
+    // Test non-normal values.
+    for v in utils::get_special_test_values() {
+        if v.is_normal() {
+            continue;
+        }
+        let r0 = v.cos();
+        let r1 = Float::from_f64(v).cos().as_f64();
+        assert_eq!(r0.is_nan(), r1.is_nan());
+        if !r0.is_nan() {
+            assert_eq!(r0, r1);
+        }
+    }
 }
