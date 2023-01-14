@@ -61,7 +61,7 @@ impl Float {
         }
 
         let orig_sem = self.get_semantics();
-        let sem = orig_sem.grow_log(14).increase_exponent(4);
+        let sem = orig_sem.grow_log(12).increase_exponent(4);
 
         assert!(self.is_normal());
 
@@ -330,4 +330,84 @@ fn test_cos() {
             assert_eq!(r0, r1);
         }
     }
+}
+
+impl Float {
+    /// Computes the tangent of the number (in radians).
+    pub fn tan(&self) -> Self {
+        use RoundingMode::None as rm;
+        // Fast Trigonometric functions for Arbitrary Precision number
+        // by Henrik Vestermark.
+
+        if self.is_zero() || self.is_nan() {
+            return self.clone();
+        }
+
+        if self.is_inf() {
+            return Self::nan(self.get_semantics(), self.get_sign());
+        }
+
+        let orig_sem = self.get_semantics();
+        let sem = orig_sem.grow_log(12).increase_exponent(4);
+
+        assert!(self.is_normal());
+
+        let mut neg = false;
+
+        let mut val = self.cast_with_rm(sem, rm);
+
+        // Handle the negatives.
+        if val.is_negative() {
+            val = val.neg();
+            neg ^= true;
+        }
+
+        // Range reductions.
+        let is_small = self.get_exp() < 0;
+
+        if !is_small {
+            let pi = Self::pi(sem);
+            let half_pi = pi.scale(-1, rm);
+
+            // Wrap around pi.
+            if val > pi {
+                val = val.rem(&pi);
+            }
+            debug_assert!(val <= pi);
+
+            // Reduce to 0..pi/2.
+            if val > half_pi {
+                val = pi - val;
+                neg ^= true;
+            }
+            debug_assert!(val <= half_pi);
+        }
+
+        // Tan(x) = sin(x)/sqrt(1-sin(x)^2).
+        let sinx = val.sin();
+        let one = Float::one(sem, false);
+        let bottom = (one - sinx.sqr()).sqrt();
+        let res = sinx / bottom;
+        let res = if neg { res.neg() } else { res };
+        res.cast(orig_sem)
+    }
+}
+
+#[cfg(feature = "std")]
+#[test]
+fn test_tan_known_value() {
+    use crate::std::string::ToString;
+
+    // Verify the results with:
+    // from mpmath import mp
+    // mp.dps = 100
+    // mp.tan(801./10000)
+    let res = Float::from_f64(801. / 10000.).tan().to_string();
+    assert_eq!(res, ".08027174825588148");
+    let res = Float::from_f64(2.3).tan().to_string();
+    assert_eq!(res, "-1.1192136417341325");
+    let res = Float::from_f64(90210. / 10000.).tan().to_string();
+    assert_eq!(res, "-.4272536513599634");
+    let res = Float::from_f64(95051.).tan().to_string();
+    assert_eq!(res, "-1.6552033806966715");
 }
