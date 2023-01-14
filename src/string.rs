@@ -273,16 +273,22 @@ impl BigInt {
     /// Prints the bigint as a sequence of bits.
     pub fn as_str(&self) -> String {
         let mut sb = String::new();
-        let mut first = true;
-        for i in 0..self.len() {
-            let mut part = self.get_part(i);
-            // Don't print leading zeros in empty parts of the bigint.
-            if first && part == 0 {
-                continue;
-            }
 
+        if self.is_empty() || self.is_zero() {
+            return String::from("0");
+        }
+        let mut top_non_zero = 0;
+        for i in (0..self.len()).rev() {
+            if self.get_part(i) != 0 {
+                top_non_zero = i;
+                break;
+            }
+        }
+
+        for i in 0..=top_non_zero {
+            let mut part = self.get_part(i);
             // Don't print leading zeros for the first word.
-            if first {
+            if i == top_non_zero {
                 while part > 0 {
                     let last = if part & 0x1 == 1 { '1' } else { '0' };
                     sb.insert(0, last);
@@ -290,7 +296,6 @@ impl BigInt {
                 }
                 continue;
             }
-            first = false;
 
             // Print leading zeros for the rest of the words.
             for _ in 0..64 {
@@ -317,6 +322,16 @@ fn test_bigint_to_string() {
         "10111001101001111101010101111000\
         000010101111010100000000000000000\
         000000000000000"
+    );
+
+    let mut bi = BigInt::from_u64(val);
+    bi.shift_left(64);
+    bi = bi + val;
+    assert_eq!(
+        bi.as_str(),
+        "101110011010011111010101011110000000101011110101\
+         0000000000000000\
+         101110011010011111010101011110000000101011110101"
     );
 }
 
