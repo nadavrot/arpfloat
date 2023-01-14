@@ -1,6 +1,5 @@
-use crate::{RoundingMode};
-
 use crate::float::Float;
+use crate::RoundingMode;
 
 impl Float {
     /// sin(x) = x - x^3 / 3! + x^5 / 5! - x^7/7! ....
@@ -157,4 +156,132 @@ fn test_sin() {
             assert_eq!(r0, r1);
         }
     }
+}
+
+impl Float {
+    /// cos(x) = 1 - x^2 / 2! + x^4 / 4! - x^6/6! ....
+    fn cos_taylor(x: &Self) -> Self {
+        use crate::bigint::BigInt;
+        let sem = x.get_semantics();
+
+        let mut neg = false;
+        let mut top = Self::one(sem, false);
+        let mut bottom = BigInt::one();
+        let mut sum = Self::zero(sem, false);
+        let x2 = x.sqr();
+        let mut prev = Self::one(sem, true);
+        for i in 1..50 {
+            if prev == sum {
+                break; // Stop if we are not making progress.
+            }
+            prev = sum.clone();
+
+            // Update sum.
+            let elem = &top / &Self::from_bigint(sem, bottom.clone());
+            sum = if neg { sum - elem } else { sum + elem };
+
+            // Prepare the next element.
+            top = &top * &x2;
+            let next_term = BigInt::from_u64((i * 2 - 1) * (i * 2));
+            bottom *= next_term;
+
+            neg ^= true;
+        }
+
+        sum
+    }
+
+    /// Reduce cos(x) in the range 0..pi/2, using the identity:
+    /// cos(2x) = 2cos(x)^2 - 1
+    fn cos_step4_reduction(x: &Self, steps: usize) -> Self {
+        use RoundingMode::None as rm;
+        if steps == 0 {
+            return Self::cos_taylor(x);
+        }
+        let sem = x.get_semantics();
+        let one = Float::one(sem, false);
+        let half_x = x.scale(-1, rm);
+        let sx = Float::cos_step4_reduction(&half_x, steps - 1);
+        Float::sub_with_rm(&sx.sqr().scale(1, rm), &one, rm)
+    }
+
+    /// Return the cos function.
+    pub fn cos(&self) -> Self {
+        use RoundingMode::None as rm;
+        // Fast Trigonometric functions for Arbitrary Precision number
+        // by Henrik Vestermark.
+
+        if self.is_zero() || self.is_nan() {
+            return self.clone();
+        }
+
+        if self.is_inf() {
+            return Self::nan(self.get_semantics(), self.get_sign());
+        }
+
+        let orig_sem = self.get_semantics();
+        let sem = orig_sem.grow_log(14).increase_exponent(4);
+
+        assert!(self.is_normal());
+
+        let mut neg = false;
+
+        let mut val = self.cast_with_rm(sem, rm);
+
+        // Handle the negatives.
+        if val.is_negative() {
+            val = val.neg();
+        }
+
+        // Range reductions.
+        let is_small = self.get_exp() < 0; // X < 1.
+
+        if !is_small {
+            let pi = Self::pi(sem);
+            let pi2 = pi.scale(1, rm);
+            let pi_half = pi.scale(-1, rm);
+
+            // Step 1
+            if val > pi2 {
+                val = val.rem(&pi2);
+            }
+            debug_assert!(val <= pi2);
+
+            // Step 2.
+            if val > pi {
+                val = Float::sub_with_rm(&pi2, &val, rm);
+            }
+
+            debug_assert!(val <= pi);
+            // Step 3.
+            if val > pi_half {
+                val = Float::sub_with_rm(&pi, &val, rm);
+                neg ^= true;
+            }
+            debug_assert!(val <= pi_half);
+        }
+
+        let res = Self::cos_step4_reduction(&val, 8);
+        let res = if neg { res.neg() } else { res };
+        res.cast(orig_sem)
+    }
+}
+
+#[cfg(feature = "std")]
+#[test]
+fn test_cos_known_value() {
+    use crate::std::string::ToString;
+
+    // Verify the results with:
+    // from mpmath import mp
+    // mp.dps = 100
+    // mp.cos(801./10000)
+    let res = Float::from_f64(801. / 10000.).cos().to_string();
+    assert_eq!(res, ".9967937098492272");
+    let res = Float::from_f64(2.3).cos().to_string();
+    assert_eq!(res, "-.6662760212798241");
+    let res = Float::from_f64(90210. / 10000.).cos().to_string();
+    assert_eq!(res, "-.9195832171442742");
+    let res = Float::from_f64(95051.).cos().to_string();
+    assert_eq!(res, ".5171085523259959");
 }

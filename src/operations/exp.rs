@@ -1,4 +1,4 @@
-use crate::{RoundingMode};
+use crate::RoundingMode;
 
 use crate::float::Float;
 
