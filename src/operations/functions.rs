@@ -1,3 +1,5 @@
+//! This module contains the implementation of several arithmetic operations.
+
 use crate::RoundingMode;
 
 use crate::float::Float;
@@ -28,8 +30,7 @@ impl Float {
     pub fn sqr(&self) -> Self {
         self.powi(2)
     }
-    /// Calculates the square root of the number using the Newton Raphson
-    /// method.
+    /// Calculates the square root of the number.
     pub fn sqrt(&self) -> Self {
         let sem = self.get_semantics();
         if self.is_zero() {
@@ -47,6 +48,7 @@ impl Float {
         let mut x = if target < two { two } else { target.clone() };
         let mut prev = x.clone();
 
+        // Use the Newton Raphson method.
         loop {
             x += &target / &x;
             x = x.scale(-1, RoundingMode::NearestTiesToEven);

@@ -1,3 +1,5 @@
+//! This module contains the implementation of log- and exp-related methods.
+//!
 use crate::RoundingMode;
 
 use crate::float::Float;

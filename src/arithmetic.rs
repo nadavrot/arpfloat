@@ -1,3 +1,5 @@
+//! This module contains the implementation of the basic arithmetic operations:
+//! Addition, Subtraction, Multiplication, Division.
 extern crate alloc;
 use crate::bigint::BigInt;
 

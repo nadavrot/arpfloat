@@ -1,3 +1,5 @@
+//! This module contains the implementation of casting-related methods.
+
 use crate::float::Semantics;
 use crate::FP128;
 
@@ -24,7 +26,7 @@ impl Float {
     }
 
     /// Load the integer `val` into the float. Notice that the number may
-    /// overflow, or rounded to the nearest even integer.
+    /// overflow or rounded.
     pub fn from_i64(sem: Semantics, val: i64) -> Self {
         if val < 0 {
             let mut a = Self::from_u64(sem, -val as u64);
@@ -256,29 +258,29 @@ impl Float {
         bits |= mantissa;
         bits
     }
-    // Convert this float to fp32. Notice that the number may overflow or
-    // rounded to the nearest even (see cast and cast_with_rm).
+    /// Convert this float to fp32. Notice that the number may overflow or
+    /// rounded to the nearest even (see cast and cast_with_rm).
     pub fn as_f32(&self) -> f32 {
         let b = self.cast(FP32);
         let bits = b.as_native_float();
         f32::from_bits(bits as u32)
     }
-    // Convert this float to fp64. Notice that the number may overflow or
-    // rounded to the nearest even (see cast and cast_with_rm).
+    /// Convert this float to fp64. Notice that the number may overflow or
+    /// rounded to the nearest even (see cast and cast_with_rm).
     pub fn as_f64(&self) -> f64 {
         let b = self.cast(FP64);
         let bits = b.as_native_float();
         f64::from_bits(bits)
     }
 
-    // Loads and converts a native fp32 value. Notice that the number may overflow or
-    // rounded to the nearest even (see cast and cast_with_rm).
+    /// Loads and converts a native fp32 value. Notice that the number may
+    /// overflow or rounded (see cast and cast_with_rm).
     pub fn from_f32(float: f32) -> Self {
         Float::from_bits(FP32, float.to_bits() as u64)
     }
 
-    // Loads and converts a native fp64 value. Notice that the number may overflow or
-    // rounded to the nearest even (see cast and cast_with_rm).
+    /// Loads and converts a native fp64 value. Notice that the number may
+    /// overflow or rounded (see cast and cast_with_rm).
     pub fn from_f64(float: f64) -> Self {
         Float::from_bits(FP64, float.to_bits())
     }

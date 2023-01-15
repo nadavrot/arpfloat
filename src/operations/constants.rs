@@ -1,12 +1,16 @@
-use crate::{float::Semantics, RoundingMode};
-
-use crate::float::Float;
+//! This module contains the implementation of methods that compute mathematical
+//! constants.
+//!
+use crate::RoundingMode;
+use crate::{Float, Semantics};
 
 impl Float {
-    /// Computes PI -- Algorithm description in Pg 246:
-    /// Fast Multiple-Precision Evaluation of Elementary Functions
-    /// by Richard P. Brent.
+    /// Computes pi.
     pub fn pi(sem: Semantics) -> Self {
+        // Algorithm description in Pg 246:
+        // Fast Multiple-Precision Evaluation of Elementary Functions
+        // by Richard P. Brent.
+
         // Increase the precision, because the arithmetic operations below
         // require rounding, so if we want to get the accurate results we need
         // to operate with increased precision.
@@ -34,13 +38,15 @@ impl Float {
         (a.sqr() / t).cast(orig_sem)
     }
 
-    /// Computes e using Euler's continued fraction, which is a simple series.
+    /// Computes e.
     pub fn e(sem: Semantics) -> Self {
         let orig_sem = sem;
         let sem = sem.increase_precision(1);
 
         let one = Self::one(sem, false);
         let mut term = one.clone();
+
+        // Use Euler's continued fraction, which is a simple series.
         let iterations: i64 = (sem.get_exponent_len() * 2) as i64;
         for i in (1..iterations).rev() {
             let v = Self::from_i64(sem, i);

@@ -1,3 +1,5 @@
+//! This file contains simple helper functions and test helpers.
+
 /// Returns a mask full of 1s, of `b` bits.
 pub fn mask(b: usize) -> usize {
     (1 << (b)) - 1
@@ -38,7 +40,8 @@ pub fn get_special_test_values() -> [f64; 20] {
     ]
 }
 
-// Linear-feedback shift register.
+// Linear-feedback shift register. We use this as a random number generator for
+// tests.
 pub struct Lfsr {
     state: u32,
 }

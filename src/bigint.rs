@@ -1,3 +1,6 @@
+//! This module contains the implementation of the big-int data structure that
+//! we use for the significand of the float.
+
 extern crate alloc;
 
 use core::cmp::Ordering;

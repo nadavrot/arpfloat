@@ -1,3 +1,5 @@
+//! This module contains the implementation of string conversion.
+
 extern crate alloc;
 
 use super::bigint::BigInt;

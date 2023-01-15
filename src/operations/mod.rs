@@ -1,4 +1,5 @@
-//! Contains the implementations of various mathematical functions and constants.
+//! Contains the implementations of various mathematical functions and
+//! constants.
 
 #[cfg(feature = "std")]
 extern crate std;

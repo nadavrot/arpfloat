@@ -1,9 +1,13 @@
 # Arbitrary-Precision Floating-Point Library
 
-ARPFloat is an implementation of arbitrary precision 
+ARPFloat is an implementation of arbitrary precision
 [floating point](https://en.wikipedia.org/wiki/IEEE_754) data
-structures and utilities. The library can be used to emulate floating point
-operation, in software, or create new floating point data types.
+structures and utilities. The library can be used to emulate existing floating
+point types, such as FP16, and create new floating point types. Floating point
+types can scale to hundreds of digits, and perform very accurate calculations.
+In ARPFloat the rounding mode is a part of the type-system, and this defines
+away a number of problem that show up when using fenv.h.
+
 `no_std` environments are supported by disabling the `std` feature.
 
 
@@ -47,7 +51,7 @@ operations.
  ```
 
  View the internal representation of numbers:
- 
+
  ```rust
     use arpfloat::Float;
     use arpfloat::FP16;
@@ -61,7 +65,7 @@ operations.
 ```
 
  Control the rounding mode for type conversion:
- 
+
 ```rust
     use arpfloat::{FP16, FP32, RoundingMode, Float};
 
@@ -71,7 +75,7 @@ operations.
 ```
 
  Define new float formats and use high-precision transcendental functions:
- 
+
 ```rust
   use arpfloat::{Float, Semantics};
   // Define a new float format with 120 bits of accuracy, and

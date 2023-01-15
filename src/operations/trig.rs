@@ -1,3 +1,5 @@
+//! This module contains the implementation of trigonometric functions.
+//!
 use crate::float::Float;
 use crate::RoundingMode;
 
