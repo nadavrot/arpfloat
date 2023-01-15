@@ -95,7 +95,7 @@ impl Float {
         let mut buff = Vec::new();
         let digits = integer.to_digits::<10>();
         for d in digits {
-            buff.push(std::char::from_digit(d as u32, 10).unwrap())
+            buff.push(char::from_digit(d as u32, 10).unwrap())
         }
 
         debug_assert!(e >= 0);

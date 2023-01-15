@@ -1043,11 +1043,12 @@ impl BigInt {
 #[test]
 pub fn test_bigint_to_digits() {
     use alloc::string::String;
+    use core::primitive::char;
     /// Convert the vector of digits 'vec' of base 'base' into a string.
     fn vec_to_string(vec: Vec<u8>, base: u32) -> String {
         let mut sb = String::new();
         for d in vec {
-            sb.push(std::char::from_digit(d as u32, base).unwrap())
+            sb.push(char::from_digit(d as u32, base).unwrap())
         }
         sb
     }
