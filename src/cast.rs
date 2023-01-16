@@ -131,7 +131,7 @@ impl Float {
         }
     }
 
-    fn convert_normal_to_integer(&self, rm: RoundingMode) -> BigInt {
+    pub(crate) fn convert_normal_to_integer(&self, rm: RoundingMode) -> BigInt {
         // We are converting to integer, so set the center point of the exponent
         // to the lsb instead of the msb.
         let i_exp = self.get_exp() - self.get_mantissa_len() as i64;

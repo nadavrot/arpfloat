@@ -6,5 +6,6 @@ extern crate std;
 
 mod constants;
 mod exp;
+mod frac;
 mod functions;
 mod trig;

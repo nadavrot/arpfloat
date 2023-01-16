@@ -93,6 +93,7 @@ mod operations;
 mod string;
 mod utils;
 
+pub use self::bigint::BigInt;
 pub use self::float::Float;
 pub use self::float::RoundingMode;
 pub use self::float::Semantics;
