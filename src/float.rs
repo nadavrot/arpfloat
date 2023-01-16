@@ -127,10 +127,10 @@ pub struct Float {
 }
 
 impl Float {
-    pub fn get_mantissa_len(&self) -> usize {
+    pub(crate) fn get_mantissa_len(&self) -> usize {
         self.sem.get_mantissa_len()
     }
-    pub fn get_exponent_len(&self) -> usize {
+    pub(crate) fn get_exponent_len(&self) -> usize {
         self.sem.get_exponent_len()
     }
 
@@ -149,7 +149,7 @@ impl Float {
     }
 
     /// Create a new normal floating point number.
-    pub fn raw(
+    pub(crate) fn raw(
         sem: Semantics,
         sign: bool,
         exp: i64,

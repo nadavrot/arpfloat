@@ -13,7 +13,7 @@ use alloc::vec::Vec;
 /// Reports the kind of values that are lost when we shift right bits. In some
 /// context this used as the two guard bits.
 #[derive(Debug, Clone, Copy)]
-pub enum LossFraction {
+pub(crate) enum LossFraction {
     ExactlyZero,  //0000000
     LessThanHalf, //0xxxxxx
     ExactlyHalf,  //1000000
@@ -33,6 +33,7 @@ impl LossFraction {
     pub fn is_mt_half(&self) -> bool {
         matches!(self, Self::MoreThanHalf)
     }
+    #[allow(dead_code)]
     pub fn is_lte_half(&self) -> bool {
         self.is_lt_half() || self.is_exactly_half()
     }
@@ -178,7 +179,7 @@ impl BigInt {
     }
 
     /// Returns the fractional part that's lost during truncation at `bit`.
-    pub fn get_loss_kind_for_bit(&self, bit: usize) -> LossFraction {
+    pub(crate) fn get_loss_kind_for_bit(&self, bit: usize) -> LossFraction {
         if self.is_zero() {
             return LossFraction::ExactlyZero;
         }
@@ -1019,7 +1020,7 @@ impl BigInt {
     }
 
     /// Converts this number into a sequence of digits in the range 0..DIGIT.
-    pub fn to_digits<const DIGIT: u8>(&self) -> Vec<u8> {
+    pub(crate) fn to_digits<const DIGIT: u8>(&self) -> Vec<u8> {
         let mut num = self.clone();
         num.shrink();
 
