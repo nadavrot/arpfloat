@@ -87,6 +87,38 @@ operations.
   println!("e^pi = {}", x); // Prints 23.1406926327792....
 ```
 
+ Floating point numbers can be converted to
+ [Continued Fractions](https://en.wikipedia.org/wiki/Continued_fraction) that
+ approximate the value.
+
+ ```rust
+  use arpfloat::{Float, FP256, RoundingMode};
+
+  let ln = Float::ln2(FP256);
+  println!("ln(2) = {}", ln);
+  for i in 1..20 {
+    let (p,q) = ln.as_fraction(i);
+    println!("{}/{}", p.as_decimal(), q.as_decimal());
+  }
+ ```
+The program above will print this output:
+```console
+  ln(2) = .6931471805599453094172321214581765680755001343602552.....
+  0/1
+  1/1
+  2/3
+  7/10
+  9/13
+  61/88
+  192/277
+  253/365
+  445/642
+  1143/1649
+  1588/2291
+  2731/3940
+  ....
+```
+
 
 The [examples](examples) directory contains a program that computes many digits of pi in float-256.
 
