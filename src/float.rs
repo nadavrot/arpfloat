@@ -316,8 +316,8 @@ impl Float {
                 println!("[{}0.0]", sign);
             }
             Category::Normal => {
-                let m = self.mantissa.as_str();
-                println!("FP[{} E={:4} M = {}]", sign, self.exp, m.as_str());
+                let m = self.mantissa.as_binary();
+                println!("FP[{} E={:4} M = {}]", sign, self.exp, m);
             }
         }
     }

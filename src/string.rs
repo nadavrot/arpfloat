@@ -139,6 +139,12 @@ impl Display for Float {
     }
 }
 
+impl Display for BigInt {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        write!(f, "{}", self.as_binary())
+    }
+}
+
 impl RoundingMode {
     pub fn as_string(&self) -> &str {
         match self {
@@ -273,7 +279,7 @@ impl BigInt {
         String::from_iter(buff)
     }
     /// Prints the bigint as a sequence of bits.
-    pub fn as_str(&self) -> String {
+    pub fn as_binary(&self) -> String {
         let mut sb = String::new();
 
         if self.is_empty() || self.is_zero() {
@@ -320,7 +326,7 @@ fn test_bigint_to_string() {
     let mut bi = BigInt::from_u64(val);
     bi.shift_left(32);
     assert_eq!(
-        bi.as_str(),
+        bi.as_binary(),
         "10111001101001111101010101111000\
         000010101111010100000000000000000\
         000000000000000"
@@ -330,7 +336,7 @@ fn test_bigint_to_string() {
     bi.shift_left(64);
     bi = bi + val;
     assert_eq!(
-        bi.as_str(),
+        bi.as_binary(),
         "101110011010011111010101011110000000101011110101\
          0000000000000000\
          101110011010011111010101011110000000101011110101"

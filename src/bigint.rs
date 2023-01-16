@@ -468,7 +468,7 @@ impl BigInt {
     #[cfg(feature = "std")]
     pub fn dump(&self) {
         use std::println;
-        println!("[{}]", self.as_str());
+        println!("[{}]", self.as_binary());
     }
 }
 
