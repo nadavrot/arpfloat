@@ -120,7 +120,7 @@ The program above will print this output:
 ```
 
 
-The [examples](examples) directory contains a program that computes many digits of pi in float-256.
+The [examples](examples) directory contains a few programs that demonstrate the use of this library.
 
 ### Resources
 
