@@ -1,4 +1,11 @@
-# Arbitrary-Precision Floating-Point Library
+
+# Arbitrary-Precision Floating-Point Library &emsp; 
+[![Latest Version]][crates.io] [![Docs Badge]][docs]
+
+[Latest Version]: https://img.shields.io/crates/v/arpfloat.svg
+[crates.io]: https://crates.io/crates/arpfloat
+[Docs Badge]: https://docs.rs/arpfloat/badge.svg
+[docs]: https://docs.rs/arpfloat
 
 ARPFloat is an implementation of arbitrary precision
 [floating point](https://en.wikipedia.org/wiki/IEEE_754) data
@@ -9,7 +16,6 @@ In ARPFloat the rounding mode is a part of the type-system, and this defines
 away a number of problem that show up when using fenv.h.
 
 `no_std` environments are supported by disabling the `std` feature.
-
 
 ### Example
 ```rust
