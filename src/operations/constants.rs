@@ -76,7 +76,7 @@ impl Float {
             }
             prev = sum.clone();
         }
-        sum
+        sum.cast(sem)
     }
 }
 

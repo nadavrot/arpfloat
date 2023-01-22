@@ -145,7 +145,9 @@ impl Float {
         let sem = self.get_semantics();
 
         // Handle all of the special cases:
-        if !self.is_normal() {
+        if self.is_zero() {
+            return Self::one(sem, false);
+        } else if !self.is_normal() {
             return Self::nan(sem, self.get_sign());
         }
 
@@ -155,7 +157,7 @@ impl Float {
         // Handle the negative values.
         if self.is_negative() {
             let one = Self::one(sem, false);
-            return one / self.cast(sem).neg().exp();
+            return (one / self.cast(sem).neg().exp()).cast(orig_sem);
         }
 
         Self::exp_range_reduce(&self.cast(sem)).cast(orig_sem)
