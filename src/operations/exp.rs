@@ -1,5 +1,6 @@
 //! This module contains the implementation of log- and exp-related methods.
 //!
+
 use crate::RoundingMode;
 
 use crate::float::Float;
@@ -175,5 +176,46 @@ fn test_exp() {
         let lhs = Float::from_f64(x).exp().as_f64();
         let rhs = x.exp();
         assert_eq!(lhs, rhs);
+    }
+}
+
+impl Float {
+    /// Computes the sigmoid function of this number.
+    /// Defined as ( 1 / 1 + e(-x)).
+    pub fn sigmoid(&self) -> Self {
+        // https://en.wikipedia.org/wiki/Sigmoid_function
+        let one = Self::one(self.get_semantics(), false);
+
+        if self.is_inf() {
+            return Self::one(self.get_semantics(), self.get_sign());
+        } else if self.is_zero() {
+            use RoundingMode::Zero as rm;
+            return one.scale(-1, rm);
+        } else if self.is_nan() {
+            return self.clone();
+        }
+
+        let ex = self.exp();
+        &ex / (&ex + &one)
+    }
+}
+
+#[test]
+pub fn test_sigmoid() {
+    // Generate a test vector using the python program:
+    //
+    // import numpy as np
+    // array = np.array([-0.5, 0, 0.5, 0.99, 1.0, 2.3, 100.0])
+    // def sigmoid(x): return 1.0 / (1.0 + np.exp(-x))
+    let inp = [-0.5, 0., 0.5, 0.99, 1., 2.3, 100.];
+    let out = [
+        0.37754067, 0.5, 0.62245933, 0.72908792, 0.73105858, 0.90887704, 1.,
+    ];
+
+    for (x, o) in inp.iter().zip(out.iter()) {
+        let x = Float::from_f64(*x);
+        let o = Float::from_f64(*o);
+        let res = x.sigmoid();
+        assert_eq!(o.as_f32(), res.as_f32())
     }
 }
