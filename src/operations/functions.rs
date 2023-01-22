@@ -335,7 +335,7 @@ fn test_powi() {
 impl Float {
     /// Return this number raised to the power of 'n'.
     /// Computed using e^(n * log(self))
-    pub fn pow(&self, n: Float) -> Self {
+    pub fn pow(&self, n: &Float) -> Self {
         let orig_sem = self.get_semantics();
         let one = Self::one(orig_sem, false);
         let sign = self.get_sign();
@@ -366,7 +366,7 @@ impl Float {
 #[test]
 fn test_pow() {
     fn my_pow(a: f32, b: f32) -> f32 {
-        Float::from_f32(a).pow(Float::from_f32(b)).as_f32()
+        Float::from_f32(a).pow(&Float::from_f32(b)).as_f32()
     }
 
     assert_eq!(my_pow(1.24, 1.2), 1.2945118);
@@ -379,7 +379,7 @@ fn test_pow() {
             let i = i as f64;
             let j = j as f64;
             let res = i.powf(j);
-            let res2 = Float::from_f64(i).pow(Float::from_f64(j));
+            let res2 = Float::from_f64(i).pow(&Float::from_f64(j));
             assert_eq!(res, res2.as_f64());
         }
     }
