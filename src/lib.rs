@@ -2,11 +2,17 @@
 //! ARPFloat is an implementation of arbitrary precision
 //! [floating point](https://en.wikipedia.org/wiki/IEEE_754) data
 //! structures and utilities. The library can be used to emulate existing
-//! floating point types, such as FP16, and create new floating point types.
-//! Floating point types can scale to hundreds of digits, and perform very
-//! accurate calculations. In ARPFloat the rounding mode is a part of the
-//! type-system, and this defines away a number of problem that show up when
-//! using `fenv.h`.
+//! floating point types, such as FP16, FP32 or FP128, and create new
+//! floating-point types that scale to hundreds of digits, and perform very
+//! accurate calculations. The library  contains mathematical functions such as
+//!  `log`, `exp`, `sin`, `cos`, `tan`,  and constants such as `pi` and `e`
+//!
+//! In ARPFloat the rounding mode is a part of the type-system, and this solves
+//! a number of problem that show up when using the global rounding flag that's
+//! defined in `fenv.h`.
+//!
+//! ##no_std
+//! The library can be built without the standard library.
 //!
 //!### Example
 //!```
@@ -96,7 +102,7 @@
 //! ```
 //!The program above will print this output:
 //!```console
-//!  ln(2) = .6931471805599453094172321214581765680755001343602552.....
+//!  ln(2) = .6931471805599453094172321214581765680755001343.....
 //!  0/1
 //!  1/1
 //!  2/3
