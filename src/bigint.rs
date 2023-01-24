@@ -10,7 +10,7 @@ use core::ops::{
 
 use alloc::vec::Vec;
 
-const KARATSUBA_SIZE_THRESHOLD: usize = 4;
+const KARATSUBA_SIZE_THRESHOLD: usize = 64;
 
 /// Reports the kind of values that are lost when we shift right bits. In some
 /// context this used as the two guard bits.
