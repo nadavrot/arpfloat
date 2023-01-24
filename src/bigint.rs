@@ -262,6 +262,7 @@ impl BigInt {
     }
 
     /// Implements addition of the 'rhs' sequence of words to this number.
+    #[allow(clippy::needless_range_loop)]
     fn inplace_add_slice(&mut self, rhs: &[u64]) {
         self.grow(rhs.len());
         let mut carry: bool = false;
@@ -290,10 +291,12 @@ impl BigInt {
     }
 
     /// Implements subtraction of the 'rhs' sequence of words to this number.
+    #[allow(clippy::needless_range_loop)]
     fn inplace_sub_slice(&mut self, rhs: &[u64]) -> bool {
         self.grow(rhs.len());
         let mut borrow: bool = false;
         // Do the part of the vectors that both sides have.
+
         for i in 0..rhs.len() {
             let first = self.parts[i].overflowing_sub(rhs[i]);
             let second = first.0.overflowing_sub(borrow as u64);
