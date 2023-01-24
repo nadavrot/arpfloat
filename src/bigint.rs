@@ -10,8 +10,6 @@ use core::ops::{
 
 use alloc::vec::Vec;
 
-const KARATSUBA_SIZE_THRESHOLD: usize = 64;
-
 /// Reports the kind of values that are lost when we shift right bits. In some
 /// context this used as the two guard bits.
 #[derive(Debug, Clone, Copy)]
@@ -1121,43 +1119,53 @@ pub fn test_bigint_to_digits() {
     assert_eq!(vec_to_string(digits, 10), "123456123456987654987654");
 }
 
+/// Bigint numbers above this size use the karatsuba algorithm for
+/// multiplication. The number represents the number of words in the bigint.
+/// Numbers below this threshold use the traditional O(n^2) multiplication.
+const KARATSUBA_SIZE_THRESHOLD: usize = 64;
+
 impl BigInt {
-    pub fn mul_karatsuba(lhs: &[u64], rhs: &[u64]) -> BigInt {
-        // Handle small words using the traditional algorithm.
+    fn mul_karatsuba(lhs: &[u64], rhs: &[u64]) -> BigInt {
+        // Algorithm description:
+        // https://en.wikipedia.org/wiki/Karatsuba_algorithm
+
+        // Handle small numbers using the traditional O(n^2) algorithm.
         if lhs.len().min(rhs.len()) < KARATSUBA_SIZE_THRESHOLD {
             let mut lhs = BigInt::from_parts(lhs);
             lhs.inplace_mul_slice(rhs);
             return lhs;
         }
 
-        // Words for low part.
+        // Split the big-int into two parts:
         let mid = lhs.len().min(rhs.len()) / 2;
-
         let a = &lhs[0..mid];
         let b = &lhs[mid..];
         let c = &rhs[0..mid];
         let d = &rhs[mid..];
 
+        // Compute 'a*c' and 'b*d'.
         let ac = Self::mul_karatsuba(a, c);
         let mut bd = Self::mul_karatsuba(b, d);
 
+        // Compute (a+b) * (c+d).
         let mut a_b = BigInt::from_parts(a);
         a_b.inplace_add_slice(b);
         let mut c_d = BigInt::from_parts(c);
         c_d.inplace_add_slice(d);
+
         a_b.grow(c_d.len());
         c_d.grow(a_b.len());
-
         let mut ad_plus_bc = Self::mul_karatsuba(&a_b.parts, &c_d.parts);
+
+        // Compute (a+b) * (c+d)  - ac - bd
         ad_plus_bc.inplace_sub_slice(&ac.parts);
         ad_plus_bc.inplace_sub_slice(&bd.parts);
 
+        // Add the parts of the word together.
         bd.shift_left(64 * mid * 2);
         ad_plus_bc.shift_left(64 * mid);
-
         bd.inplace_add(&ad_plus_bc);
         bd.inplace_add(&ac);
-
         bd
     }
 }
@@ -1173,7 +1181,7 @@ fn test_mul_karatsuba() {
         let mut a = BigInt::from_iter(ll, l);
         let b = BigInt::from_iter(ll, r);
         let res = BigInt::mul_karatsuba(&a.parts, &b.parts);
-        a.inplace_mul(&b);
+        a.inplace_mul_slice(&b.parts);
         assert_eq!(res, a);
     }
 
