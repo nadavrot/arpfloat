@@ -246,12 +246,17 @@ impl BigInt {
         }
     }
 
-    /// Add `rhs` to self, and return true if the operation overflowed.
+    /// Add `rhs` to this number.
     pub fn inplace_add(&mut self, rhs: &Self) {
+        self.inplace_add_slice(&rhs.parts[..]);
+    }
+
+    /// Implements addition of the 'rhs' sequence of words to this number.
+    fn inplace_add_slice(&mut self, rhs: &[u64]) {
         self.grow(rhs.len());
         let mut carry: bool = false;
         for i in 0..rhs.len() {
-            let first = self.parts[i].overflowing_add(rhs.parts[i]);
+            let first = self.parts[i].overflowing_add(rhs[i]);
             let second = first.0.overflowing_add(carry as u64);
             carry = first.1 || second.1;
             self.parts[i] = second.0;
