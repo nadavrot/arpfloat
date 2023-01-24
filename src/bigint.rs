@@ -10,6 +10,8 @@ use core::ops::{
 
 use alloc::vec::Vec;
 
+const KARATSUBA_SIZE_THRESHOLD: usize = 4;
+
 /// Reports the kind of values that are lost when we shift right bits. In some
 /// context this used as the two guard bits.
 #[derive(Debug, Clone, Copy)]
@@ -314,6 +316,12 @@ impl BigInt {
 
     /// Multiply `rhs` to self, and return true if the operation overflowed.
     pub fn inplace_mul(&mut self, rhs: &Self) {
+        if self.len() > KARATSUBA_SIZE_THRESHOLD
+            || rhs.len() > KARATSUBA_SIZE_THRESHOLD
+        {
+            *self = Self::mul_karatsuba(&self.parts, &rhs.parts);
+            return;
+        }
         self.inplace_mul_slice(&rhs.parts);
     }
 
@@ -1104,12 +1112,10 @@ pub fn test_bigint_to_digits() {
 
 impl BigInt {
     pub fn mul_karatsuba(lhs: &[u64], rhs: &[u64]) -> BigInt {
-        const SIZE_THRESHOLD: usize = 4;
-
         // Handle small words using the traditional algorithm.
-        if lhs.len() < SIZE_THRESHOLD || rhs.len() < SIZE_THRESHOLD {
+        if lhs.len().min(rhs.len()) < KARATSUBA_SIZE_THRESHOLD {
             let mut lhs = BigInt::from_parts(lhs);
-            lhs.inplace_mul_slice(&rhs);
+            lhs.inplace_mul_slice(rhs);
             return lhs;
         }
 
