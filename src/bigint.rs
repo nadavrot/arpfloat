@@ -284,11 +284,16 @@ impl BigInt {
     /// Add `rhs` to self, and return true if the operation overflowed (borrow).
     #[must_use]
     pub fn inplace_sub(&mut self, rhs: &Self) -> bool {
+        self.inplace_sub_slice(&rhs.parts[..])
+    }
+
+    /// Implements subtraction of the 'rhs' sequence of words to this number.
+    fn inplace_sub_slice(&mut self, rhs: &[u64]) -> bool {
         self.grow(rhs.len());
         let mut borrow: bool = false;
         // Do the part of the vectors that both sides have.
         for i in 0..rhs.len() {
-            let first = self.parts[i].overflowing_sub(rhs.parts[i]);
+            let first = self.parts[i].overflowing_sub(rhs[i]);
             let second = first.0.overflowing_sub(borrow as u64);
             borrow = first.1 || second.1;
             self.parts[i] = second.0;
@@ -309,6 +314,11 @@ impl BigInt {
 
     /// Multiply `rhs` to self, and return true if the operation overflowed.
     pub fn inplace_mul(&mut self, rhs: &Self) {
+        self.inplace_mul_slice(&rhs.parts);
+    }
+
+    /// Implements multiplication of the 'rhs' sequence of words to this number.
+    fn inplace_mul_slice(&mut self, rhs: &[u64]) {
         let size = self.len() + rhs.len() + 1;
         let mut parts = Self::zeros(size);
         let mut carries = Self::zeros(size);
@@ -316,7 +326,7 @@ impl BigInt {
         for i in 0..self.len() {
             for j in 0..rhs.len() {
                 let pi = self.parts[i] as u128;
-                let pij = pi * rhs.parts[j] as u128;
+                let pij = pi * rhs[j] as u128;
 
                 let add0 = parts[i + j].overflowing_add(pij as u64);
                 parts[i + j] = add0.0;
@@ -1090,4 +1100,70 @@ pub fn test_bigint_to_digits() {
     let num = BigInt::from_u128(123_456_123_456_987_654_987_654u128);
     let digits = num.to_digits::<10>();
     assert_eq!(vec_to_string(digits, 10), "123456123456987654987654");
+}
+
+impl BigInt {
+    pub fn mul_karatsuba(lhs: &[u64], rhs: &[u64]) -> BigInt {
+        const SIZE_THRESHOLD: usize = 4;
+
+        // Handle small words using the traditional algorithm.
+        if lhs.len() < SIZE_THRESHOLD || rhs.len() < SIZE_THRESHOLD {
+            let mut lhs = BigInt::from_parts(lhs);
+            lhs.inplace_mul_slice(&rhs);
+            return lhs;
+        }
+
+        // Words for low part.
+        let mid = lhs.len().min(rhs.len()) / 2;
+
+        let a = &lhs[0..mid];
+        let b = &lhs[mid..];
+        let c = &rhs[0..mid];
+        let d = &rhs[mid..];
+
+        let ac = Self::mul_karatsuba(a, c);
+        let mut bd = Self::mul_karatsuba(b, d);
+
+        let mut a_b = BigInt::from_parts(a);
+        a_b.inplace_add_slice(b);
+        let mut c_d = BigInt::from_parts(c);
+        c_d.inplace_add_slice(d);
+        a_b.grow(c_d.len());
+        c_d.grow(a_b.len());
+
+        let mut ad_plus_bc = Self::mul_karatsuba(&a_b.parts, &c_d.parts);
+        ad_plus_bc.inplace_sub_slice(&ac.parts);
+        ad_plus_bc.inplace_sub_slice(&bd.parts);
+
+        bd.shift_left(64 * mid * 2);
+        ad_plus_bc.shift_left(64 * mid);
+
+        bd.inplace_add(&ad_plus_bc);
+        bd.inplace_add(&ac);
+
+        bd
+    }
+}
+
+#[test]
+fn test_mul_karatsuba() {
+    use crate::utils::Lfsr;
+    let mut ll = Lfsr::new();
+
+    // Compare the multiplication of karatsuba to the direct multiplication on
+    // two random numbers of lengths 'r' and 'l'.
+    fn test_sizes(l: usize, r: usize, ll: &mut Lfsr) {
+        let mut a = BigInt::from_iter(ll, l);
+        let b = BigInt::from_iter(ll, r);
+        let res = BigInt::mul_karatsuba(&a.parts, &b.parts);
+        a.inplace_mul(&b);
+        assert_eq!(res, a);
+    }
+
+    // Try numbers of different sizes.
+    for i in 1..50 {
+        for j in 1..60 {
+            test_sizes(i, j, &mut ll);
+        }
+    }
 }
