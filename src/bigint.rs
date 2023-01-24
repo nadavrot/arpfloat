@@ -119,6 +119,14 @@ impl BigInt {
         self.parts[0]
     }
 
+    /// Create a pseudorandom number with 'words' number of words.
+    pub fn pseudorandom(words: usize) -> Self {
+        use crate::utils::Lfsr;
+        let mut ll = Lfsr::new();
+
+        BigInt::from_iter(&mut ll, words)
+    }
+
     /// Returns the lowest 64 bits.
     pub fn as_u128(&self) -> u128 {
         if self.len() >= 2 {

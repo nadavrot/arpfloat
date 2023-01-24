@@ -67,7 +67,7 @@ impl Lfsr {
         self.state |= n;
     }
 
-    pub fn get(&mut self) -> u32 {
+    fn get(&mut self) -> u32 {
         let mut res: u32 = 0;
         for _ in 0..32 {
             self.next();
