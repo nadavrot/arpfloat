@@ -118,9 +118,9 @@ impl BigInt {
     }
 
     /// Create a pseudorandom number with 'words' number of words.
-    pub fn pseudorandom(words: usize) -> Self {
+    pub fn pseudorandom(words: usize, seed: u32) -> Self {
         use crate::utils::Lfsr;
-        let mut ll = Lfsr::new();
+        let mut ll = Lfsr::new_with_seed(seed);
 
         BigInt::from_iter(&mut ll, words)
     }

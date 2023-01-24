@@ -53,8 +53,16 @@ impl Default for Lfsr {
 }
 
 impl Lfsr {
+    /// Generate a new LFSR number generator.
     pub fn new() -> Lfsr {
         Lfsr { state: 0x13371337 }
+    }
+
+    /// Generate a new LFSR number generator that starts with a specific state.
+    pub fn new_with_seed(seed: u32) -> Lfsr {
+        Lfsr {
+            state: 0x13371337 ^ seed,
+        }
     }
 
     pub fn next(&mut self) {

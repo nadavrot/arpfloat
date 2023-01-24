@@ -24,8 +24,8 @@ fn main() {
         }
     }
 
-    let mut a = BigInt::pseudorandom(digits);
-    let b = BigInt::pseudorandom(digits);
+    let mut a = BigInt::pseudorandom(digits, 12345);
+    let b = BigInt::pseudorandom(digits, 67890);
 
     println!("Multiplying two {}-bit numbers", digits * 64);
     a.inplace_mul(&b);
