@@ -82,6 +82,14 @@ impl Lfsr {
     }
 }
 
+// Implement `Iterator` for `Lfsr`.
+impl Iterator for Lfsr {
+    type Item = u64;
+    fn next(&mut self) -> Option<Self::Item> {
+        Some(self.get64())
+    }
+}
+
 #[test]
 fn test_lfsr_balance() {
     let mut lfsr = Lfsr::new();

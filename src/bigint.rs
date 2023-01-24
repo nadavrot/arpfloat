@@ -227,8 +227,16 @@ impl BigInt {
         panic!("Expected a non-zero number");
     }
 
+    // Construct a bigint from the words in 'parts'.
     pub fn from_parts(parts: &[u64]) -> Self {
         let parts: Vec<u64> = parts.to_vec();
+        BigInt { parts }
+    }
+
+    // Construct a bigint from an iterator that generates u64 parts.
+    // Take the first 'k' words.
+    pub fn from_iter<I: Iterator<Item = u64>>(iter: &mut I, k: usize) -> Self {
+        let parts: Vec<u64> = iter.take(k).collect();
         BigInt { parts }
     }
 
