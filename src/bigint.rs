@@ -50,8 +50,26 @@ impl LossFraction {
         }
     }
 }
-/// This is a fixed-size big int implementation that's used to represent the
-/// significand part of the floating point number.
+/// This is an arbitrary-size unsigned big number implementation. It is used to
+/// store the mantissa of the floating point number. The BigInt data structure
+/// is backed by `Vec<u64>`, and the data is heap-allocated. BigInt implements
+/// the basic arithmetic operations such as add, sub, div, mul, etc.
+///
+/// # Examples
+///
+/// ```
+///    use arpfloat::BigInt;
+///
+///    let x = BigInt::from_u64(1995);
+///    let y = BigInt::from_u64(90210);
+///
+///    let z = x * y;
+///    let z = z.powi(10);
+///
+///    // Prints: 3564312949426686000....
+///    println!("{}", z.as_decimal());
+/// ```
+///
 #[derive(Debug, Clone)]
 pub struct BigInt {
     parts: Vec<u64>,
@@ -101,6 +119,15 @@ impl BigInt {
         BigInt { parts: vec }
     }
 
+    /// Create a pseudorandom number with `parts` number of parts in the word.
+    /// The random number generator is initialized with `seed`.
+    pub fn pseudorandom(parts: usize, seed: u32) -> Self {
+        use crate::utils::Lfsr;
+        let mut ll = Lfsr::new_with_seed(seed);
+
+        BigInt::from_iter(&mut ll, parts)
+    }
+
     pub fn len(&self) -> usize {
         self.parts.len()
     }
@@ -115,14 +142,6 @@ impl BigInt {
             debug_assert_eq!(self.parts[i], 0);
         }
         self.parts[0]
-    }
-
-    /// Create a pseudorandom number with 'words' number of words.
-    pub fn pseudorandom(words: usize, seed: u32) -> Self {
-        use crate::utils::Lfsr;
-        let mut ll = Lfsr::new_with_seed(seed);
-
-        BigInt::from_iter(&mut ll, words)
     }
 
     /// Returns the lowest 64 bits.
