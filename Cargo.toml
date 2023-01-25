@@ -13,6 +13,14 @@ repository = "https://github.com/nadavrot/arpfloat"
 
 [dependencies]
 
+
+[dev-dependencies]
+criterion = "0.4"
+
+[[bench]]
+name = "main_benchmark"
+harness = false
+
 [features]
 default = ["std"]
 std = []
