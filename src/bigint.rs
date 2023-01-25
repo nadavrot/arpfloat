@@ -552,6 +552,14 @@ fn test_powi5() {
         let five = BigInt::from_u64(5);
         assert_eq!(five.powi(i as u64).as_u64(), *val);
     }
+
+    // 15 ^ 16
+    let v15 = BigInt::from_u64(15);
+    assert_eq!(v15.powi(16).as_u64(), 6568408355712890625);
+
+    // 3 ^ 21
+    let v3 = BigInt::from_u64(3);
+    assert_eq!(v3.powi(21).as_u64(), 10460353203);
 }
 
 #[test]
