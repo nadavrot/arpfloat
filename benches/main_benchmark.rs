@@ -42,6 +42,18 @@ fn test_sin_cos() {
     }
 }
 
+fn test_bigint_mul_long() {
+    let a = BigInt::pseudorandom(1000, 98765);
+    let b = BigInt::pseudorandom(1000, 43210);
+    black_box(a * b);
+}
+
+fn test_bigint_mul_short() {
+    let a = BigInt::pseudorandom(10000, 98765);
+    let b = BigInt::from_u64(10);
+    black_box(a * b);
+}
+
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 
 pub fn criterion_benchmark(c: &mut Criterion) {
@@ -52,6 +64,10 @@ pub fn criterion_benchmark(c: &mut Criterion) {
     c.bench_function("test_bigint_as_dec", |b| b.iter(test_bigint_as_dec));
     c.bench_function("test_bigint_div", |b| b.iter(test_bigint_div));
     c.bench_function("test_sin_cos", |b| b.iter(test_sin_cos));
+    c.bench_function("test_bigint_mul_long", |b| b.iter(test_bigint_mul_long));
+    c.bench_function("test_bigint_mul_short", |b| {
+        b.iter(test_bigint_mul_short)
+    });
 }
 
 criterion_group!(benches, criterion_benchmark);
