@@ -312,17 +312,20 @@ impl BigInt {
     /// Add `rhs` to self, and return true if the operation overflowed (borrow).
     #[must_use]
     pub fn inplace_sub(&mut self, rhs: &Self) -> bool {
-        self.inplace_sub_slice(&rhs.parts[..])
+        self.inplace_sub_slice(&rhs.parts[..], 0)
     }
 
     /// Implements subtraction of the 'rhs' sequence of words to this number.
+    /// The parameter `known_zeros` specifies how many lower *words* in `rhs`
+    /// are zeros and can be ignored. This is used by the division algorithm
+    /// that shifts the divisor.
     #[allow(clippy::needless_range_loop)]
-    fn inplace_sub_slice(&mut self, rhs: &[u64]) -> bool {
+    fn inplace_sub_slice(&mut self, rhs: &[u64], bottom_zeros: usize) -> bool {
         self.grow(rhs.len());
         let mut borrow: bool = false;
         // Do the part of the vectors that both sides have.
 
-        for i in 0..rhs.len() {
+        for i in bottom_zeros..rhs.len() {
             let first = self.parts[i].overflowing_sub(rhs[i]);
             let second = first.0.overflowing_sub(borrow as u64);
             borrow = first.1 || second.1;
@@ -416,8 +419,12 @@ impl BigInt {
 
         // Perform the long division.
         for i in (0..bits + 1).rev() {
+            // Find out how many of the lower words of the divisor are zeros.
+            let known_zeros = i / 64;
+
             if dividend >= divisor {
-                let overflow = dividend.inplace_sub(&divisor);
+                let overflow =
+                    dividend.inplace_sub_slice(&divisor.parts, known_zeros);
                 debug_assert!(!overflow);
                 quotient.flip_bit(i);
             }
@@ -1177,8 +1184,8 @@ impl BigInt {
         let mut ad_plus_bc = Self::mul_karatsuba(&a_b.parts, &c_d.parts);
 
         // Compute (a+b) * (c+d)  - ac - bd
-        ad_plus_bc.inplace_sub_slice(&ac.parts);
-        ad_plus_bc.inplace_sub_slice(&bd.parts);
+        ad_plus_bc.inplace_sub_slice(&ac.parts, 0);
+        ad_plus_bc.inplace_sub_slice(&bd.parts, 0);
 
         // Add the parts of the word together.
         bd.shift_left(64 * mid * 2);
