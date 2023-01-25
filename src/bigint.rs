@@ -350,10 +350,10 @@ impl BigInt {
         if self.len() > KARATSUBA_SIZE_THRESHOLD
             || rhs.len() > KARATSUBA_SIZE_THRESHOLD
         {
-            *self = Self::mul_karatsuba(&self.parts, &rhs.parts);
+            *self = Self::mul_karatsuba(self, rhs);
             return;
         }
-        self.inplace_mul_slice(&rhs.parts);
+        self.inplace_mul_slice(rhs);
     }
 
     /// Implements multiplication of the 'rhs' sequence of words to this number.
@@ -420,11 +420,10 @@ impl BigInt {
         // Perform the long division.
         for i in (0..bits + 1).rev() {
             // Find out how many of the lower words of the divisor are zeros.
-            let known_zeros = i / 64;
+            let low_zeros = i / 64;
 
             if dividend >= divisor {
-                let overflow =
-                    dividend.inplace_sub_slice(&divisor.parts, known_zeros);
+                let overflow = dividend.inplace_sub_slice(&divisor, low_zeros);
                 debug_assert!(!overflow);
                 quotient.flip_bit(i);
             }
@@ -1189,11 +1188,11 @@ impl BigInt {
 
         a_b.grow(c_d.len());
         c_d.grow(a_b.len());
-        let mut ad_plus_bc = Self::mul_karatsuba(&a_b.parts, &c_d.parts);
+        let mut ad_plus_bc = Self::mul_karatsuba(&a_b, &c_d);
 
         // Compute (a+b) * (c+d)  - ac - bd
-        ad_plus_bc.inplace_sub_slice(&ac.parts, 0);
-        ad_plus_bc.inplace_sub_slice(&bd.parts, 0);
+        ad_plus_bc.inplace_sub_slice(&ac, 0);
+        ad_plus_bc.inplace_sub_slice(&bd, 0);
 
         // Add the parts of the word together.
         bd.shift_left(64 * mid * 2);
@@ -1214,8 +1213,8 @@ fn test_mul_karatsuba() {
     fn test_sizes(l: usize, r: usize, ll: &mut Lfsr) {
         let mut a = BigInt::from_iter(ll, l);
         let b = BigInt::from_iter(ll, r);
-        let res = BigInt::mul_karatsuba(&a.parts, &b.parts);
-        a.inplace_mul_slice(&b.parts);
+        let res = BigInt::mul_karatsuba(&a, &b);
+        a.inplace_mul_slice(&b);
         assert_eq!(res, a);
     }
 
@@ -1224,5 +1223,15 @@ fn test_mul_karatsuba() {
         for j in 1..60 {
             test_sizes(i, j, &mut ll);
         }
+    }
+}
+
+use std::ops::Deref;
+
+impl Deref for BigInt {
+    type Target = [u64];
+
+    fn deref(&self) -> &Self::Target {
+        &self.parts[..]
     }
 }
