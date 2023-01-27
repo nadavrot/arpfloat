@@ -1221,7 +1221,6 @@ fn test_mul_karatsuba() {
         assert_eq!(res, a);
     }
 
-
     test_sizes(1, 1, &mut ll);
     test_sizes(100, 1, &mut ll);
     test_sizes(1, 100, &mut ll);

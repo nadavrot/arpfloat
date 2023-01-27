@@ -21,6 +21,21 @@ pub enum RoundingMode {
 /// 'precision', that determines the number of bits, 'exponent' that controls
 /// the dynamic range of the number, and rounding mode that controls how
 /// rounding is done after arithmetic operations.
+///
+/// # Example
+///
+/// ```
+///     use arpfloat::{Float, RoundingMode, Semantics};
+///
+///     // Create a new floating point semantics.
+///     let sem = Semantics::new(10, 100, RoundingMode::Positive);
+///     // Create the number 1.0 with the new semantics.
+///     let x = Float::one(sem, false);
+///
+///     // Check that the value is correct when casting to `double`.
+///     assert_eq!(x.as_f64(), 1.0);
+/// ```
+
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Semantics {
     /// The number of bits that define the range of the exponent.
