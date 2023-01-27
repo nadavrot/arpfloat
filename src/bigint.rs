@@ -1191,11 +1191,9 @@ impl BigInt {
         let mut c_d = BigInt::from_parts(c);
         c_d.inplace_add_slice(d);
 
-        a_b.grow(c_d.len());
-        c_d.grow(a_b.len());
         let mut ad_plus_bc = Self::mul_karatsuba(&a_b, &c_d);
 
-        // Compute (a+b) * (c+d)  - ac - bd
+        // Compute (a+b) * (c+d) - ac - bd
         ad_plus_bc.inplace_sub_slice(&ac, 0);
         ad_plus_bc.inplace_sub_slice(&bd, 0);
 
