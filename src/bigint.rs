@@ -1164,17 +1164,22 @@ impl BigInt {
 
         // Handle small numbers using the traditional O(n^2) algorithm.
         if lhs.len().min(rhs.len()) < KARATSUBA_SIZE_THRESHOLD {
+            // Handle zero-sized inputs.
+            if lhs.is_empty() || rhs.is_empty() {
+                return BigInt::zero();
+            }
             let mut lhs = BigInt::from_parts(lhs);
             lhs.inplace_mul_slice(rhs);
             return lhs;
         }
 
-        // Split the big-int into two parts:
-        let mid = lhs.len().min(rhs.len()) / 2;
-        let a = &lhs[0..mid];
-        let b = &lhs[mid..];
-        let c = &rhs[0..mid];
-        let d = &rhs[mid..];
+        // Split the big-int into two parts. One of the parts might be
+        // zero-sized.
+        let mid = lhs.len().max(rhs.len()) / 2;
+        let a = &lhs[0..mid.min(lhs.len())];
+        let b = &lhs[mid.min(lhs.len())..];
+        let c = &rhs[0..mid.min(rhs.len())];
+        let d = &rhs[mid.min(rhs.len())..];
 
         // Compute 'a*c' and 'b*d'.
         let ac = Self::mul_karatsuba(a, c);
@@ -1218,9 +1223,17 @@ fn test_mul_karatsuba() {
         assert_eq!(res, a);
     }
 
+
+    test_sizes(1, 1, &mut ll);
+    test_sizes(100, 1, &mut ll);
+    test_sizes(1, 100, &mut ll);
+    test_sizes(100, 100, &mut ll);
+    test_sizes(1000, 1000, &mut ll);
+    test_sizes(1000, 1001, &mut ll);
+
     // Try numbers of different sizes.
-    for i in 1..50 {
-        for j in 1..60 {
+    for i in 64..90 {
+        for j in 1..128 {
             test_sizes(i, j, &mut ll);
         }
     }
