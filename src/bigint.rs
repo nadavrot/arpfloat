@@ -1236,7 +1236,7 @@ fn test_mul_karatsuba() {
     }
 }
 
-use std::ops::Deref;
+use core::ops::Deref;
 
 impl Deref for BigInt {
     type Target = [u64];
