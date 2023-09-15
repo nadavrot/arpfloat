@@ -122,9 +122,12 @@ impl Float {
                 Self::inf(sem, b.get_sign() ^ subtract)
             }
 
-            (Category::Zero, Category::Normal) => {
-                Self::new(sem, b.get_sign() ^ subtract, b.get_exp(), b.get_mantissa())
-            }
+            (Category::Zero, Category::Normal) => Self::new(
+                sem,
+                b.get_sign() ^ subtract,
+                b.get_exp(),
+                b.get_mantissa(),
+            ),
 
             (Category::Zero, Category::Zero) => {
                 Self::zero(sem, a.get_sign() && b.get_sign())
