@@ -626,11 +626,15 @@ impl PartialOrd for Float {
                 if self.sign != other.sign {
                     bool_to_ord(self.sign)
                 } else if self.exp < other.exp {
-                    bool_to_ord(!other.sign)
+                    bool_to_ord(!self.sign)
                 } else if self.exp > other.exp {
                     bool_to_ord(self.sign)
                 } else {
-                    Some(self.mantissa.cmp(&other.mantissa))
+                    match self.mantissa.cmp(&other.mantissa) {
+                        Ordering::Less => bool_to_ord(!self.sign),
+                        Ordering::Equal => Some(Ordering::Equal),
+                        Ordering::Greater => bool_to_ord(self.sign),
+                    }
                 }
             }
         }

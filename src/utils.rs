@@ -15,7 +15,7 @@ fn test_masking() {
 #[cfg(feature = "std")]
 #[allow(dead_code)]
 /// Returns list of interesting values that various tests use to catch edge cases.
-pub fn get_special_test_values() -> [f64; 20] {
+pub fn get_special_test_values() -> [f64; 22] {
     [
         -f64::NAN,
         f64::NAN,
@@ -37,6 +37,8 @@ pub fn get_special_test_values() -> [f64; 20] {
         -0.00001,
         0.1,
         355. / 113.,
+        -1.0,
+        -1.1,
     ]
 }
 
