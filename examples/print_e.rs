@@ -1,7 +1,7 @@
-use arpfloat::{Float, RoundingMode, Semantics};
+//! Calculates long numbers and prints them.
+//!  cargo run --example print_e --release
 
-///! Calculates long numbers and prints them.
-///!  cargo run --example print_e --release
+use arpfloat::{Float, RoundingMode, Semantics};
 
 fn main() {
     let sem = Semantics::new(32, 5000, RoundingMode::NearestTiesToEven);
