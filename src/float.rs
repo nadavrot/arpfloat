@@ -367,7 +367,7 @@ pub const FP128: Semantics = Semantics::new(15, 113, nte);
 /// Predefined FP256 float with 19 exponent bits, and 236 mantissa bits.
 pub const FP256: Semantics = Semantics::new(19, 237, nte);
 
-//// Shift `val` by `bits`, and report the loss.
+/// Shift `val` by `bits`, and report the loss.
 pub(crate) fn shift_right_with_loss(
     val: &BigInt,
     bits: usize,
