@@ -288,7 +288,7 @@ impl BigInt {
 
     /// Implements addition of the 'rhs' sequence of words to this number.
     #[allow(clippy::needless_range_loop)]
-    fn inplace_add_slice(&mut self, rhs: &[u64]) {
+    pub(crate) fn inplace_add_slice(&mut self, rhs: &[u64]) {
         self.grow(rhs.len());
         let mut carry: bool = false;
         for i in 0..rhs.len() {
