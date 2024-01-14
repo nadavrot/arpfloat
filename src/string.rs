@@ -171,6 +171,207 @@ impl Display for Semantics {
 }
 
 #[cfg(feature = "std")]
+mod from {
+    use core::fmt::{Debug, Display};
+    use std::error::Error;
+
+    use crate::{BigInt, Float, Semantics, FP64};
+
+    impl Float {
+        pub fn try_from_str(
+            value: &str,
+            sem: Semantics,
+        ) -> Result<Self, ParseError> {
+            if value.is_empty() {
+                return Err(ParseError(ParseErrorKind::InputEmpty));
+            }
+
+            let chars = value.as_bytes();
+            let (sign, skip) = if chars[0] == '-' as u8 || chars[0] == '+' as u8
+            {
+                (chars[0] == '-' as u8, 1)
+            } else {
+                (false, 0)
+            };
+            let value = &value[skip..];
+
+            if value.eq_ignore_ascii_case("nan") {
+                return Ok(Self::nan(sem, sign));
+            }
+
+            if value.eq_ignore_ascii_case("inf") {
+                return Ok(Self::inf(sem, sign));
+            }
+
+            let l_r = value.split_once('.');
+            // handle cases where we have no `.` and as such no mantissa
+            if l_r.is_none() {
+                let ((num, _), exp_num) = parse_with_exp(value)?;
+                let mut num = Float::from_bigint(sem, num);
+                if let Some(exp) = exp_num {
+                    if exp >= 0 {
+                        num *= Float::from_bigint(
+                            sem,
+                            BigInt::from_u64(10).powi(exp as u64),
+                        );
+                    } else {
+                        num /= Float::from_bigint(
+                            sem,
+                            BigInt::from_u64(10).powi((-exp) as u64),
+                        );
+                    }
+                }
+                num.set_sign(sign);
+                return Ok(num);
+            }
+            let (left, right) = l_r.unwrap();
+            // try parsing decimal value of 0 (as it has a different type than generic numbers)
+            if right
+                .chars()
+                .map(|chr| chr as u32 & !('0' as u32))
+                .sum::<u32>()
+                == 0
+            {
+                return parse_whole_num(left, sign, sem)
+                    .map(|num| Ok(num))
+                    .unwrap_or(Err(ParseError(
+                        ParseErrorKind::ParsingNumberFailed,
+                    )));
+            }
+            let left_num = parse_big_int(left).map(|num| Ok(num)).unwrap_or(
+                Err(ParseError(ParseErrorKind::ParsingNumberFailed)),
+            )?;
+            // parse the mantissa and an optional exponent part
+            let ((right_num, right_num_digits), exp_num) =
+                parse_with_exp(right)?;
+            // now construct the number from the info we parsed previously
+            let exp = BigInt::from_u64(10).powi(right_num_digits as u64);
+            let num = left_num * &exp + &right_num;
+
+            let mut ret =
+                Float::from_bigint(sem, num) / (Float::from_bigint(sem, exp));
+            if let Some(exp_num) = exp_num {
+                if exp_num >= 0 {
+                    ret *= Float::from_bigint(
+                        sem,
+                        BigInt::from_u64(10).powi(exp_num as u64),
+                    )
+                } else {
+                    ret /= Float::from_bigint(
+                        sem,
+                        BigInt::from_u64(10).powi((-exp_num) as u64),
+                    )
+                }
+            }
+            ret.set_sign(sign);
+            Ok(ret)
+        }
+    }
+
+    impl TryFrom<&str> for Float {
+        type Error = ParseError;
+
+        fn try_from(value: &str) -> Result<Self, Self::Error> {
+            const DEFAULT_SEM: Semantics = FP64;
+            // TODO: autodetect required semantics
+            Self::try_from_str(value, DEFAULT_SEM)
+        }
+    }
+
+    fn parse_with_exp(
+        value: &str,
+    ) -> Result<((BigInt, usize), Option<i64>), ParseError> {
+        let idx = value.find(|c| c == 'e' || c == 'E');
+        let (num_raw, exp) = if let Some(idx) = idx {
+            let (l, r) = value.split_at(idx);
+            (l, Some(&r[1..]))
+        } else {
+            (value, None)
+        };
+
+        let num = parse_big_int(num_raw)
+            .map(|num| Ok((num, num_raw.len())))
+            .unwrap_or(Err(ParseError(ParseErrorKind::ParsingNumberFailed)))?;
+
+        if let Some(exp) = exp {
+            match exp.parse::<i64>() {
+                Ok(exp) => {
+                    return Ok((num, Some(exp)));
+                }
+                Err(_) => {
+                    return Err(ParseError(ParseErrorKind::ExponentParseFailed))
+                }
+            }
+        }
+        Ok((num, None))
+    }
+
+    fn parse_big_int(value: &str) -> Option<BigInt> {
+        let chars = value.as_bytes();
+        let ten = BigInt::from_u64(10);
+        let mut num = BigInt::from_u64(0);
+        for digit in chars.iter() {
+            if *digit > '9' as u8 || *digit < '0' as u8 {
+                return None;
+            }
+            let part = [*digit as u64 - '0' as u64];
+            num.inplace_mul(&ten);
+            num.inplace_add_slice(&part);
+        }
+        Some(num)
+    }
+
+    fn parse_whole_num(
+        value: &str,
+        sign: bool,
+        sem: Semantics,
+    ) -> Option<Float> {
+        let chars = value.as_bytes();
+        if value.len() == 1 && chars[0] == '0' as u8 {
+            return Some(Float::zero(sem, sign));
+        }
+        let num = parse_big_int(value)?;
+
+        let mut ret = Float::from_bigint(sem, num);
+        ret.set_sign(sign);
+
+        return Some(ret);
+    }
+
+    enum ParseErrorKind {
+        InputEmpty,
+        ParsingNumberFailed,
+        ExponentParseFailed,
+    }
+
+    pub struct ParseError(ParseErrorKind);
+
+    impl Error for ParseError {}
+
+    impl Display for ParseError {
+        fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+            match self.0 {
+                ParseErrorKind::ParsingNumberFailed => f.write_str(
+                    "Failed parsing number part of floating point number",
+                ),
+                ParseErrorKind::ExponentParseFailed => {
+                    f.write_str("Failed parsing exponent of float number")
+                }
+                ParseErrorKind::InputEmpty => {
+                    f.write_str("The input provided was empty")
+                }
+            }
+        }
+    }
+
+    impl Debug for ParseError {
+        fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+            Display::fmt(&self, f)
+        }
+    }
+}
+
+#[cfg(feature = "std")]
 #[test]
 fn test_convert_to_string() {
     use crate::FP16;
@@ -196,6 +397,24 @@ fn test_convert_to_string() {
     assert_eq!(".29999999999999998", to_str_w_fp64(0.3));
     assert_eq!("2251799813685248.", to_str_w_fp64((1u64 << 51) as f64));
     assert_eq!("1995.1994999999999", to_str_w_fp64(1995.1995));
+}
+
+#[test]
+fn test_from_string() {
+    assert_eq!("-3.", Float::try_from("-3.0").unwrap().to_string());
+    assert_eq!("30.", Float::try_from("30").unwrap().to_string());
+    assert_eq!("430.56", Float::try_from("430.56").unwrap().to_string());
+    assert_eq!("5.2", Float::try_from("5.2").unwrap().to_string());
+    assert_eq!("Inf", Float::try_from("inf").unwrap().to_string());
+    assert_eq!("NaN", Float::try_from("nan").unwrap().to_string());
+    assert_eq!("32.", Float::try_from("3.2e1").unwrap().to_string());
+    assert_eq!("4.4", Float::try_from("44.e-1").unwrap().to_string());
+    assert_eq!("5.4", Float::try_from("54e-1").unwrap().to_string());
+    assert_eq!("-5.485", Float::try_from("-54.85e-1").unwrap().to_string());
+    assert!(Float::try_from("abc.de").is_err());
+    assert!(Float::try_from("e.-21").is_err());
+    assert!(Float::try_from("-rlp.").is_err());
+    assert!(Float::try_from("").is_err());
 }
 
 #[test]
