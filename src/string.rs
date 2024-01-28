@@ -178,14 +178,20 @@ mod from {
     use crate::{BigInt, Float, Semantics, FP64};
 
     impl Float {
+        /// Try to construct a Float instance with semantics 'sem' from the
+        /// string 'value'. Note that the operation of conversion might lose
+        /// precision. If you care about precision you might want to use a
+        /// higher precision float and downcast.
         pub fn try_from_str(
             value: &str,
             sem: Semantics,
         ) -> Result<Self, ParseError> {
+            // Handle the empty case.
             if value.is_empty() {
                 return Err(ParseError(ParseErrorKind::InputEmpty));
             }
 
+            // Handle the plus or minus in front of the number.
             let chars = value.as_bytes();
             let (sign, skip) = if chars[0] == b'-' || chars[0] == b'+' {
                 (chars[0] == b'-', 1)
@@ -194,19 +200,26 @@ mod from {
             };
             let value = &value[skip..];
 
+            // Handle Nan.
             if value.eq_ignore_ascii_case("nan") {
                 return Ok(Self::nan(sem, sign));
             }
 
+            // Handle Inf.
             if value.eq_ignore_ascii_case("inf") {
                 return Ok(Self::inf(sem, sign));
             }
 
+            // Start handling the non trivial cases.
+
             let l_r = value.split_once('.');
-            // handle cases where we have no `.` and as such no mantissa
+            // Handle cases where we have no `.` and as such no mantissa.
             if l_r.is_none() {
+                // No period. Just parse the integer.
                 let ((num, _), exp_num) = parse_with_exp(value)?;
                 let mut num = Float::from_bigint(sem, num);
+
+                // Shift the number according to the exponent (in decimal).
                 if let Some(exp) = exp_num {
                     if exp >= 0 {
                         num *= Float::from_bigint(
@@ -223,8 +236,11 @@ mod from {
                 num.set_sign(sign);
                 return Ok(num);
             }
+
+            // Handle cases where we have a period in the number:
             let (left, right) = l_r.unwrap();
-            // try parsing decimal value of 0 (as it has a different type than generic numbers)
+
+            // Try parsing decimal value of 0.
             if right
                 .chars()
                 .map(|chr| chr as u32 & !('0' as u32))
@@ -235,29 +251,33 @@ mod from {
                     Err(ParseError(ParseErrorKind::ParsingNumberFailed)),
                 );
             }
+
+            // Parse the integer part.
             let left_num = parse_big_int(left).map(Ok).unwrap_or(Err(
                 ParseError(ParseErrorKind::ParsingNumberFailed),
             ))?;
-            // parse the mantissa and an optional exponent part
-            let ((right_num, right_num_digits), exp_num) =
-                parse_with_exp(right)?;
-            // now construct the number from the info we parsed previously
-            let exp = BigInt::from_u64(10).powi(right_num_digits as u64);
-            let num = left_num * &exp + &right_num;
 
-            let mut ret =
-                Float::from_bigint(sem, num) / (Float::from_bigint(sem, exp));
-            if let Some(exp_num) = exp_num {
+            // Parse the mantissa and an optional exponent part
+            let ((right_num, right_num_digits), explicit_exp) =
+                parse_with_exp(right)?;
+
+            // Construct the integral and fractional parts, without the exp.
+            // This is one of the places where we might lose precision.
+            let dec_shift = BigInt::from_u64(10).powi(right_num_digits as u64);
+            let num = left_num * &dec_shift + &right_num;
+
+            // Construct the whole number, move the fractional part into place.
+            let mut ret = Float::from_bigint(sem, num)
+                / (Float::from_bigint(sem, dec_shift));
+
+            // Handle the explicit exponent. (Example: e+1).
+            if let Some(exp_num) = explicit_exp {
                 if exp_num >= 0 {
-                    ret *= Float::from_bigint(
-                        sem,
-                        BigInt::from_u64(10).powi(exp_num as u64),
-                    )
+                    let e = BigInt::from_u64(10).powi(exp_num as u64);
+                    ret *= Float::from_bigint(sem, e)
                 } else {
-                    ret /= Float::from_bigint(
-                        sem,
-                        BigInt::from_u64(10).powi((-exp_num) as u64),
-                    )
+                    let e = BigInt::from_u64(10).powi((-exp_num) as u64);
+                    ret /= Float::from_bigint(sem, e)
                 }
             }
             ret.set_sign(sign);
@@ -275,10 +295,15 @@ mod from {
         }
     }
 
+    /// Parse a number that contains the 'e' marker for exponent.
+    /// Example: 565e+1
+    /// Returns the number, the number of decimal digits, and an optional
+    /// exponent value.
     fn parse_with_exp(
         value: &str,
     ) -> Result<((BigInt, usize), Option<i64>), ParseError> {
         let idx = value.find(|c| c == 'e' || c == 'E');
+        // Split the number to the digits and the exponent.
         let (num_raw, exp) = if let Some(idx) = idx {
             let (l, r) = value.split_at(idx);
             (l, Some(&r[1..]))
@@ -286,13 +311,16 @@ mod from {
             (value, None)
         };
 
+        // Parse the left size of the expression (the number).
         let num = parse_big_int(num_raw)
             .map(|num| Ok((num, num_raw.len())))
             .unwrap_or(Err(ParseError(ParseErrorKind::ParsingNumberFailed)))?;
 
+        // Parse the right side (the exponent expression).
         if let Some(exp) = exp {
             match exp.parse::<i64>() {
                 Ok(exp) => {
+                    // Found a valid expression that has exponent.
                     return Ok((num, Some(exp)));
                 }
                 Err(_) => {
@@ -300,9 +328,11 @@ mod from {
                 }
             }
         }
+        // Found a valid number without exponent marker.
         Ok((num, None))
     }
 
+    /// Try to parse a number from the string 'value'.
     fn parse_big_int(value: &str) -> Option<BigInt> {
         let chars = value.as_bytes();
         let ten = BigInt::from_u64(10);
@@ -318,17 +348,21 @@ mod from {
         Some(num)
     }
 
+    /// Parse one long integer and apply a sign.
     fn parse_whole_num(
         value: &str,
         sign: bool,
         sem: Semantics,
     ) -> Option<Float> {
         let chars = value.as_bytes();
+        // Handle the special case of '0'.
         if value.len() == 1 && chars[0] == b'0' {
             return Some(Float::zero(sem, sign));
         }
-        let num = parse_big_int(value)?;
 
+        // Parse the digits.
+        let num = parse_big_int(value)?;
+        // And construct the Float number.
         let mut ret = Float::from_bigint(sem, num);
         ret.set_sign(sign);
 
