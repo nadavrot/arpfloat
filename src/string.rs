@@ -241,12 +241,7 @@ mod from {
             let (left, right) = l_r.unwrap();
 
             // Try parsing decimal value of 0.
-            if right
-                .chars()
-                .map(|chr| chr as u32 & !('0' as u32))
-                .sum::<u32>()
-                == 0
-            {
+            if right.chars().all(|chr| chr == '0') {
                 return parse_whole_num(left, sign, sem).map(Ok).unwrap_or(
                     Err(ParseError(ParseErrorKind::ParsingNumberFailed)),
                 );
@@ -266,7 +261,8 @@ mod from {
             let dec_shift = BigInt::from_u64(10).powi(right_num_digits as u64);
 
             let integral = Float::from_bigint(sem, left_num);
-            let fraction = Float::from_bigint(sem, right_num) / Float::from_bigint(sem, dec_shift);
+            let fraction = Float::from_bigint(sem, right_num)
+                / Float::from_bigint(sem, dec_shift);
 
             // Construct the whole number, move the fractional part into place.
             let mut ret = integral + fraction;
@@ -434,6 +430,7 @@ fn test_convert_to_string() {
 #[test]
 fn test_from_string() {
     assert_eq!("-3.", Float::try_from("-3.0").unwrap().to_string());
+    assert_eq!("-3.", Float::try_from("-3.00").unwrap().to_string());
     assert_eq!("30.", Float::try_from("30").unwrap().to_string());
     assert_eq!("430.56", Float::try_from("430.56").unwrap().to_string());
     assert_eq!("5.2", Float::try_from("5.2").unwrap().to_string());
