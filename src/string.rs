@@ -187,9 +187,8 @@ mod from {
             }
 
             let chars = value.as_bytes();
-            let (sign, skip) = if chars[0] == '-' as u8 || chars[0] == '+' as u8
-            {
-                (chars[0] == '-' as u8, 1)
+            let (sign, skip) = if chars[0] == b'-' || chars[0] == b'+' {
+                (chars[0] == b'-', 1)
             } else {
                 (false, 0)
             };
@@ -232,15 +231,13 @@ mod from {
                 .sum::<u32>()
                 == 0
             {
-                return parse_whole_num(left, sign, sem)
-                    .map(|num| Ok(num))
-                    .unwrap_or(Err(ParseError(
-                        ParseErrorKind::ParsingNumberFailed,
-                    )));
+                return parse_whole_num(left, sign, sem).map(Ok).unwrap_or(
+                    Err(ParseError(ParseErrorKind::ParsingNumberFailed)),
+                );
             }
-            let left_num = parse_big_int(left).map(|num| Ok(num)).unwrap_or(
-                Err(ParseError(ParseErrorKind::ParsingNumberFailed)),
-            )?;
+            let left_num = parse_big_int(left).map(Ok).unwrap_or(Err(
+                ParseError(ParseErrorKind::ParsingNumberFailed),
+            ))?;
             // parse the mantissa and an optional exponent part
             let ((right_num, right_num_digits), exp_num) =
                 parse_with_exp(right)?;
@@ -311,7 +308,7 @@ mod from {
         let ten = BigInt::from_u64(10);
         let mut num = BigInt::from_u64(0);
         for digit in chars.iter() {
-            if *digit > '9' as u8 || *digit < '0' as u8 {
+            if *digit > b'9' || *digit < b'0' {
                 return None;
             }
             let part = [*digit as u64 - '0' as u64];
@@ -327,7 +324,7 @@ mod from {
         sem: Semantics,
     ) -> Option<Float> {
         let chars = value.as_bytes();
-        if value.len() == 1 && chars[0] == '0' as u8 {
+        if value.len() == 1 && chars[0] == b'0' {
             return Some(Float::zero(sem, sign));
         }
         let num = parse_big_int(value)?;
@@ -335,7 +332,7 @@ mod from {
         let mut ret = Float::from_bigint(sem, num);
         ret.set_sign(sign);
 
-        return Some(ret);
+        Some(ret)
     }
 
     enum ParseErrorKind {
