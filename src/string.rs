@@ -264,11 +264,12 @@ mod from {
             // Construct the integral and fractional parts, without the exp.
             // This is one of the places where we might lose precision.
             let dec_shift = BigInt::from_u64(10).powi(right_num_digits as u64);
-            let num = left_num * &dec_shift + &right_num;
+
+            let integral = Float::from_bigint(sem, left_num);
+            let fraction = Float::from_bigint(sem, right_num) / Float::from_bigint(sem, dec_shift);
 
             // Construct the whole number, move the fractional part into place.
-            let mut ret = Float::from_bigint(sem, num)
-                / (Float::from_bigint(sem, dec_shift));
+            let mut ret = integral + fraction;
 
             // Handle the explicit exponent. (Example: e+1).
             if let Some(exp_num) = explicit_exp {
