@@ -15,7 +15,8 @@ types can scale to hundreds of digits, and perform very accurate calculations.
 In ARPFloat the rounding mode is a part of the type-system, and this defines
 away a number of problem that show up when using fenv.h.
 
-`no_std` environments are supported by disabling the `std` feature.
+`no_std` environments are supported by disabling the `std` feature. 
+`python` bindings are supported by enabling the `python` feature.
 
 ### Example
 ```rust
@@ -125,8 +126,33 @@ The program above will print this output:
   ....
 ```
 
-
 The [examples](examples) directory contains a few programs that demonstrate the use of this library.
+
+### Python Bindings
+
+The has python bindings that can be installed with 'pip install -e .'
+
+```python
+    Examples:
+    >>> from arpfloat import Float, FP16
+    >>> x = from_f64(FP32, 2.5).cast(FP16)
+    >>> y = from_f64(FP32, 1.5).cast(FP16)
+    >>> x + y
+    4
+
+    >>> sem = Semantics(10, 10, "NearestTiesToEven")
+    >>> sem
+    Semantics { exponent: 10, precision: 10, mode: NearestTiesToEven }
+    >>> Float(sem, False, 1, 13)
+    .0507
+
+    >>> pi(FP32)
+    3.1415927
+    >>> pi(FP16)
+    3.14
+    >>> pi(BF16)
+    3.15
+```
 
 ### Resources
 
