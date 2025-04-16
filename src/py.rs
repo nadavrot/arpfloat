@@ -307,6 +307,30 @@ fn ln2(sem: &Bound<'_, PyAny>) -> PyResult<PyFloat> {
     })
 }
 
+/// Returns the number zero with the given semantics.
+///
+/// Args:
+///     sem: The semantics to use for representing e
+#[pyfunction]
+fn zero(sem: &Bound<'_, PyAny>) -> PyResult<PyFloat> {
+    let sem: PyRef<PySemantics> = sem.extract()?;
+    Ok(PyFloat {
+        inner: Float::zero(sem.inner, false),
+    })
+}
+
+/// Returns a new float with the integer value 'val' with the given semantics.
+///
+/// Args:
+///     sem: The semantics to use for representing e
+#[pyfunction]
+fn from_i64(sem: &Bound<'_, PyAny>, val: i64) -> PyResult<PyFloat> {
+    let sem: PyRef<PySemantics> = sem.extract()?;
+    Ok(PyFloat {
+        inner: Float::from_i64(sem.inner, val),
+    })
+}
+
 #[pymodule]
 fn _arpfloat(_py: Python, m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<PyFloat>()?;
@@ -316,5 +340,7 @@ fn _arpfloat(_py: Python, m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(pi, m)?)?;
     m.add_function(wrap_pyfunction!(e, m)?)?;
     m.add_function(wrap_pyfunction!(ln2, m)?)?;
+    m.add_function(wrap_pyfunction!(zero, m)?)?;
+    m.add_function(wrap_pyfunction!(from_i64, m)?)?;
     Ok(())
 }
