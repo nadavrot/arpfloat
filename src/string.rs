@@ -307,7 +307,7 @@ mod from {
     fn parse_with_exp(
         value: &str,
     ) -> Result<((BigInt, usize), Option<i64>), ParseError> {
-        let idx = value.find(|c| c == 'e' || c == 'E');
+        let idx = value.find(['e', 'E']);
         // Split the number to the digits and the exponent.
         let (num_raw, exp) = if let Some(idx) = idx {
             let (l, r) = value.split_at(idx);
