@@ -136,3 +136,7 @@ pub use self::float::Float;
 pub use self::float::RoundingMode;
 pub use self::float::Semantics;
 pub use self::float::{FP128, FP16, FP256, FP32, FP64};
+
+// Conditionally include a module based on feature flag
+#[cfg(feature = "python")]
+pub mod py;
