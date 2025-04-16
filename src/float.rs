@@ -505,6 +505,21 @@ impl Float {
         }
     }
 
+    /// Returns true if the absolute value of the two numbers are the same.
+    pub(crate) fn same_absolute_value(&self, other: &Self) -> bool {
+        if self.category != other.category {
+            return false;
+        }
+        match self.category {
+            Category::Infinity => true,
+            Category::NaN => true,
+            Category::Zero => true,
+            Category::Normal => {
+                self.exp == other.exp && self.mantissa == other.mantissa
+            }
+        }
+    }
+
     /// Normalize the number by adjusting the exponent to the legal range, shift
     /// the mantissa to the msb, and round the number if bits are lost. This is
     /// based on Neil Booth' implementation in APFloat.

@@ -141,6 +141,16 @@ impl Float {
             }
 
             (Category::Normal, Category::Normal) => {
+                // The IEEE 754 spec (section 6.3) states that cancellation
+                // results in a positive zero, except for the case of the
+                // negative rounding mode.
+                let cancellation = subtract == (a.get_sign() == b.get_sign());
+                let same_absolute_number = a.same_absolute_value(b);
+                if cancellation && same_absolute_number {
+                    let is_negative = RoundingMode::Negative == rm;
+                    return Self::zero(sem, is_negative);
+                }
+
                 let mut res = Self::add_or_sub_normals(a, b, subtract);
                 res.0.normalize(rm, res.1);
                 res.0
@@ -192,6 +202,14 @@ fn test_addition() {
             );
         }
     }
+
+    // Check that adding a negative and positive results in a positive zero for
+    // the default rounding mode.
+    let a = Float::from_f64(4.0);
+    let b = Float::from_f64(-4.0);
+    let c = Float::add(b, a);
+    assert!(c.is_zero());
+    assert!(!c.is_negative());
 }
 
 // Pg 120.  Chapter 4. Basic Properties and Algorithms.
