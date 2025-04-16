@@ -209,6 +209,10 @@ impl PyFloat {
     fn to_float64(&self) -> f64 {
         self.inner.as_f64()
     }
+    fn as_fraction(&self, n: usize) -> (u64, u64) {
+        let (a, b) = self.inner.as_fraction(n);
+        (a.as_u64(), b.as_u64())
+    }
     fn dump(&self) {
         self.inner.dump();
     }
@@ -230,6 +234,14 @@ fn e(sem: &Bound<'_, PyAny>) -> PyResult<PyFloat> {
     })
 }
 
+#[pyfunction]
+fn ln2(sem: &Bound<'_, PyAny>) -> PyResult<PyFloat> {
+    let sem: PyRef<PySemantics> = sem.extract()?;
+    Ok(PyFloat {
+        inner: Float::ln2(sem.inner),
+    })
+}
+
 #[pymodule]
 fn _arpfloat(_py: Python, m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<PyFloat>()?;
@@ -238,6 +250,7 @@ fn _arpfloat(_py: Python, m: &Bound<'_, PyModule>) -> PyResult<()> {
     // Add the functions to the module
     m.add_function(wrap_pyfunction!(pi, m)?)?;
     m.add_function(wrap_pyfunction!(e, m)?)?;
+    m.add_function(wrap_pyfunction!(ln2, m)?)?;
 
     Ok(())
 }
