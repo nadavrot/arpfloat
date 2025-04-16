@@ -19,7 +19,6 @@ pub enum RoundingMode {
 
 impl RoundingMode {
     /// Create a rounding mode from a string, if valid, or return none.
-
     pub fn from_string(s: &str) -> Option<Self> {
         match s {
             "NearestTiesToEven" => Some(RoundingMode::NearestTiesToEven),

@@ -66,6 +66,56 @@ impl PyFloat {
         self.inner.to_string()
     }
 
+    fn get_mantissa(&self) -> u64 {
+        self.inner.get_mantissa().as_u64()
+    }
+
+    fn get_exponent(&self) -> i64 {
+        self.inner.get_exp()
+    }
+
+    fn get_category(&self) -> String {
+        format!("{:?}", self.inner.get_category())
+    }
+
+    fn get_semantics(&self) -> PySemantics {
+        PySemantics {
+            inner: self.inner.get_semantics(),
+        }
+    }
+
+    fn is_negative(&self) -> bool {
+        self.inner.is_negative()
+    }
+
+    fn is_inf(&self) -> bool {
+        self.inner.is_inf()
+    }
+
+    fn is_nan(&self) -> bool {
+        self.inner.is_nan()
+    }
+
+    fn is_zero(&self) -> bool {
+        self.inner.is_zero()
+    }
+
+    fn is_normal(&self) -> bool {
+        self.inner.is_normal()
+    }
+
+    fn __add__(&self, other: &PyFloat) -> PyFloat {
+        self.add(other)
+    }
+
+    fn __sub__(&self, other: &PyFloat) -> PyFloat {
+        self.sub(other)
+    }
+
+    fn __mul__(&self, other: &PyFloat) -> PyFloat {
+        self.mul(other)
+    }
+
     fn add(&self, other: &PyFloat) -> PyFloat {
         let val = self.inner.clone().add(other.inner.clone());
         PyFloat { inner: val }
