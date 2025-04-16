@@ -119,6 +119,14 @@ impl Float {
     /// representation of numbers. For all of that that check out the paper:
     /// "How to Print Floating-Point Numbers Accurately" by Steele and White.
     fn convert_to_string(&self) -> String {
+        // In order to print decimal digits we need a minimum number of mantissa
+        // bits for the conversion. Small floats (such as BF16) don't have
+        // enough bits, so we cast to a larger number.
+        if self.get_semantics().get_mantissa_len() < 16 {
+            use crate::FP32;
+            return self.cast(FP32).to_string();
+        }
+
         let result = if self.get_sign() { "-" } else { "" };
         let mut result: String = result.to_string();
 
@@ -404,10 +412,16 @@ mod from {
 fn test_convert_to_string() {
     use crate::FP16;
     use crate::FP64;
+    use core::f64;
     use std::format;
 
     fn to_str_w_fp16(val: f64) -> String {
         format!("{}", Float::from_f64(val).cast(FP16))
+    }
+
+    fn to_str_w_bf16(val: f64) -> String {
+        use crate::BF16;
+        format!("{}", Float::from_f64(val).cast(BF16))
     }
 
     fn to_str_w_fp64(val: f64) -> String {
@@ -415,16 +429,17 @@ fn test_convert_to_string() {
     }
 
     assert_eq!("-0.0", to_str_w_fp16(-0.));
-    assert_eq!(".3", to_str_w_fp16(0.3));
+    assert_eq!(".30004882", to_str_w_fp16(0.3));
     assert_eq!("4.5", to_str_w_fp16(4.5));
     assert_eq!("256.", to_str_w_fp16(256.));
     assert_eq!("Inf", to_str_w_fp16(65534.));
     assert_eq!("-Inf", to_str_w_fp16(-65534.));
-    assert_eq!(".0999", to_str_w_fp16(0.1));
+    assert_eq!(".09997558", to_str_w_fp16(0.1));
     assert_eq!(".1", to_str_w_fp64(0.1));
     assert_eq!(".29999999999999998", to_str_w_fp64(0.3));
     assert_eq!("2251799813685248.", to_str_w_fp64((1u64 << 51) as f64));
     assert_eq!("1995.1994999999999", to_str_w_fp64(1995.1995));
+    assert_eq!("3.15625", to_str_w_bf16(f64::consts::PI));
 }
 
 #[test]

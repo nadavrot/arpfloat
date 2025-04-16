@@ -370,6 +370,8 @@ impl Float {
 // Table 3.5 — Binary interchange format parameters.
 use RoundingMode::NearestTiesToEven as nte;
 
+/// Predefined BF16 float with 8 exponent bits, and 7 mantissa bits.
+pub const BF16: Semantics = Semantics::new(8, 7, nte);
 /// Predefined FP16 float with 5 exponent bits, and 10 mantissa bits.
 pub const FP16: Semantics = Semantics::new(5, 11, nte);
 /// Predefined FP32 float with 8 exponent bits, and 23 mantissa bits.
