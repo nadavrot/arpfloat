@@ -8,11 +8,16 @@ semantics and supports standard arithmetic operations.
 
 Examples:
     >>> from arpfloat import Float, FP16
-    >>> x = Float.from_f64(2.5).cast(FP16)
-    >>> y = Float.from_f64(1.5).cast(FP16)
-    >>> z = x + y  # Result is 4.0
-    >>> print(z)
+    >>> x = from_f64(FP32, 2.5).cast(FP16)
+    >>> y = from_f64(FP32, 1.5).cast(FP16)
+    >>> x + y
     4
+
+    >>> sem = Semantics(10, 10, "Zero")
+    >>> sem
+    Semantics { exponent: 10, precision: 10, mode: Zero }
+    >>> Float(sem, False, 1, 13)
+    .0507
 
 Constants:
     BF16, FP16, FP32, FP64, FP128, FP256: Standard floating-point formats
@@ -21,7 +26,7 @@ Constants:
 
 from ._arpfloat import PyFloat as Float
 from ._arpfloat import PySemantics as Semantics
-from ._arpfloat import pi, e, ln2, zero, from_i64
+from ._arpfloat import pi, e, ln2, zero, from_i64, from_f64
 
 
 # Define standard floating-point types
