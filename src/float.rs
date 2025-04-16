@@ -17,6 +17,21 @@ pub enum RoundingMode {
     Negative,
 }
 
+impl RoundingMode {
+    /// Create a rounding mode from a string, if valid, or return none.
+
+    pub fn from_string(s: &str) -> Option<Self> {
+        match s {
+            "NearestTiesToEven" => Some(RoundingMode::NearestTiesToEven),
+            "NearestTiesToAway" => Some(RoundingMode::NearestTiesToAway),
+            "Zero" => Some(RoundingMode::Zero),
+            "Positive" => Some(RoundingMode::Positive),
+            "Negative" => Some(RoundingMode::Negative),
+            _ => None,
+        }
+    }
+}
+
 /// Controls the semantics of a floating point number with:
 /// 'precision', that determines the number of bits, 'exponent' that controls
 /// the dynamic range of the number, and rounding mode that controls how
