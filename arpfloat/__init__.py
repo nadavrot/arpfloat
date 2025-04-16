@@ -19,9 +19,18 @@ Examples:
     >>> Float(sem, False, 1, 13)
     .0507
 
+    >>> arpfloat.pi(arpfloat.FP32)
+    3.1415927
+    >>> pi(FP16)
+    3.14
+    >>> pi(BF16)
+    3.15
+
 Constants:
     BF16, FP16, FP32, FP64, FP128, FP256: Standard floating-point formats
     pi, e, ln2, zero: Mathematical constants
+    Float, Semantics: Classes for representing floating-point numbers and their semantics
+    from_i64, from_f64: Constructors for creating Float objects from integers and floats
 """
 
 from ._arpfloat import PyFloat as Float
