@@ -207,9 +207,12 @@ fn test_addition() {
     // the default rounding mode.
     let a = Float::from_f64(4.0);
     let b = Float::from_f64(-4.0);
-    let c = Float::add(b, a);
+    let c = Float::add(a.clone(), b);
+    let d = Float::sub(a.clone(), a);
     assert!(c.is_zero());
     assert!(!c.is_negative());
+    assert!(d.is_zero());
+    assert!(!d.is_negative());
 }
 
 // Pg 120.  Chapter 4. Basic Properties and Algorithms.
