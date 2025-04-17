@@ -25,11 +25,7 @@ impl PySemantics {
     ///         "NearestTiesToEven", "NearestTiesToAway",
     ///         "Zero", "Positive", "Negative"
     #[new]
-    fn py_new(
-        exp_size: i64,
-        mantissa_size: u64,
-        rounding_mode_str: &str,
-    ) -> Self {
+    fn new(exp_size: i64, mantissa_size: u64, rounding_mode_str: &str) -> Self {
         let rm = RoundingMode::from_string(rounding_mode_str);
         assert!(rm.is_some(), "Invalid rounding mode");
         let sem = Semantics::new(
@@ -78,16 +74,18 @@ impl PyFloat {
     ///     exp: The exponent value (integer)
     ///     mantissa: The mantissa value (integer)
     #[new]
-    fn py_new(
+    fn new(
         sem: &Bound<'_, PyAny>,
         is_negative: bool,
         exp: i64,
         mantissa: u64,
     ) -> Self {
         let sem: PyRef<PySemantics> = sem.extract().unwrap();
-        let mantissa = BigInt::from_u64(mantissa);
+        let mut man = BigInt::from_u64(mantissa);
+        man.flip_bit(sem.inner.get_mantissa_len()); // Add the implicit bit.
+        let bias = sem.inner.get_bias();
         PyFloat {
-            inner: Float::new(sem.inner, is_negative, exp, mantissa),
+            inner: Float::from_parts(sem.inner, is_negative, exp - bias, man),
         }
     }
 

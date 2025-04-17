@@ -164,7 +164,12 @@ impl Float {
     }
 
     /// Create a new normal floating point number.
-    pub fn new(sem: Semantics, sign: bool, exp: i64, mantissa: BigInt) -> Self {
+    pub fn from_parts(
+        sem: Semantics,
+        sign: bool,
+        exp: i64,
+        mantissa: BigInt,
+    ) -> Self {
         if mantissa.is_zero() {
             return Float::zero(sem, sign);
         }
@@ -371,7 +376,7 @@ impl Float {
 use RoundingMode::NearestTiesToEven as nte;
 
 /// Predefined BF16 float with 8 exponent bits, and 7 mantissa bits.
-pub const BF16: Semantics = Semantics::new(8, 7, nte);
+pub const BF16: Semantics = Semantics::new(8, 8, nte);
 /// Predefined FP16 float with 5 exponent bits, and 10 mantissa bits.
 pub const FP16: Semantics = Semantics::new(5, 11, nte);
 /// Predefined FP32 float with 8 exponent bits, and 23 mantissa bits.
@@ -432,7 +437,7 @@ impl Float {
     fn overflow(&mut self, rm: RoundingMode) {
         let bounds = self.get_exp_bounds();
         let inf = Self::inf(self.sem, self.sign);
-        let max = Self::new(
+        let max = Self::from_parts(
             self.sem,
             self.sign,
             bounds.1,

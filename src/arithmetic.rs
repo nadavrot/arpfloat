@@ -71,7 +71,7 @@ impl Float {
                 ab_mantissa = a_mantissa - b_mantissa - c;
             }
             (
-                Self::new(sem, sign, a.get_exp(), ab_mantissa),
+                Self::from_parts(sem, sign, a.get_exp(), ab_mantissa),
                 loss.invert(),
             )
         } else {
@@ -85,7 +85,7 @@ impl Float {
             }
             debug_assert!(a.get_exp() == b.get_exp());
             let ab_mantissa = a.get_mantissa() + b.get_mantissa();
-            (Self::new(sem, a.get_sign(), a.get_exp(), ab_mantissa), loss)
+            (Self::from_parts(sem, a.get_sign(), a.get_exp(), ab_mantissa), loss)
         }
     }
 
@@ -122,7 +122,7 @@ impl Float {
                 Self::inf(sem, b.get_sign() ^ subtract)
             }
 
-            (Category::Zero, Category::Normal) => Self::new(
+            (Category::Zero, Category::Normal) => Self::from_parts(
                 sem,
                 b.get_sign() ^ subtract,
                 b.get_exp(),
@@ -414,7 +414,7 @@ impl Float {
             exp += bits as i64;
         }
 
-        (Self::new(sem, sign, exp, ab_significand), loss)
+        (Self::from_parts(sem, sign, exp, ab_significand), loss)
     }
 }
 
@@ -593,7 +593,7 @@ impl Float {
             Ordering::Greater => LossFraction::MoreThanHalf,
         };
 
-        let x = Self::new(sem, sign, exp, a_mantissa);
+        let x = Self::from_parts(sem, sign, exp, a_mantissa);
         (x, loss)
     }
 }

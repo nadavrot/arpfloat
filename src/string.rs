@@ -439,7 +439,7 @@ fn test_convert_to_string() {
     assert_eq!(".29999999999999998", to_str_w_fp64(0.3));
     assert_eq!("2251799813685248.", to_str_w_fp64((1u64 << 51) as f64));
     assert_eq!("1995.1994999999999", to_str_w_fp64(1995.1995));
-    assert_eq!("3.15625", to_str_w_bf16(f64::consts::PI));
+    assert_eq!("3.140625", to_str_w_bf16(f64::consts::PI));
 }
 
 #[test]

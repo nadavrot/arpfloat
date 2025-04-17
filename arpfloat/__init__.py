@@ -40,7 +40,7 @@ from ._arpfloat import pi, e, ln2, zero, from_i64, from_f64
 
 # Define standard floating-point types
 # Parameters match IEEE 754 standard formats
-BF16 = Semantics(8, 7, "NearestTiesToEven")  # BFloat16
+BF16 = Semantics(8, 8, "NearestTiesToEven")  # BFloat16
 FP16 = Semantics(5, 11, "NearestTiesToEven")  # Half precision
 FP32 = Semantics(8, 24, "NearestTiesToEven")  # Single precision
 FP64 = Semantics(11, 53, "NearestTiesToEven")  # Double precision
