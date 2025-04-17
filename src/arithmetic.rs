@@ -85,7 +85,10 @@ impl Float {
             }
             debug_assert!(a.get_exp() == b.get_exp());
             let ab_mantissa = a.get_mantissa() + b.get_mantissa();
-            (Self::from_parts(sem, a.get_sign(), a.get_exp(), ab_mantissa), loss)
+            (
+                Self::from_parts(sem, a.get_sign(), a.get_exp(), ab_mantissa),
+                loss,
+            )
         }
     }
 

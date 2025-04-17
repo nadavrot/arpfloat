@@ -20,7 +20,8 @@ impl Float {
     /// Load the big int `val` into the float. Notice that the number may
     /// overflow, or rounded to the nearest even integer.
     pub fn from_bigint(sem: Semantics, val: BigInt) -> Self {
-        let mut a = Self::from_parts(sem, false, sem.get_mantissa_len() as i64, val);
+        let mut a =
+            Self::from_parts(sem, false, sem.get_mantissa_len() as i64, val);
         a.normalize(sem.get_rounding_mode(), LossFraction::ExactlyZero);
         a
     }
@@ -85,7 +86,12 @@ impl Float {
         let mut m = self.get_mantissa();
         m.shift_right(trim);
         m.shift_left(trim);
-        Self::from_parts(self.get_semantics(), self.get_sign(), self.get_exp(), m)
+        Self::from_parts(
+            self.get_semantics(),
+            self.get_sign(),
+            self.get_exp(),
+            m,
+        )
     }
 
     /// Returns a number rounded to nearest integer, away from zero.

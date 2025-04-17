@@ -143,15 +143,32 @@ The has python bindings that can be installed with 'pip install -e .'
     >>> sem = Semantics(10, 10, "NearestTiesToEven")
     >>> sem
     Semantics { exponent: 10, precision: 10, mode: NearestTiesToEven }
-    >>> Float(sem, False, 1, 13)
-    .0507
+    >>> Float(sem, False, 0b1000000001, 0b1100101)
+    4.789062
 
     >>> pi(FP32)
     3.1415927
     >>> pi(FP16)
-    3.14
+    3.140625
     >>> pi(BF16)
-    3.15
+    3.140625
+```
+
+Arpfloat allows you to experiment with new floating point formats. For example,
+Nvidia's new [FP8](https://docs.nvidia.com/deeplearning/transformer-engine/user-guide/examples/fp8_primer.html)
+format can be defined as:
+
+```python
+    >>> from arpfloat import *
+    >>> E4M3 = Semantics(4, 3 + 1, "Zero") # Add +1 for implicit bit
+    >>> x = Float(E4M3, False, 0b101, 0b101)
+    >>> print(x)
+    .40625
+
+    >>> E5M2 = Semantics(5, 2 + 1, "Zero") # Add +1 for implicit bit
+    >>> x = Float(E5M2, False, 0b1101, 0b10)
+    >>> print(x)
+    .375
 ```
 
 ### Resources

@@ -20,7 +20,7 @@ impl PySemantics {
     ///
     /// Args:
     ///     exp_size: The size of the exponent in bits
-    ///     mantissa_size: The size of the mantissa in bits
+    ///     mantissa_size: The size of the mantissa, including the implicit bit
     ///     rounding_mode: The rounding mode to use:
     ///         "NearestTiesToEven", "NearestTiesToAway",
     ///         "Zero", "Positive", "Negative"
@@ -57,8 +57,8 @@ impl PySemantics {
 
 /// A class representing arbitrary precision floating-point numbers.
 ///
-/// This class implements IEEE 754-like floating-point arithmetic with configurable
-/// precision and rounding modes.
+/// This class implements IEEE 754-like floating-point arithmetic with
+///  configurable precision and rounding modes.
 #[pyclass]
 struct PyFloat {
     inner: Float,
@@ -71,7 +71,7 @@ impl PyFloat {
     /// Args:
     ///     sem: The semantics (precision and rounding mode) for this number
     ///     is_negative: Whether the number is negative (sign bit)
-    ///     exp: The exponent value (integer)
+    ///     exp: The biased exponent value (integer)
     ///     mantissa: The mantissa value (integer)
     #[new]
     fn new(
