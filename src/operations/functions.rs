@@ -212,7 +212,7 @@ impl Float {
             return self.clone();
         }
 
-        let mut r = Self::new(
+        let mut r = Self::from_parts(
             self.get_semantics(),
             self.get_sign(),
             self.get_exp() + scale,

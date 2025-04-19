@@ -20,7 +20,8 @@ impl Float {
     /// Load the big int `val` into the float. Notice that the number may
     /// overflow, or rounded to the nearest even integer.
     pub fn from_bigint(sem: Semantics, val: BigInt) -> Self {
-        let mut a = Self::new(sem, false, sem.get_mantissa_len() as i64, val);
+        let mut a =
+            Self::from_parts(sem, false, sem.get_mantissa_len() as i64, val);
         a.normalize(sem.get_rounding_mode(), LossFraction::ExactlyZero);
         a
     }
@@ -50,7 +51,7 @@ impl Float {
                 return i64::MAX;
             }
         }
-        let rm = self.get_semantics().get_rounding_mode();
+        let rm = self.get_rounding_mode();
         let val = self.convert_normal_to_integer(rm);
         if self.get_sign() {
             -(val.as_u64() as i64)
@@ -85,7 +86,12 @@ impl Float {
         let mut m = self.get_mantissa();
         m.shift_right(trim);
         m.shift_left(trim);
-        Self::new(self.get_semantics(), self.get_sign(), self.get_exp(), m)
+        Self::from_parts(
+            self.get_semantics(),
+            self.get_sign(),
+            self.get_exp(),
+            m,
+        )
     }
 
     /// Returns a number rounded to nearest integer, away from zero.
@@ -120,7 +126,7 @@ impl Float {
         let trim = (self.get_mantissa_len() as i64 - exp) as usize;
         let (mut m, loss) = shift_right_with_loss(&self.get_mantissa(), trim);
         m.shift_left(trim);
-        let t = Self::new(sem, self.get_sign(), self.get_exp(), m);
+        let t = Self::from_parts(sem, self.get_sign(), self.get_exp(), m);
 
         if loss.is_lt_half() {
             t
@@ -183,7 +189,7 @@ impl Float {
         }
 
         let mantissa = BigInt::from_u64(mantissa);
-        Self::new(sem, sign, exp, mantissa)
+        Self::from_parts(sem, sign, exp, mantissa)
     }
 
     /// Cast to another float using the non-default rounding mode `rm`.
@@ -216,7 +222,7 @@ impl Float {
     }
     /// Convert from one float format to another.
     pub fn cast(&self, to: Semantics) -> Float {
-        self.cast_with_rm(to, self.get_semantics().get_rounding_mode())
+        self.cast_with_rm(to, self.get_rounding_mode())
     }
 
     fn as_native_float(&self) -> u64 {

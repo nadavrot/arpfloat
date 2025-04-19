@@ -15,7 +15,8 @@ types can scale to hundreds of digits, and perform very accurate calculations.
 In ARPFloat the rounding mode is a part of the type-system, and this defines
 away a number of problem that show up when using fenv.h.
 
-`no_std` environments are supported by disabling the `std` feature.
+`no_std` environments are supported by disabling the `std` feature. 
+`python` bindings are supported by enabling the `python` feature.
 
 ### Example
 ```rust
@@ -125,8 +126,59 @@ The program above will print this output:
   ....
 ```
 
-
 The [examples](examples) directory contains a few programs that demonstrate the use of this library.
+
+### Python Bindings
+
+The has python bindings that can be installed with 'pip install -e .'
+
+```python
+    >>> from arpfloat import Float, Semantics, FP16, BF16, FP32, fp64, pi
+
+    >>> x = fp64(2.5).cast(FP16)
+    >>> y = fp64(1.5).cast(FP16)
+    >>> x + y
+    4.
+
+    >>> sem = Semantics(10, 10, "NearestTiesToEven")
+    >>> sem
+    Semantics { exponent: 10, precision: 10, mode: NearestTiesToEven }
+    >>> Float(sem, False, 0b1000000001, 0b1100101)
+    4.789062
+
+    >>> pi(FP32)
+    3.1415927
+    >>> pi(FP16)
+    3.140625
+    >>> pi(BF16)
+    3.140625
+```
+
+Arpfloat allows you to experiment with new floating point formats. For example,
+Nvidia's new [FP8](https://docs.nvidia.com/deeplearning/transformer-engine/user-guide/examples/fp8_primer.html)
+format can be defined as:
+
+```python
+    import numpy as np
+    from arpfloat import FP32, fp64, Semantics, zero
+
+    # Create two random numpy arrays in the range [0,1)
+    A0 = np.random.rand(1000000)
+    A1 = np.random.rand(1000000)
+
+    # Calculate the numpy dot product of the two arrays
+    print("Using fp32 arithmetic    : ", np.dot(A0, A1))
+
+    # Create the fp8 format (4 exponent bits, 3 mantissa bits + 1 implicit bit)
+    FP8 = Semantics(4, 3 + 1, "NearestTiesToEven")
+
+    # Convert the arrays to fp8
+    A0 = [fp64(x).cast(FP8) for x in A0]
+    A1 = [fp64(x).cast(FP8) for x in A1]
+
+    dot = sum([x.cast(FP32)*y.cast(FP32) for x, y in zip(A0, A1)])
+    print("Using fp8/fp32 arithmetic: ", dot)
+```
 
 ### Resources
 

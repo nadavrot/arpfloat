@@ -536,6 +536,11 @@ impl BigInt {
         use std::println;
         println!("[{}]", self.as_binary());
     }
+
+    #[cfg(not(feature = "std"))]
+    pub fn dump(&self) {
+        // No-op in no_std environments
+    }
 }
 
 impl Default for BigInt {

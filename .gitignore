@@ -10,3 +10,12 @@ Cargo.lock
 **/*.rs.bk
 
 .vscode
+
+.env/
+
+*.egg-info
+__pycache__
+*.so
+
+build/
+

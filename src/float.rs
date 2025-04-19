@@ -17,6 +17,20 @@ pub enum RoundingMode {
     Negative,
 }
 
+impl RoundingMode {
+    /// Create a rounding mode from a string, if valid, or return none.
+    pub fn from_string(s: &str) -> Option<Self> {
+        match s {
+            "NearestTiesToEven" => Some(RoundingMode::NearestTiesToEven),
+            "NearestTiesToAway" => Some(RoundingMode::NearestTiesToAway),
+            "Zero" => Some(RoundingMode::Zero),
+            "Positive" => Some(RoundingMode::Positive),
+            "Negative" => Some(RoundingMode::Negative),
+            _ => None,
+        }
+    }
+}
+
 /// Controls the semantics of a floating point number with:
 /// 'precision', that determines the number of bits, 'exponent' that controls
 /// the dynamic range of the number, and rounding mode that controls how
@@ -150,7 +164,12 @@ impl Float {
     }
 
     /// Create a new normal floating point number.
-    pub fn new(sem: Semantics, sign: bool, exp: i64, mantissa: BigInt) -> Self {
+    pub fn from_parts(
+        sem: Semantics,
+        sign: bool,
+        exp: i64,
+        mantissa: BigInt,
+    ) -> Self {
         if mantissa.is_zero() {
             return Float::zero(sem, sign);
         }
@@ -267,6 +286,11 @@ impl Float {
         self.sem
     }
 
+    /// Returns the rounding mode of the number.
+    pub fn get_rounding_mode(&self) -> RoundingMode {
+        self.sem.get_rounding_mode()
+    }
+
     /// Update the sign of the float to `sign`. True means negative.
     pub fn set_sign(&mut self, sign: bool) {
         self.sign = sign
@@ -337,6 +361,11 @@ impl Float {
         }
     }
 
+    #[cfg(not(feature = "std"))]
+    pub fn dump(&self) {
+        // No-op in no_std environments
+    }
+
     /// Returns the exponent bias for the number, as a positive number.
     /// https://en.wikipedia.org/wiki/IEEE_754#Basic_and_interchange_formats
     pub(crate) fn get_bias(&self) -> i64 {
@@ -356,6 +385,8 @@ impl Float {
 // Table 3.5 — Binary interchange format parameters.
 use RoundingMode::NearestTiesToEven as nte;
 
+/// Predefined BF16 float with 8 exponent bits, and 7 mantissa bits.
+pub const BF16: Semantics = Semantics::new(8, 8, nte);
 /// Predefined FP16 float with 5 exponent bits, and 10 mantissa bits.
 pub const FP16: Semantics = Semantics::new(5, 11, nte);
 /// Predefined FP32 float with 8 exponent bits, and 23 mantissa bits.
@@ -416,7 +447,7 @@ impl Float {
     fn overflow(&mut self, rm: RoundingMode) {
         let bounds = self.get_exp_bounds();
         let inf = Self::inf(self.sem, self.sign);
-        let max = Self::new(
+        let max = Self::from_parts(
             self.sem,
             self.sign,
             bounds.1,
@@ -485,6 +516,21 @@ impl Float {
                 }
 
                 loss.is_exactly_half() && self.mantissa.is_odd()
+            }
+        }
+    }
+
+    /// Returns true if the absolute value of the two numbers are the same.
+    pub(crate) fn same_absolute_value(&self, other: &Self) -> bool {
+        if self.category != other.category {
+            return false;
+        }
+        match self.category {
+            Category::Infinity => true,
+            Category::NaN => true,
+            Category::Zero => true,
+            Category::Normal => {
+                self.exp == other.exp && self.mantissa == other.mantissa
             }
         }
     }
