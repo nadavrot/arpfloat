@@ -1,0 +1,28 @@
+[build-system]
+requires = ["setuptools>=64.0.0", "wheel", "setuptools-rust>=1.5.2"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "arpfloat"
+version = "0.1.11"
+description = "Arbitrary-precision floating point library"
+authors = [
+    {name = "Nadav Rotem", email = "nadav256@gmail.com"},
+]
+readme = "README.md"
+requires-python = ">=3.6"
+
+[project.urls]
+Homepage = "https://github.com/nadavrot/arpfloat"
+Documentation = "https://docs.rs/arpfloat/"
+Repository = "https://github.com/nadavrot/arpfloat"
+
+[tool.setuptools]
+packages = ["arpfloat"]
+package-data = {"arpfloat" = ["py.typed"]}
+zip-safe = false
+
+[tool.setuptools-rust]
+rust-extensions = [
+    {path = ".", binding = "PyO3", features = ["python"]}
+]
