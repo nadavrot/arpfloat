@@ -51,7 +51,7 @@ impl Float {
                 return i64::MAX;
             }
         }
-        let rm = self.get_semantics().get_rounding_mode();
+        let rm = self.get_rounding_mode();
         let val = self.convert_normal_to_integer(rm);
         if self.get_sign() {
             -(val.as_u64() as i64)
@@ -222,7 +222,7 @@ impl Float {
     }
     /// Convert from one float format to another.
     pub fn cast(&self, to: Semantics) -> Float {
-        self.cast_with_rm(to, self.get_semantics().get_rounding_mode())
+        self.cast_with_rm(to, self.get_rounding_mode())
     }
 
     fn as_native_float(&self) -> u64 {

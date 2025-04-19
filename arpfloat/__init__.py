@@ -35,7 +35,7 @@ Constants:
 
 from ._arpfloat import PyFloat as Float
 from ._arpfloat import PySemantics as Semantics
-from ._arpfloat import pi, e, ln2, zero, from_i64, from_f64
+from ._arpfloat import pi, e, ln2, zero, fma, from_i64, from_f64
 
 
 # Define standard floating-point types

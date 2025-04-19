@@ -113,6 +113,10 @@ impl PyFloat {
             inner: self.inner.get_semantics(),
         }
     }
+    /// Get rounding mode of the number.
+    fn get_rounding_mode(&self) -> String {
+        self.inner.get_rounding_mode().as_string().to_string()
+    }
     /// Returns true if the Float is negative
     fn is_negative(&self) -> bool {
         self.inner.is_negative()
@@ -281,6 +285,16 @@ fn pi(sem: &Bound<'_, PyAny>) -> PyResult<PyFloat> {
     })
 }
 
+/// Returns the fused multiply-add operation of three numbers.
+///
+/// Args: (a * b) + c
+#[pyfunction]
+fn fma(a: &PyFloat, b: &PyFloat, c: &PyFloat) -> PyResult<PyFloat> {
+    Ok(PyFloat {
+        inner: Float::fma(&a.inner, &b.inner, &c.inner),
+    })
+}
+
 /// Returns the mathematical constant e (Euler's number) with the given semantics.
 ///
 /// Args:
@@ -353,6 +367,7 @@ fn _arpfloat(_py: Python, m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(e, m)?)?;
     m.add_function(wrap_pyfunction!(ln2, m)?)?;
     m.add_function(wrap_pyfunction!(zero, m)?)?;
+    m.add_function(wrap_pyfunction!(fma, m)?)?;
     m.add_function(wrap_pyfunction!(from_i64, m)?)?;
     m.add_function(wrap_pyfunction!(from_f64, m)?)?;
     Ok(())

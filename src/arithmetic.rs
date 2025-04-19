@@ -4,7 +4,7 @@ extern crate alloc;
 use crate::bigint::BigInt;
 
 use super::bigint::LossFraction;
-use super::float::{shift_right_with_loss, Category, Float, RoundingMode};
+use super::float::{Category, Float, RoundingMode};
 use core::cmp::Ordering;
 use core::ops::{
     Add, AddAssign, Div, DivAssign, Mul, MulAssign, Sub, SubAssign,
@@ -395,29 +395,85 @@ impl Float {
         // log(2^(e_a+1)*2^(e_b+1)) = e_a + e_b + 2.
         let mut exp = a.get_exp() + b.get_exp();
 
-        let mut loss = LossFraction::ExactlyZero;
-
         let a_significand = a.get_mantissa();
         let b_significand = b.get_mantissa();
-
-        let mut ab_significand = a_significand * b_significand;
-        let first_non_zero = ab_significand.msb_index();
+        let ab_significand = a_significand * b_significand;
 
         // The exponent is correct, but the bits are not in the right place.
         // Set the right exponent for where the bits are placed, and fix the
         // exponent below.
         exp -= sem.get_mantissa_len() as i64;
 
-        let precision = a.get_semantics().get_precision();
-        if first_non_zero > precision {
-            let bits = first_non_zero - precision;
-
-            (ab_significand, loss) =
-                shift_right_with_loss(&ab_significand, bits);
-            exp += bits as i64;
-        }
-
+        let loss = LossFraction::ExactlyZero;
         (Self::from_parts(sem, sign, exp, ab_significand), loss)
+    }
+
+    // Perform a fused multiply-add of normal numbers, without rounding.
+    fn fused_mul_add_normals(
+        a: &Self,
+        b: &Self,
+        c: &Self,
+    ) -> (Self, LossFraction) {
+        debug_assert_eq!(a.get_semantics(), b.get_semantics());
+        let sem = a.get_semantics();
+
+        // Multiply a and b, without rounding.
+        let sign = a.get_sign() ^ b.get_sign();
+        let mut ab = Self::mul_normals(a, b, sign).0;
+
+        // Shift the product, to allow enough precision for the addition.
+        // Notice that this can be implemented more efficiently with 3 extra
+        // bits and sticky bits.
+        // See 8.5. Floating-Point Fused Multiply-Add, Page 255.
+        let mut c = c.clone();
+        let extra_bits = sem.get_precision() + 1;
+        ab.shift_significand_left(extra_bits as u64);
+        c.shift_significand_left(extra_bits as u64);
+
+        // Perform the addition, without rounding.
+        Self::add_or_sub_normals(&ab, &c, false)
+    }
+
+    /// Compute a*b + c, with the rounding mode `rm`.
+    pub fn fused_mul_add_with_rm(
+        a: &Self,
+        b: &Self,
+        c: &Self,
+        rm: RoundingMode,
+    ) -> Self {
+        if a.is_normal() && b.is_normal() && c.is_normal() {
+            let (mut res, loss) = Self::fused_mul_add_normals(a, b, c);
+            res.normalize(rm, loss); // Finally, round the result.
+            res
+        } else {
+            // Perform two operations. First, handle non-normal values.
+
+            // NaN anything = NaN
+            if a.is_nan() || b.is_nan() || c.is_nan() {
+                return Self::nan(a.get_semantics(), a.get_sign());
+            }
+            // (infinity * 0) + c = NaN
+            if (a.is_inf() && b.is_zero()) || (a.is_zero() && b.is_inf()) {
+                return Self::nan(a.get_semantics(), a.get_sign());
+            }
+            // (normal * normal) + infinity = infinity
+            if a.is_normal() && b.is_normal() && c.is_inf() {
+                return c.clone();
+            }
+            // (normal * 0) + c = c
+            if a.is_zero() || b.is_zero() {
+                return c.clone();
+            }
+
+            // Multiply (with rounding), and add (with rounding).
+            let ab = Self::mul_with_rm(a, b, rm);
+            Self::add_with_rm(&ab, c, rm)
+        }
+    }
+
+    /// Compute a*b + c.
+    pub fn fma(a: &Self, b: &Self, c: &Self) -> Self {
+        Self::fused_mul_add_with_rm(a, b, c, c.get_rounding_mode())
     }
 }
 
@@ -455,6 +511,96 @@ fn mul_regular_values() {
             // Check that the results are bit identical, or are both NaN.
             assert_eq!(r0_bits, r1_bits);
         }
+    }
+}
+
+#[test]
+fn test_fma() {
+    let v0 = -10.;
+    let v1 = -1.1;
+    let v2 = 0.000000000000000000000000000000000000001;
+    let af = Float::from_f64(v0);
+    let bf = Float::from_f64(v1);
+    let cf = Float::from_f64(v2);
+
+    let r = Float::fused_mul_add_with_rm(
+        &af,
+        &bf,
+        &cf,
+        RoundingMode::NearestTiesToEven,
+    );
+
+    assert_eq!(f64::mul_add(v0, v1, v2), r.as_f64());
+}
+
+#[test]
+fn test_fma_simple() {
+    use super::utils;
+    // Test the multiplication of various irregular values.
+    let values = utils::get_special_test_values();
+    for a in values {
+        for b in values {
+            for c in values {
+                let af = Float::from_f64(a);
+                let bf = Float::from_f64(b);
+                let cf = Float::from_f64(c);
+
+                let rf = Float::fused_mul_add_with_rm(
+                    &af,
+                    &bf,
+                    &cf,
+                    RoundingMode::NearestTiesToEven,
+                );
+
+                let r0 = rf.as_f64();
+                let r1: f64 = a.mul_add(b, c);
+                assert_eq!(r0.is_finite(), r1.is_finite());
+                assert_eq!(r0.is_nan(), r1.is_nan());
+                assert_eq!(r0.is_infinite(), r1.is_infinite());
+                // Check that the results are bit identical, or are both NaN.
+                assert!(r1.is_nan() || r1.is_infinite() || r0 == r1);
+            }
+        }
+    }
+}
+
+#[test]
+fn test_fma_random_vals() {
+    use super::utils;
+
+    let mut lfsr = utils::Lfsr::new();
+
+    fn mul_f32(a: f32, b: f32, c: f32) -> f32 {
+        let a = Float::from_f32(a);
+        let b = Float::from_f32(b);
+        let c = Float::from_f32(c);
+        let k = Float::fused_mul_add_with_rm(
+            &a,
+            &b,
+            &c,
+            RoundingMode::NearestTiesToEven,
+        );
+        k.as_f32()
+    }
+
+    for _ in 0..50000 {
+        let v0 = lfsr.get64() as u32;
+        let v1 = lfsr.get64() as u32;
+        let v2 = lfsr.get64() as u32;
+
+        let f0 = f32::from_bits(v0);
+        let f1 = f32::from_bits(v1);
+        let f2 = f32::from_bits(v2);
+
+        let r0 = mul_f32(f0, f1, f2);
+        let r1 = f32::mul_add(f0, f1, f2);
+        assert_eq!(r0.is_finite(), r1.is_finite());
+        assert_eq!(r0.is_nan(), r1.is_nan());
+        assert_eq!(r0.is_infinite(), r1.is_infinite());
+        let r0_bits = r0.to_bits();
+        let r1_bits = r1.to_bits();
+        // Check that the results are bit identical, or are both NaN.
+        assert!(r1.is_nan() || r0_bits == r1_bits);
     }
 }
 

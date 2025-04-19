@@ -286,6 +286,11 @@ impl Float {
         self.sem
     }
 
+    /// Returns the rounding mode of the number.
+    pub fn get_rounding_mode(&self) -> RoundingMode {
+        self.sem.get_rounding_mode()
+    }
+
     /// Update the sign of the float to `sign`. True means negative.
     pub fn set_sign(&mut self, sign: bool) {
         self.sign = sign
