@@ -3,7 +3,7 @@ from setuptools_rust import Binding, RustExtension
 
 setup(
     name="arpfloat",
-    version="0.1.10",  # Match the version in Cargo.toml
+    version="0.1.11",  # Match the version in Cargo.toml
     description="Arbitrary-precision floating point library",
     author="Nadav Rotem",
     author_email="nadav256@gmail.com",
@@ -20,10 +20,4 @@ setup(
     packages=["arpfloat"],
     zip_safe=False,
     python_requires=">=3.6",
-    classifiers=[
-        "Programming Language :: Python :: 3",
-        "Programming Language :: Rust",
-        "License :: OSI Approved :: Apache Software License",
-        "Operating System :: OS Independent",
-    ],
 )
