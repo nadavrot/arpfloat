@@ -58,4 +58,4 @@ FP64 = Semantics(11, 53, "NearestTiesToEven")  # Double precision
 FP128 = Semantics(15, 113, "NearestTiesToEven")  # Quadruple precision
 FP256 = Semantics(19, 237, "NearestTiesToEven")  # Octuple precision
 
-version = "0.1.10"
+version = "0.1.11"
