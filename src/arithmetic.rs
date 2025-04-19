@@ -871,6 +871,7 @@ fn test_fma() {
     assert_eq!(f64::mul_add(v0, v1, v2), r.as_f64());
 }
 
+#[cfg(feature = "std")]
 #[test]
 fn test_fma_simple() {
     use super::utils;

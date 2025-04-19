@@ -361,6 +361,11 @@ impl Float {
         }
     }
 
+    #[cfg(not(feature = "std"))]
+    pub fn dump(&self) {
+        // No-op in no_std environments
+    }
+
     /// Returns the exponent bias for the number, as a positive number.
     /// https://en.wikipedia.org/wiki/IEEE_754#Basic_and_interchange_formats
     pub(crate) fn get_bias(&self) -> i64 {

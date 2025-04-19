@@ -24,4 +24,4 @@ harness = false
 [features]
 default = ["std", "python"]
 std = []
-python=["pyo3"]
+python=["pyo3", "std"]

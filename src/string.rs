@@ -442,6 +442,7 @@ fn test_convert_to_string() {
     assert_eq!("3.140625", to_str_w_bf16(f64::consts::PI));
 }
 
+#[cfg(feature = "std")]
 #[test]
 fn test_from_string() {
     assert_eq!("-3.", Float::try_from("-3.0").unwrap().to_string());
