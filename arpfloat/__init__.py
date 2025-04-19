@@ -35,8 +35,19 @@ Constants:
 
 from ._arpfloat import PyFloat as Float
 from ._arpfloat import PySemantics as Semantics
-from ._arpfloat import pi, e, ln2, zero, fma, from_i64, from_f64
+from ._arpfloat import pi, e, ln2, zero, fma
+from ._arpfloat import from_fp64 as fp64
+from ._arpfloat import from_i64 as i64
 
+# Add __radd__ method to Float class for sum() compatibility
+
+
+def _float_radd(self, other):
+    if isinstance(other, (int, float)) and other == 0:
+        return self
+    return self.__add__(other)
+
+Float.__radd__ = _float_radd
 
 # Define standard floating-point types
 # Parameters match IEEE 754 standard formats

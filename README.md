@@ -133,12 +133,12 @@ The [examples](examples) directory contains a few programs that demonstrate the 
 The has python bindings that can be installed with 'pip install -e .'
 
 ```python
-    Examples:
-    >>> from arpfloat import Float, FP16
-    >>> x = from_f64(FP32, 2.5).cast(FP16)
-    >>> y = from_f64(FP32, 1.5).cast(FP16)
+    >>> from arpfloat import Float, Semantics, FP16, BF16, FP32, fp64, pi
+
+    >>> x = fp64(2.5).cast(FP16)
+    >>> y = fp64(1.5).cast(FP16)
     >>> x + y
-    4
+    4.
 
     >>> sem = Semantics(10, 10, "NearestTiesToEven")
     >>> sem
@@ -159,16 +159,25 @@ Nvidia's new [FP8](https://docs.nvidia.com/deeplearning/transformer-engine/user-
 format can be defined as:
 
 ```python
-    >>> from arpfloat import *
-    >>> E4M3 = Semantics(4, 3 + 1, "Zero") # Add +1 for implicit bit
-    >>> x = Float(E4M3, False, 0b101, 0b101)
-    >>> print(x)
-    .40625
+    import numpy as np
+    from arpfloat import FP32, fp64, Semantics, zero
 
-    >>> E5M2 = Semantics(5, 2 + 1, "Zero") # Add +1 for implicit bit
-    >>> x = Float(E5M2, False, 0b1101, 0b10)
-    >>> print(x)
-    .375
+    # Create two random numpy arrays in the range [0,1)
+    A0 = np.random.rand(1000000)
+    A1 = np.random.rand(1000000)
+
+    # Calculate the numpy dot product of the two arrays
+    print("Using fp32 arithmetic    : ", np.dot(A0, A1))
+
+    # Create the fp8 format (4 exponent bits, 3 mantissa bits + 1 implicit bit)
+    FP8 = Semantics(4, 3 + 1, "NearestTiesToEven")
+
+    # Convert the arrays to fp8
+    A0 = [fp64(x).cast(FP8) for x in A0]
+    A1 = [fp64(x).cast(FP8) for x in A1]
+
+    dot = sum([x.cast(FP32)*y.cast(FP32) for x, y in zip(A0, A1)])
+    print("Using fp8/fp32 arithmetic: ", dot)
 ```
 
 ### Resources

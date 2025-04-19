@@ -344,16 +344,14 @@ fn from_i64(sem: &Bound<'_, PyAny>, val: i64) -> PyResult<PyFloat> {
     })
 }
 
-/// Returns a new float with the f64 value 'val' with the given semantics.
+/// Returns a new float with the fp64 value 'val'.
 ///
 /// Args:
-///     sem: The semantics to use
 ///     val: The f64 value
 #[pyfunction]
-fn from_f64(sem: &Bound<'_, PyAny>, val: f64) -> PyResult<PyFloat> {
-    let sem: PyRef<PySemantics> = sem.extract()?;
+fn from_fp64(val: f64) -> PyResult<PyFloat> {
     Ok(PyFloat {
-        inner: Float::from_f64(val).cast(sem.inner),
+        inner: Float::from_f64(val),
     })
 }
 
@@ -369,6 +367,6 @@ fn _arpfloat(_py: Python, m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(zero, m)?)?;
     m.add_function(wrap_pyfunction!(fma, m)?)?;
     m.add_function(wrap_pyfunction!(from_i64, m)?)?;
-    m.add_function(wrap_pyfunction!(from_f64, m)?)?;
+    m.add_function(wrap_pyfunction!(from_fp64, m)?)?;
     Ok(())
 }
