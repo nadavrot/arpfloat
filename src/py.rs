@@ -239,6 +239,41 @@ impl PyFloat {
             inner: self.inner.cast_with_rm(sem.inner, rm.unwrap()),
         }
     }
+
+    /// Returns the number with the sign flipped.
+    fn neg(&self) -> PyFloat {
+        PyFloat {
+            inner: self.inner.neg(),
+        }
+    }
+    /// Returns the number with the sign flipped.
+    fn __neg__(&self) -> PyFloat {
+        self.neg()
+    }
+    /// Returns true if the number is less than the other number.
+    fn __lt__(&self, other: &PyFloat) -> bool {
+        self.inner < other.inner
+    }
+    /// Returns true if the number is less than or equal to the other number.
+    fn __le__(&self, other: &PyFloat) -> bool {
+        self.inner <= other.inner
+    }
+    /// Returns true if the number is equal to the other number.
+    fn __eq__(&self, other: &PyFloat) -> bool {
+        self.inner == other.inner
+    }
+    /// Returns true if the number is not equal to the other number.
+    fn __ne__(&self, other: &PyFloat) -> bool {
+        self.inner != other.inner
+    }
+    /// Returns true if the number is greater than the other number.
+    fn __gt__(&self, other: &PyFloat) -> bool {
+        self.inner > other.inner
+    }
+    /// Returns true if the number is greater than or equal to the other number.
+    fn __ge__(&self, other: &PyFloat) -> bool {
+        self.inner >= other.inner
+    }
     /// Returns the sine of the number.
     fn sin(&self) -> PyFloat {
         PyFloat {
