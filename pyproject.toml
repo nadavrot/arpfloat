@@ -17,12 +17,3 @@ Homepage = "https://github.com/nadavrot/arpfloat"
 Documentation = "https://docs.rs/arpfloat/"
 Repository = "https://github.com/nadavrot/arpfloat"
 
-[tool.setuptools]
-packages = ["arpfloat"]
-package-data = {"arpfloat" = ["py.typed"]}
-zip-safe = false
-
-[tool.setuptools-rust]
-rust-extensions = [
-    {path = ".", binding = "PyO3", features = ["python"]}
-]
