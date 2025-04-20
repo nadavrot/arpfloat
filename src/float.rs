@@ -125,6 +125,13 @@ impl Semantics {
         let e = self.get_exponent_len();
         ((1u64 << (e - 1)) - 1) as i64
     }
+    /// Returns the upper and lower bounds of the exponent.
+    pub fn get_exp_bounds(&self) -> (i64, i64) {
+        let exp_min: i64 = -self.get_bias() + 1;
+        // The highest value is 0xFFFE, because 0xFFFF is used for signaling.
+        let exp_max: i64 = (1 << self.get_exponent_len()) - self.get_bias() - 2;
+        (exp_min, exp_max)
+    }
 }
 
 /// Declare the different categories of the floating point number. These
@@ -374,10 +381,7 @@ impl Float {
 
     /// Returns the upper and lower bounds of the exponent.
     pub fn get_exp_bounds(&self) -> (i64, i64) {
-        let exp_min: i64 = -self.get_bias() + 1;
-        // The highest value is 0xFFFE, because 0xFFFF is used for signaling.
-        let exp_max: i64 = (1 << self.get_exponent_len()) - self.get_bias() - 2;
-        (exp_min, exp_max)
+        self.sem.get_exp_bounds()
     }
 }
 
@@ -737,4 +741,30 @@ pub fn test_semantics_size() {
     assert_eq!(FP32.log_precision(), 5);
     assert_eq!(FP64.log_precision(), 6);
     assert_eq!(FP128.log_precision(), 7);
+}
+
+impl Semantics {
+    /// Returns the maximum value of the number.
+    pub fn get_max_positive_value(&self) -> Float {
+        let exp = self.get_exp_bounds().1;
+        let mantissa = BigInt::all1s(self.get_precision());
+        Float::from_parts(*self, false, exp, mantissa)
+    }
+
+    /// Returns the minimum positive value of the number (subnormal).
+    /// See https://en.wikipedia.org/wiki/IEEE_754
+    pub fn get_min_positive_value(&self) -> Float {
+        let exp = self.get_exp_bounds().0;
+        let mantissa = BigInt::one();
+        Float::from_parts(*self, false, exp, mantissa)
+    }
+}
+
+#[test]
+fn test_min_max_val() {
+    assert_eq!(FP16.get_max_positive_value().as_f64(), 65504.0);
+    assert_eq!(FP32.get_max_positive_value().as_f64(), f32::MAX as f64);
+    assert_eq!(FP64.get_max_positive_value().as_f64(), f64::MAX);
+    assert_eq!(FP32.get_min_positive_value().as_f32(), f32::from_bits(0b01));
+    assert_eq!(FP64.get_min_positive_value().as_f64(), f64::from_bits(0b01));
 }

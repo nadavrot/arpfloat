@@ -342,7 +342,7 @@ impl BigInt {
     }
 
     fn zeros(size: usize) -> Vec<u64> {
-        core::iter::repeat(0).take(size).collect()
+        core::iter::repeat_n(0, size).collect()
     }
 
     /// Multiply `rhs` to self, and return true if the operation overflowed.

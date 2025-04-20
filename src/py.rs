@@ -53,6 +53,18 @@ impl PySemantics {
     fn __repr__(&self) -> String {
         self.__str__()
     }
+    /// Returns the maximum positive value of the number.
+    fn get_max_positive_value(&self) -> PyFloat {
+        PyFloat {
+            inner: self.inner.get_max_positive_value(),
+        }
+    }
+    /// Returns the minimum positive value of the number.
+    fn get_min_positive_value(&self) -> PyFloat {
+        PyFloat {
+            inner: self.inner.get_min_positive_value(),
+        }
+    }
 }
 
 /// A class representing arbitrary precision floating-point numbers.
