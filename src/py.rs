@@ -65,6 +65,13 @@ impl PySemantics {
             inner: self.inner.get_min_positive_value(),
         }
     }
+    /// Returns true if the number can be represented exactly in this format.
+    /// A number can be represented exactly if the exponent is in the range, and
+    /// the mantissa is not too large. In other words, the number 'val' can be
+    /// converted to this format without any loss of accuracy.
+    fn can_represent_exactly(&self, val: &PyFloat) -> bool {
+        self.inner.can_represent_exactly(&val.inner)
+    }
 }
 
 /// A class representing arbitrary precision floating-point numbers.

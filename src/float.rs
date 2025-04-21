@@ -758,6 +758,45 @@ impl Semantics {
         let mantissa = BigInt::one();
         Float::from_parts(*self, false, exp, mantissa)
     }
+
+    /// Returns true if the number can be represented exactly in this format.
+    /// A number can be represented exactly if the exponent is in the range, and
+    /// the mantissa is not too large. In other words, the number 'val' can be
+    /// converted to this format without any loss of accuracy.
+    pub fn can_represent_exactly(&self, val: &Float) -> bool {
+        // Can always represent Inf, NaN, Zero.
+        if !val.is_normal() {
+            return true;
+        }
+
+        // Check the semantics of the other value.
+        let other_sem = val.get_semantics();
+        if other_sem.get_precision() <= self.get_precision()
+            && other_sem.get_exponent_len() <= self.get_exponent_len()
+        {
+            return true;
+        }
+
+        // Check the exponent value.
+        let exp = val.get_exp();
+        let bounds = self.get_exp_bounds();
+        if exp < bounds.0 || exp > bounds.1 {
+            return false;
+        }
+
+        // Check if the mantissa is zero.
+        if val.get_mantissa().is_zero() {
+            return true;
+        }
+
+        // Check how much we can shift-right the number without losing bits.
+        let last = val.get_mantissa().trailing_zeros();
+        let first = val.get_mantissa().msb_index();
+        // Notice that msb_index is 1-based, but this is okay because we want to
+        // count the number of bits including the last.
+        let used_bits = first - last;
+        used_bits <= self.get_precision()
+    }
 }
 
 #[test]
@@ -767,4 +806,28 @@ fn test_min_max_val() {
     assert_eq!(FP64.get_max_positive_value().as_f64(), f64::MAX);
     assert_eq!(FP32.get_min_positive_value().as_f32(), f32::from_bits(0b01));
     assert_eq!(FP64.get_min_positive_value().as_f64(), f64::from_bits(0b01));
+}
+
+#[test]
+fn test_can_represent_exactly() {
+    assert!(FP16.can_represent_exactly(&Float::from_f64(1.0)));
+    assert!(FP16.can_represent_exactly(&Float::from_f64(65504.0)));
+    assert!(!FP16.can_represent_exactly(&Float::from_f64(65504.1)));
+    assert!(!FP16.can_represent_exactly(&Float::from_f64(0.0001)));
+
+    let m10 = BigInt::from_u64(0b1000000001);
+    let m11 = BigInt::from_u64(0b10000000001);
+    let m12 = BigInt::from_u64(0b100000000001);
+
+    let val10bits = Float::from_parts(FP32, false, 0, m10);
+    let val11bits = Float::from_parts(FP32, false, 0, m11);
+    let val12bits = Float::from_parts(FP32, false, 0, m12);
+
+    assert!(FP16.can_represent_exactly(&val10bits));
+    assert!(FP16.can_represent_exactly(&val11bits));
+    assert!(!FP16.can_represent_exactly(&val12bits));
+
+    assert!(FP32.can_represent_exactly(&Float::pi(FP32)));
+    assert!(!FP32.can_represent_exactly(&Float::pi(FP64)));
+    assert!(FP64.can_represent_exactly(&Float::pi(FP32)));
 }
