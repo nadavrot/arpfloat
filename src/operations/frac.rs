@@ -30,7 +30,15 @@ impl Float {
         for _ in 0..n.max(2) {
             let int = real.trunc();
             a.push(int.convert_normal_to_integer(rm));
-            real = &one / (real - int);
+            let denominator = real - int;
+            if denominator.is_zero() {
+                break;
+            }
+            real = &one / (denominator);
+        }
+
+        if a.len() < 2 {
+            return (a[0].clone(), BigInt::one()); // Found an exact value.
         }
 
         let one = BigInt::one();
@@ -65,4 +73,14 @@ fn test_frac() {
     assert_eq!((333, 106), (p.as_u64(), q.as_u64()));
     let (p, q) = x.as_fraction(4);
     assert_eq!((355, 113), (p.as_u64(), q.as_u64()));
+}
+
+#[cfg(feature = "std")]
+#[test]
+fn fix_loop_bug() {
+    let (p, q) = Float::from_f64(5.).as_fraction(3);
+    assert_eq!((5, 1), (p.as_u64(), q.as_u64()));
+
+    let (p, q) = Float::from_f64(0.5).as_fraction(3);
+    assert_eq!((1, 2), (p.as_u64(), q.as_u64()));
 }
