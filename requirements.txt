@@ -1,0 +1,5 @@
+numpy==2.2.4
+semantic-version==2.10.0
+setuptools==78.1.0
+setuptools-rust==1.11.1
+wheel==0.45.1
